@@ -3,8 +3,12 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 
-/** cmaps, fuentes estándar y decodificadores wasm que pdf.js pide a demanda (ver vite.config.ts). */
-const ASSETS = `${import.meta.env.BASE_URL}pdfjs/`;
+/**
+ * cmaps, fuentes estándar y decodificadores wasm que pdf.js pide a demanda (ver
+ * vite.config.ts). URL absoluta: el worker de pdf.js resolvería una relativa
+ * contra su propio archivo, no contra la página (p. ej. en GitHub Pages).
+ */
+const ASSETS = new URL(`${import.meta.env.BASE_URL}pdfjs/`, document.baseURI).href;
 
 /** Límites de seguridad del lienzo (los navegadores fallan en silencio por encima). */
 const MAX_CANVAS_SIDE = 8192;

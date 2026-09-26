@@ -55,6 +55,15 @@ Cada hoja de papel (de la exterior, k = 0, a la central) tiene un **frente** y u
 
 El editor muestra cada cara con la miniatura del PDF y el número de página resultante sobre cada mitad, avisa de páginas repetidas o sin usar, y guarda la asignación por nombre de archivo (si el PDF cambia de cantidad de páginas, se avisa y se descartan las referencias inválidas). **Autocompletar** asigna el PDF en orden de impresión a doble faz (PDF 1 → frente hoja 1, PDF 2 → dorso hoja 1, …).
 
+## Estudio: fotos y video promocional
+
+Botón **Estudio** (con un libro cargado):
+
+- **Foto:** luz (Estudio, Cálida, Dramática, Suave, Fría), fondo (presets, color a elección o transparente), encuadre (libre, 1:1, 4:5, 9:16, 16:9 — lo que se ve es lo que se exporta), ángulos predefinidos, lente de 18 a 135 mm conservando el encuadre, profundidad de campo, viñeta, grano y "hoja en el aire". Exporta PNG/JPG en 2K o 4K.
+- **Video promocional:** 9:16 o 1:1, estilo (Elegante, Dinámico, Minimal) y duración (10–30 s). Un director genera el guion a partir del álbum —intro con el libro cerrado, apertura de tapa, dobles páginas destacadas con giros en cámara, cierre— y lo graba cuadro a cuadro (WebCodecs + mediabunny) a MP4 H.264 de 30 fps, sin cuadros perdidos. Hay vista previa en tiempo real.
+
+Código: `src/studio/` (encuadre, guion, reproductor, grabador), `src/book/PostFX.ts` (profundidad de campo, viñeta, grano, barridos, fundidos) y `src/book/Stage.ts` (luces y fondos). Los motion graphics de 10 s se arman aparte, en [`motion/`](motion/README.md).
+
 ## Extender
 
 - **Otro modo de lectura:** agregar una función en `layouts.ts` que devuelva `BookLayout`.

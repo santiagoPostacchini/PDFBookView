@@ -1,5 +1,5 @@
 import { Group, MeshStandardMaterial, Vector2, type Texture, type Vector3 } from 'three';
-import { DEFAULT_FLIP, easeInOutCubic, easeOutCubic, FlipTween, type FlipTuning } from './flipAnimation';
+import { DEFAULT_FLIP, easeInOutCubic, easeOutCubic, flipArc, FlipTween, type FlipTuning } from './flipAnimation';
 import { Leaf, type Face } from './Leaf';
 import { FLAT_RIGHT, flexPose, projectedReach, rowShape, type LeafPose } from './paperDeformer';
 import type { SpreadInfo } from './types';
@@ -70,6 +70,7 @@ export class Book {
   private readonly edgeMaterial: MeshStandardMaterial;
   private readonly tweens = new Map<Leaf, FlipTween>();
   private drag: DragState | null = null;
+  private heldLeaf: Leaf | null = null;
   private spreadIndex = 0;
 
   constructor(options: BookOptions) {
@@ -163,11 +164,13 @@ export class Book {
     this.goToSpread(Math.ceil(pageIndex / 2));
   }
 
-  goToSpread(target: number): void {
+  /** @param speed multiplicador de velocidad de giro (2 = el doble de rápido). */
+  goToSpread(target: number, speed = 1): void {
     if (this.drag) return;
     target = Math.max(0, Math.min(this.leafCount, Math.round(target)));
     const from = this.spreadIndex;
     if (target === from) return;
+    this.releaseHeldLeaf();
 
     const forward = target > from;
     const indices: number[] = [];
@@ -175,14 +178,49 @@ export class Book {
     else for (let k = from - 1; k >= target; k--) indices.push(k);
 
     // Saltos largos: cascada de hojas escalonada y algo más rápida.
-    const stagger = indices.length > 1 ? Math.min(0.09, 0.8 / indices.length) : 0;
-    const speed = indices.length > 2 ? 1.35 : 1;
+    const stagger = (indices.length > 1 ? Math.min(0.09, 0.8 / indices.length) : 0) / speed;
+    const leafSpeed = (indices.length > 2 ? 1.35 : 1) * speed;
     indices.forEach((k, i) => {
       const leaf = this.leaves[k];
-      this.tweens.set(leaf, new FlipTween(leaf.pose, forward ? Math.PI : 0, this.tuning, i * stagger, easeInOutCubic, speed));
+      this.tweens.set(leaf, new FlipTween(leaf.pose, forward ? Math.PI : 0, this.tuning, i * stagger, easeInOutCubic, leafSpeed));
     });
     this.spreadIndex = target;
     this.onSpreadChange?.(this.spread);
+  }
+
+  /** Salta a una doble página sin animación (hojas y centrado en su lugar final). */
+  jumpTo(target: number): void {
+    this.drag = null;
+    this.tweens.clear();
+    this.heldLeaf = null;
+    this.spreadIndex = Math.max(0, Math.min(this.leafCount, Math.round(target)));
+    this.leaves.forEach((leaf, k) => leaf.setPose({ ...FLAT_RIGHT, angle: k < this.spreadIndex ? Math.PI : 0 }));
+    this.root.position.x = this.centerOffset();
+    this.onSpreadChange?.(this.spread);
+  }
+
+  get isAnimating(): boolean {
+    return this.tweens.size > 0 || this.drag !== null;
+  }
+
+  /**
+   * Congela la hoja superior derecha a mitad de giro (0 = apoyada, 1 = del otro
+   * lado), con la curvatura natural del papel. Útil para fotos de producto.
+   */
+  holdLeaf(progress: number): void {
+    const leaf = this.leaves[this.spreadIndex];
+    if (!leaf || this.drag) return;
+    const e = Math.max(0, Math.min(0.98, progress));
+    if (this.heldLeaf && this.heldLeaf !== leaf) this.releaseHeldLeaf();
+    this.tweens.delete(leaf);
+    this.heldLeaf = e > 0 ? leaf : null;
+    leaf.setPose({ ...FLAT_RIGHT, angle: Math.PI * e, curl: flipArc(e, this.tuning) });
+  }
+
+  private releaseHeldLeaf(): void {
+    if (!this.heldLeaf) return;
+    this.heldLeaf.setPose({ ...FLAT_RIGHT, angle: this.heldLeaf.index < this.spreadIndex ? Math.PI : 0 });
+    this.heldLeaf = null;
   }
 
   // ── Arrastre ──────────────────────────────────────────────────────────────
@@ -199,6 +237,7 @@ export class Book {
 
   beginDrag(side: Side, grab: Vector2): boolean {
     if (!this.canDrag(side)) return false;
+    this.releaseHeldLeaf();
     const leaf = this.leaves[side === 'right' ? this.spreadIndex : this.spreadIndex - 1];
     this.tweens.delete(leaf);
     this.drag = {

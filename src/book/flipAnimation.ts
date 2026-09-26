@@ -16,6 +16,15 @@ export interface FlipTuning {
 
 export const DEFAULT_FLIP: FlipTuning = { duration: 0.95, curlAmplitude: 1.3, lead: 1.2, lag: 1.0 };
 
+/**
+ * Arco del papel en función del avance e ∈ [0, 1] del giro: primero el borde se
+ * levanta adelante; desde la mitad queda detrás (resistencia del aire) y la
+ * hoja cae en forma de "C". Multiplicar por la dirección del giro.
+ */
+export function flipArc(e: number, { lead, lag, curlAmplitude }: FlipTuning): number {
+  return curlAmplitude * Math.sin(Math.PI * e) * (lead * (1 - e) ** 2 - lag * e);
+}
+
 /** Animación de una hoja desde su pose actual hasta quedar apoyada en un lado. */
 export class FlipTween {
   private elapsed = 0;
@@ -55,13 +64,9 @@ export class FlipTween {
     this.elapsed = Math.min(this.duration, this.elapsed + dt);
     const t = this.elapsed / this.duration;
     const e = this.ease(t);
-    const { lead, lag, curlAmplitude } = this.tuning;
-    // Arco del papel: primero el borde se levanta adelante; desde la mitad del giro
-    // queda detrás (resistencia del aire) y la hoja cae en forma de "C".
-    const arc = Math.sin(Math.PI * e) * (lead * (1 - e) ** 2 - lag * e);
     return {
       angle: this.from.angle + (this.toAngle - this.from.angle) * e,
-      curl: this.from.curl * (1 - e) + this.dir * curlAmplitude * arc,
+      curl: this.from.curl * (1 - e) + this.dir * flipArc(e, this.tuning),
       twist: this.from.twist * (1 - e) ** 2,
       curlTwist: this.from.curlTwist * (1 - e) ** 2,
     };

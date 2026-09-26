@@ -1,0 +1,6 @@
+node_modules
+out
+# Videos y temas de clientes: no se versionan (el repo es público)
+public/*/
+albums/*.json
+!albums/ejemplo.json

@@ -41,5 +41,7 @@ export default defineConfig({
   base: './',
   plugins: [react(), pdfjsAssets()],
   build: { target: 'es2022', chunkSizeWarningLimit: 1500 },
-  test: { environment: 'node' },
+  // motion/ es un proyecto aparte (Remotion) con renders pesados: fuera del watcher y de los tests.
+  server: { watch: { ignored: ['**/motion/**'] } },
+  test: { environment: 'node', include: ['src/**/*.test.ts'] },
 });

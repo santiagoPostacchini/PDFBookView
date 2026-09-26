@@ -962,6 +962,256 @@ canvas.is-loading {
   }
 }
 
+/* ── Estudio: fotos y video ──────────────────────────────────── */
+
+/* En estudio el lienzo toma la proporción del cuadro y se centra en la vista. */
+.book-canvas {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+
+.app.is-studio .book-canvas {
+  top: 96px;
+  bottom: 84px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(255, 245, 230, 0.14), 0 18px 50px rgba(0, 0, 0, 0.45);
+  /* Damero visible sólo con fondo transparente */
+  background: repeating-conic-gradient(#3a3632 0 25%, #2b2825 0 50%) 0 0 / 22px 22px;
+}
+
+.app.is-studio .filmstrip {
+  display: none;
+}
+
+.studio-panel {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 5;
+  width: var(--editor-width);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(24, 22, 20, 0.92);
+}
+
+.studio-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 14px 6px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--panel-border);
+}
+
+.studio-tabs button {
+  flex: 1;
+  height: 32px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.studio-tabs button.is-active {
+  background: rgba(233, 164, 95, 0.18);
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px rgba(233, 164, 95, 0.35);
+}
+
+.studio-scroll {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+.studio-section {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.studio-section:last-child {
+  border-bottom: 0;
+}
+
+.studio-section h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: rgba(233, 164, 95, 0.45);
+}
+
+.chip.is-active {
+  background: rgba(233, 164, 95, 0.18);
+  border-color: rgba(233, 164, 95, 0.55);
+  color: var(--accent-strong);
+}
+
+.chip:disabled,
+.swatch:disabled,
+.style-card:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatch {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 245, 230, 0.18);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.swatch.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(233, 164, 95, 0.35);
+}
+
+.swatch-custom {
+  background: conic-gradient(#f28b82, #fbbc04, #ccff90, #a7ffeb, #aecbfa, #d7aefb, #f28b82);
+}
+
+.swatch-custom input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.swatch-transparent {
+  background: repeating-conic-gradient(#d9d9d9 0 25%, #ffffff 0 50%) 0 0 / 12px 12px;
+}
+
+.slider {
+  display: grid;
+  gap: 4px;
+}
+
+.slider label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.slider output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.slider input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.slider small {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+}
+
+.style-cards {
+  display: grid;
+  gap: 6px;
+}
+
+.style-card {
+  display: grid;
+  gap: 2px;
+  padding: 9px 12px;
+  text-align: left;
+  border-radius: 9px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+
+.style-card small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.style-card.is-active {
+  border-color: rgba(233, 164, 95, 0.6);
+  background: rgba(233, 164, 95, 0.1);
+}
+
+.style-card.is-active b {
+  color: var(--accent-strong);
+}
+
+.record-progress {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.record-progress .link-btn {
+  justify-self: start;
+}
+
+.video-result {
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .studio-panel {
+    left: 14px;
+    width: auto;
+    top: auto;
+    height: 52vh;
+  }
+  .app.is-studio .viewport {
+    right: 0;
+    bottom: 52vh;
+  }
+}
+
 @media (max-width: 760px) {
   .topbar {
     right: 14px;

@@ -9,6 +9,7 @@ import { Filmstrip } from './ui/Filmstrip';
 import {
   IconAlert,
   IconBook,
+  IconCamera,
   IconChevronLeft,
   IconChevronRight,
   IconFirst,
@@ -22,6 +23,7 @@ import {
 } from './ui/icons';
 import { ModeSelector } from './ui/ModeSelector';
 import { SheetEditor } from './ui/SheetEditor';
+import { StudioPanel } from './ui/StudioPanel';
 import { useBookLoader } from './ui/useBookLoader';
 
 const MODE_KEY = 'pdf-book-view.mode';
@@ -56,7 +58,23 @@ export function App() {
   const [dragOver, setDragOver] = useState(false);
   const [plan, setPlan] = useState<SheetPlan | null>(null);
   const [planNotes, setPlanNotes] = useState<string[]>([]);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorOpen, setEditorOpenState] = useState(false);
+  const [studioOpen, setStudioOpenState] = useState(false);
+  // El editor de hojas y el estudio ocupan el mismo panel lateral: abrir uno cierra el otro.
+  const setEditorOpen = useCallback((open: boolean | ((prev: boolean) => boolean)) => {
+    setEditorOpenState((prev) => {
+      const next = typeof open === 'function' ? open(prev) : open;
+      if (next) setStudioOpenState(false);
+      return next;
+    });
+  }, []);
+  const setStudioOpen = useCallback((open: boolean | ((prev: boolean) => boolean)) => {
+    setStudioOpenState((prev) => {
+      const next = typeof open === 'function' ? open(prev) : open;
+      if (next) setEditorOpenState(false);
+      return next;
+    });
+  }, []);
 
   const { book, error: bookError } = useBookLoader(engine, pdf, mode, plan);
   // Declarado después de useBookLoader: al cambiar de PDF primero se desmonta el libro y luego se cierra el documento.
@@ -191,10 +209,11 @@ export function App() {
   const notices = [openError, bookError, ...(mode === 'booklet' ? planNotes : []), book?.hint].filter(Boolean) as string[];
   const showPlanIssue = mode === 'booklet' && !editorOpen && diagnostics && planIssues > 0;
   const editorVisible = editorOpen && mode === 'booklet' && pdf && plan && diagnostics;
+  const studioVisible = studioOpen && !!book && !!engine && !!pdf;
 
   return (
     <div
-      className={`app${dragOver ? ' is-dragover' : ''}${editorVisible ? ' is-editing' : ''}`}
+      className={`app${dragOver ? ' is-dragover' : ''}${editorVisible || studioVisible ? ' is-editing' : ''}${studioVisible ? ' is-studio' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={(e) => e.currentTarget === e.target && setDragOver(false)}
       onDrop={onDrop}
@@ -232,6 +251,17 @@ export function App() {
             <IconSheets />
             Hojas
             {planIssues > 0 && <span className="badge">{planIssues}</span>}
+          </button>
+        )}
+        {book && (
+          <button
+            className={`btn${studioOpen ? ' is-on' : ''}`}
+            onClick={() => setStudioOpen((open) => !open)}
+            aria-pressed={studioOpen}
+            title="Fotos de producto y video promocional"
+          >
+            <IconCamera />
+            Estudio
           </button>
         )}
         {pdf && (
@@ -353,6 +383,10 @@ export function App() {
             </div>
           </footer>
         </>
+      )}
+
+      {studioVisible && (
+        <StudioPanel engine={engine} fileName={pdf.name} spread={spread} onClose={() => setStudioOpen(false)} />
       )}
 
       {editorVisible && (

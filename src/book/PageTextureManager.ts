@@ -33,6 +33,8 @@ export class PageTextureManager {
   private running = false;
   private disposed = false;
   private focusSpread = 0;
+  /** Páginas que no se liberan (p. ej. mientras se graba un video). */
+  private readonly pinned = new Set<number>();
 
   constructor(
     private readonly provider: PageImageProvider,
@@ -69,6 +71,31 @@ export class PageTextureManager {
     this.queue = queue;
     this.evictFar();
     void this.pump();
+  }
+
+  /**
+   * Carga ya (fuera de la cola) las páginas pedidas: todas en miniatura y
+   * `full` en alta, y las fija para que no se liberen hasta `unpin()`.
+   */
+  async preload(full: readonly number[], onProgress?: (done: number, total: number) => void): Promise<void> {
+    const { pageCount } = this.provider;
+    const tasks: Task[] = [
+      ...full.filter((p) => p >= 0 && p < pageCount).map((page) => ({ page, quality: 'full' as const })),
+      ...Array.from({ length: pageCount }, (_, page) => ({ page, quality: 'thumb' as const })),
+    ];
+    for (const task of tasks) if (task.quality === 'full') this.pinned.add(task.page);
+    let done = 0;
+    for (const task of tasks) {
+      if (this.disposed) return;
+      const store = task.quality === 'full' ? this.fulls : this.thumbs;
+      if (!store.has(task.page)) this.store(task.page, task.quality, await this.provider.load(task.page, task.quality));
+      onProgress?.(++done, tasks.length);
+    }
+  }
+
+  unpin(): void {
+    this.pinned.clear();
+    this.evictFar();
   }
 
   getThumbnail(pageIndex: number): PageImage | undefined {
@@ -112,6 +139,8 @@ export class PageTextureManager {
   }
 
   private store(page: number, quality: PageQuality, image: PageImage): void {
+    // La cola y preload() pueden terminar la misma página: se queda la primera.
+    if ((quality === 'full' ? this.fulls : this.thumbs).has(page)) return;
     const texture = new CanvasTexture(image);
     texture.colorSpace = SRGBColorSpace;
     texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
@@ -135,7 +164,7 @@ export class PageTextureManager {
     const keepTo = 2 * (this.focusSpread + this.options.fullRadius);
     for (const [page, texture] of this.fulls) {
       if (this.fulls.size <= this.options.maxFull) break;
-      if (page >= keepFrom && page <= keepTo) continue;
+      if ((page >= keepFrom && page <= keepTo) || this.pinned.has(page)) continue;
       this.fulls.delete(page);
       this.book.setPageTexture(page, this.thumbs.get(page) ?? null);
       texture.dispose();

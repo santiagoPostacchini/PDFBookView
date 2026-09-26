@@ -40,7 +40,7 @@ export const exampleTheme: AlbumTheme = {
   video: '',
   videoStart: 2,
   videoSpeed: 1.2,
-  title: 'Tu álbum',
+  title: 'Álbum personalizado',
   subtitle: 'Hecho a mano, página por página',
   captions: ['Tus fotos', 'Tus recuerdos', 'Tu historia en papel'],
   cta: 'Pedí el tuyo',

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { posePosition } from './framing';
 import { buildPromoScript, pagesToPreload, pickFeaturedSpreads, sampleScript, type PromoStyle } from './promoScript';
 
 const base = { pageWidth: 3 * Math.SQRT1_2, pageHeight: 3 };
@@ -45,6 +46,30 @@ describe('buildPromoScript', () => {
     expect(sampleScript(script, 7.5).fade).toBe(0);
     expect(script.actions[0].spread).toBe(1);
     expect(script.actions.at(-1)!.spread).toBe(0);
+  });
+
+  it.each(cases.filter((c) => c.leafCount > 1))('$style $aspect $duration s: la cámara nunca frena ni salta', (c) => {
+    const script = buildPromoScript({ ...base, ...c });
+    const dt = 1 / 30;
+    const at = (t: number) => {
+      const { pose } = sampleScript(script, t);
+      return [...posePosition(pose), ...pose.target];
+    };
+    const speeds: number[] = [];
+    for (let t = dt; t <= c.duration; t += dt) {
+      const a = at(t - dt);
+      const b = at(t);
+      speeds.push(Math.hypot(...a.map((v, i) => b[i] - v)) / dt);
+    }
+    const sorted = [...speeds].sort((x, y) => x - y);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    // Salvo el último medio segundo (se asienta mientras funde a negro), siempre en movimiento.
+    const moving = speeds.slice(0, speeds.length - 15);
+    expect(Math.min(...moving)).toBeGreaterThan(median * 0.15);
+    // Velocidad pareja: los cambios de ángulo no son latigazos.
+    expect(Math.max(...speeds)).toBeLessThan(median * 6);
+    // Sin cortes: ningún cuadro se mueve de golpe.
+    for (let i = 1; i < speeds.length; i++) expect(Math.abs(speeds[i] - speeds[i - 1])).toBeLessThan(median * 1.5 + 0.5);
   });
 
   it('precarga las páginas de las dobles páginas destacadas', () => {

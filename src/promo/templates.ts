@@ -11,28 +11,16 @@ export const SCENES: Record<SceneKind, { label: string; hint: string; base: numb
   cierre: { label: 'Cierre', hint: 'El álbum se cierra y aparece tu llamado a la acción.', base: 3.0, usesSpread: false },
 };
 
-export const TYPOGRAPHY: Record<TypographyId, { label: string; display: string; body: string; displayWeight: number; css: string }> = {
-  clasica: {
-    label: 'Clásica',
-    display: 'Cormorant Garamond',
-    body: 'Jost',
-    displayWeight: 600,
-    css: 'family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@300;400;500',
-  },
-  moderna: {
-    label: 'Moderna',
-    display: 'Fraunces',
-    body: 'Manrope',
-    displayWeight: 600,
-    css: 'family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600',
-  },
-  manuscrita: {
-    label: 'Manuscrita',
-    display: 'Caveat',
-    body: 'Jost',
-    displayWeight: 600,
-    css: 'family=Caveat:wght@500;600;700&family=Jost:wght@300;400;500',
-  },
+/**
+ * Combinaciones de tipografías de los textos del video. Los archivos están
+ * autoalojados en public/fonts/ (licencia OFL, ver scripts/fetch-fonts.mjs):
+ * títulos en `display` 600, frases en `display` itálica 500 (Caveat no tiene
+ * itálica: va recta) y líneas chicas en `body` 500.
+ */
+export const TYPOGRAPHY: Record<TypographyId, { label: string; display: string; body: string; displayWeight: number; italic: boolean }> = {
+  clasica: { label: 'Clásica', display: 'Cormorant Garamond', body: 'Jost', displayWeight: 600, italic: true },
+  moderna: { label: 'Moderna', display: 'Fraunces', body: 'Manrope', displayWeight: 600, italic: true },
+  manuscrita: { label: 'Manuscrita', display: 'Caveat', body: 'Jost', displayWeight: 600, italic: false },
 };
 
 export type Transition = 'continua' | 'corte';

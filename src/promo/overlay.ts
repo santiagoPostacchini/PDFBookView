@@ -22,29 +22,36 @@ export function overlayTheme(setColor: string): OverlayTheme {
 }
 
 const loaded = new Set<TypographyId>();
+let stylesheet: Promise<void> | null = null;
 
-/** Carga las tipografías y espera a que el canvas pueda usarlas. */
+/** Declara las tipografías autoalojadas (public/fonts/promo.css). Los archivos bajan recién cuando se usan. */
+function fontStylesheet(): Promise<void> {
+  stylesheet ??= new Promise<void>((resolve, reject) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = new URL(`${import.meta.env.BASE_URL}fonts/promo.css`, document.baseURI).href;
+    link.onload = () => resolve();
+    link.onerror = () => {
+      stylesheet = null;
+      link.remove();
+      reject(new Error('No se pudieron cargar las tipografías del video.'));
+    };
+    document.head.appendChild(link);
+  });
+  return stylesheet;
+}
+
+/** Carga las tipografías de una combinación y espera a que el canvas pueda usarlas. */
 export async function loadTypography(id: TypographyId): Promise<void> {
   if (loaded.has(id)) return;
   const t = TYPOGRAPHY[id];
-  if (!document.querySelector(`link[data-promo-font="${id}"]`)) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = `https://fonts.googleapis.com/css2?${t.css}&display=block`;
-    link.dataset.promoFont = id;
-    const ready = new Promise<void>((resolve, reject) => {
-      link.onload = () => resolve();
-      link.onerror = () => reject(new Error('No se pudieron cargar las tipografías del video.'));
-    });
-    document.head.appendChild(link);
-    await ready;
-  }
-  await Promise.all([
+  await fontStylesheet();
+  const faces = await Promise.all([
     document.fonts.load(`${t.displayWeight} 96px "${t.display}"`),
-    document.fonts.load(`italic 500 64px "${t.display}"`),
-    document.fonts.load(`400 32px "${t.body}"`),
+    t.italic ? document.fonts.load(`italic 500 64px "${t.display}"`) : Promise.resolve([true]),
     document.fonts.load(`500 32px "${t.body}"`),
   ]);
+  if (faces.some((list) => list.length === 0)) throw new Error('No se pudieron cargar las tipografías del video.');
   loaded.add(id);
 }
 
@@ -177,13 +184,13 @@ function drawHead(ctx: CanvasRenderingContext2D, cue: OverlayCue, t: number, L: 
 /** Frase de escena: una línea elegante, abajo, dentro de la zona segura. */
 function drawCaption(ctx: CanvasRenderingContext2D, cue: OverlayCue, t: number, L: Layout, font: Font, theme: OverlayTheme) {
   const u = L.unit;
-  const size = (font.display === 'Caveat' ? 84 : 70) * u * (L.align === 'left' ? 0.85 : 1);
+  const size = (font.italic ? 70 : 84) * u * (L.align === 'left' ? 0.85 : 1);
   const m = motion(cue, t, 0, u);
   ctx.globalAlpha = m.alpha;
   setHalo(ctx, theme, u);
   ctx.fillStyle = theme.text;
   ctx.textAlign = 'center';
-  ctx.font = `${font.display === 'Caveat' ? 600 : 'italic 500'} ${size}px "${font.display}"`;
+  ctx.font = `${font.italic ? 'italic 500' : font.displayWeight} ${size}px "${font.display}"`;
   const lines = wrap(ctx, cue.lines[0] ?? '', Math.max(L.maxWidth, ctx.canvas.width * 0.7));
   let y = L.captionY - ((lines.length - 1) * size * 1.05) / 2;
   for (const line of lines) {

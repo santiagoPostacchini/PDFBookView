@@ -16,6 +16,7 @@ Lectura obligatoria para cualquier agente antes de tocar código. Mantenerlo cor
 - Typecheck: `npm run typecheck`.
 - Muestras de video sin interfaz (con `npm run dev` corriendo): `cd motion && node scripts/promo-sample.mjs <pdf> --template clasica --format 9:16 --video`.
 - Álbum de ejemplo sin datos de clientes: `cd motion && node scripts/demo-album.mjs` (genera `out/demo/album-demo.pdf`).
+- Tipografías del video: `node scripts/fetch-fonts.mjs` (regenera `public/fonts/`; no editar esos archivos a mano).
 
 ## Convenciones
 

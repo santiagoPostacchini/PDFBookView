@@ -4,6 +4,7 @@
 //
 //   node scripts/promo-sample.mjs <pdf> [--template clasica] [--format 9:16] [--duration 15]
 //        [--set arena] [--lighting suave] [--handle @tu.marca] [--mode simple|booklet]
+//        [--typography clasica|moderna|manuscrita] [--block fonts.googleapis.com]
 //        [--out out/muestra] [--video] [--frames 0.5,3,6]
 //
 // Requiere la app corriendo (npm run dev en la raíz, http://localhost:5173).
@@ -31,6 +32,13 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
 page.on('pageerror', (err) => console.error('[pageerror]', err.message));
 page.on('console', (msg) => msg.type() === 'error' && console.error('[console]', msg.text()));
+// --block <host> corta los pedidos a ese host (p. ej. para comprobar que nada depende de Google Fonts).
+if (flag('block')) {
+  await page.route(`**://${flag('block')}/**`, (route) => {
+    console.warn('[bloqueado]', route.request().url());
+    return route.abort();
+  });
+}
 
 await page.goto(flag('url', 'http://localhost:5173/'));
 await page.evaluate((mode) => localStorage.setItem('pdf-book-view.mode', mode), flag('mode', 'simple'));
@@ -48,6 +56,7 @@ const options = {
   set: flag('set'),
   lighting: flag('lighting'),
   handle: flag('handle'),
+  typography: flag('typography'),
   frames: flag('frames'),
 };
 
@@ -60,6 +69,7 @@ const result = await page.evaluate(async (o) => {
   if (o.set) project.set = o.set;
   if (o.lighting) project.lighting = o.lighting;
   if (o.handle) project.texts.handle = o.handle;
+  if (o.typography) project.typography = o.typography;
   const book = engine.currentBook;
   const timeline = lab.compileProject(project, book);
   const times = o.frames ? o.frames.split(',').map(Number) : timeline.scenes.map((s) => (s.start + s.end) / 2);
@@ -111,6 +121,7 @@ if (has('video')) {
     if (o.set) project.set = o.set;
     if (o.lighting) project.lighting = o.lighting;
     if (o.handle) project.texts.handle = o.handle;
+    if (o.typography) project.typography = o.typography;
     const timeline = lab.compileProject(project, engine.currentBook);
     let last = 0;
     const blob = await lab.recordTimeline(engine, timeline, {

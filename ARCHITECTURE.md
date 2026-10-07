@@ -33,7 +33,7 @@ Una entrada por decisión. No se borran: si una cambia, se marca como reemplazad
 - Decisión: la persona arma un guion de escenas con nombres comunes (Portada, Apertura, Doble página, Hojeo, Detalle, Vista cenital, Cierre), cada una con 2–3 opciones (páginas, frase, duración). Las plantillas definen escenario, luz, ritmo, tipografía y guion inicial. El compilador traduce eso a cámara (toma continua o cortes en movimiento), giros de hojas y textos dentro de las zonas seguras.
 - Razón: así trabajan las herramientas para no técnicos (Placeit, Rotato, Bookbrush): plantilla + contenido propio + pocos ajustes; y así se ven los videos de producto profesionales (una idea de cámara por plano, velocidad pareja, luz real).
 - Alternativas descartadas: línea de tiempo con keyframes (demasiado técnica); seguir con un único video automático con estilos (poco control).
-- Estado: propuesta, pendiente de aprobación
+- Estado: vigente (aprobada por el usuario el 2026-10-07)
 
 ### D-004: Profundidad de campo sin halos (2026-10-07)
 
@@ -41,7 +41,7 @@ Una entrada por decisión. No se borran: si una cambia, se marca como reemplazad
 - Decisión: `DofPass` propio en una pasada (técnica de Gustafsson, 2018): cada muestra aporta según su propio círculo de confusión, lo de atrás no se derrama sobre lo nítido, y la profundidad se renderiza sin fondo.
 - Razón: elimina el "brillo raro" y sirve igual para fotos y videos.
 - Alternativas descartadas: apagar el desenfoque (se pierde el look fotográfico).
-- Estado: propuesta (implementada en la rama)
+- Estado: vigente
 
 ### D-005: Escenario 3D en lugar de fondo pegado a la pantalla (2026-10-07)
 
@@ -49,15 +49,15 @@ Una entrada por decisión. No se borran: si una cambia, se marca como reemplazad
 - Decisión: `StageSet`: superficie con textura que recibe sombras, sombra de contacto bajo cada pila de hojas, foco de luz con caída suave, luz de entorno y niebla del color del horizonte para que la superficie se funda sin bordes.
 - Razón: la perspectiva de la superficie es lo que hace creíble el movimiento de cámara.
 - Alternativas descartadas: ciclorama curvo modelado (más geometría, mismo resultado visible).
-- Estado: propuesta (implementada en la rama; falta usarlo también en el modo Foto)
+- Estado: vigente (falta usarlo también en el modo Foto, T-006)
 
-### D-006: Tipografías de los textos del video (2026-10-07)
+### D-006: Tipografías de los textos del video, autoalojadas (2026-10-07)
 
-- Contexto: el prototipo carga Google Fonts en tiempo de ejecución.
-- Decisión: a definir con el usuario. Recomendado: autoalojar 3 combinaciones (licencia OFL) en `public/fonts/`.
-- Razón: funciona sin conexión externa y el video sale igual en cualquier equipo.
-- Alternativas descartadas: fuentes del sistema (cambian entre Windows, Mac y celulares).
-- Estado: pendiente de decisión
+- Contexto: el prototipo cargaba Google Fonts en tiempo de ejecución.
+- Decisión: tres combinaciones (Cormorant Garamond + Jost, Fraunces + Manrope, Caveat + Jost) autoalojadas en `public/fonts/` con sus licencias OFL; sólo el subconjunto latino y los estilos que usa el video (≈160 KB en total). `scripts/fetch-fonts.mjs` las regenera; `promo.css` se carga recién al abrir el editor de video y cada archivo baja cuando se usa.
+- Razón: no depende de terceros, funciona en GitHub Pages con `base: './'` y el video sale igual en cualquier equipo.
+- Alternativas descartadas: paquetes `@fontsource/*` (seis dependencias nuevas para siete archivos); fuentes del sistema (cambian entre Windows, Mac y celulares).
+- Estado: vigente (aprobada por el usuario)
 
 ### D-007: Lugar de Remotion (2026-10-07)
 

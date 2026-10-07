@@ -42,10 +42,11 @@
 - Aceptación: el guion se guarda por archivo (como el plan de hojas) y usuario, colores y tipografía de la marca se cargan solos en cada álbum nuevo; tests de carga y validación.
 
 ### T-005: Tipografías autoalojadas (según D-006)
-- Responsable: codex
-- Estado: pendiente de decisión
-- Rama: codex/tipografias-video
+- Responsable: claude
+- Estado: hecho
+- Rama: feature/orquestador-video
 - Aceptación: sin pedidos a Google Fonts; los textos del video se ven iguales con la red cortada.
+- Hallazgos: comprobado con `promo-sample.mjs --block "fonts.g*"` en las tres combinaciones (0 pedidos bloqueados). 7 archivos woff2, ≈160 KB.
 
 ### T-006: Escenario 3D también en el modo Foto
 - Responsable: codex

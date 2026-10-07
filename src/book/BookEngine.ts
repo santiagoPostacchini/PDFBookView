@@ -3,19 +3,23 @@ import {
   NeutralToneMapping,
   PCFShadowMap,
   PerspectiveCamera,
+  PMREMGenerator,
   Scene,
   SRGBColorSpace,
   Timer,
   Vector3,
   WebGLRenderer,
+  type Texture,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { fitDistance, posePosition, type CamPose } from '../studio/framing';
 import { Book, type BookOptions } from './Book';
 import { PageInteraction } from './PageInteraction';
 import { PageTextureManager } from './PageTextureManager';
 import { NEUTRAL_LOOK, PostFX, type LookSettings } from './PostFX';
 import { Stage, type Backdrop } from './Stage';
+import type { StageSetSpec } from './StageSet';
 import type { PageImage, PageImageProvider, SpreadInfo } from './types';
 
 export interface BookEngineEvents {
@@ -89,6 +93,7 @@ export class BookEngine {
   private cameraTween: { fromPos: Vector3; toPos: Vector3; fromTarget: Vector3; toTarget: Vector3; t: number } | null = null;
 
   private post: PostFX | null = null;
+  private environment: Texture | null = null;
   private studio = false;
   private frameAspect: number | null = null;
   private director: { director: Director; onEnd: () => void; snapshot: ViewSnapshot } | null = null;
@@ -247,6 +252,7 @@ export class BookEngine {
     this.stopDirector();
     this.studio = false;
     this.frameAspect = null;
+    this.setSet(null);
     this.stage.setBackdrop(this.scene, null);
     this.stage.setLighting('estudio');
     this.post?.set(NEUTRAL_LOOK);
@@ -264,6 +270,28 @@ export class BookEngine {
   setBackdrop(backdrop: Backdrop | null): void {
     this.stage.setBackdrop(this.scene, backdrop);
     this.invalidate();
+  }
+
+  /** Escenario 3D (superficie + horizonte + foco); null vuelve al fondo plano. */
+  setSet(spec: StageSetSpec | null): void {
+    this.stage.setSet(this.scene, spec);
+    // Luz de entorno (un cuarto neutro): relleno y reflejos suaves como en un estudio real.
+    if (spec && !this.environment) {
+      const pmrem = new PMREMGenerator(this.renderer);
+      this.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      pmrem.dispose();
+    }
+    this.scene.environment = spec ? this.environment : null;
+    this.scene.environmentIntensity = 0.5;
+    this.invalidate();
+  }
+
+  get stageSet(): StageSetSpec | null {
+    return this.stage.set.spec;
+  }
+
+  get lightingId(): string {
+    return this.stage.lighting.id;
   }
 
   setLook(look: Partial<LookSettings>): void {
@@ -430,6 +458,7 @@ export class BookEngine {
     this.textures?.dispose();
     this.book?.dispose();
     this.post?.dispose();
+    this.environment?.dispose();
     this.stage.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -446,6 +475,7 @@ export class BookEngine {
   }
 
   private draw(time: number, effects = true): void {
+    if (this.stage.set.active) this.stage.set.update(this.book);
     if (this.studio && this.post && effects) {
       this.post.render(this.camera.position.distanceTo(this.controls.target), time);
     } else {

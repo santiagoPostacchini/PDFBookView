@@ -1,9 +1,9 @@
-import { HalfFloatType, WebGLRenderTarget, type PerspectiveCamera, type Scene, type WebGLRenderer } from 'three';
-import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { Color, HalfFloatType, LinearSRGBColorSpace, WebGLRenderTarget, type PerspectiveCamera, type Scene, type WebGLRenderer } from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { DofPass } from './DofPass';
 
 /** Ajustes de "look" fotográfico. Todos 0..1 salvo que se indique. */
 export interface LookSettings {
@@ -11,16 +11,18 @@ export interface LookSettings {
   aperture: number;
   vignette: number;
   grain: number;
-  /** Fundido a negro. */
+  /** Fundido hacia `fadeColor`. */
   fade: number;
-  /** Destello a blanco (cortes). */
+  /** Color del fundido (hex). */
+  fadeColor: string;
+  /** Destello a blanco (cortes). Sólo lo usa el video automático anterior. */
   flash: number;
-  /** Barrido de luz diagonal: posición (0 → 1 cruza el cuadro) e intensidad. */
+  /** Barrido de luz diagonal: posición (0 → 1 cruza el cuadro) e intensidad. Ídem. */
   sweep: number;
   sweepStrength: number;
 }
 
-export const NEUTRAL_LOOK: LookSettings = { aperture: 0, vignette: 0, grain: 0, fade: 0, flash: 0, sweep: 0, sweepStrength: 0 };
+export const NEUTRAL_LOOK: LookSettings = { aperture: 0, vignette: 0, grain: 0, fade: 0, fadeColor: '#000000', flash: 0, sweep: 0, sweepStrength: 0 };
 
 /** Viñeta, grano, barrido de luz y fundidos, sobre la imagen ya en sRGB. */
 const LookShader = {
@@ -30,6 +32,7 @@ const LookShader = {
     uVignette: { value: 0 },
     uGrain: { value: 0 },
     uFade: { value: 0 },
+    uFadeColor: { value: new Color(0, 0, 0) },
     uFlash: { value: 0 },
     uSweep: { value: 0 },
     uSweepStrength: { value: 0 },
@@ -43,6 +46,7 @@ const LookShader = {
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
     uniform float uTime, uVignette, uGrain, uFade, uFlash, uSweep, uSweepStrength;
+    uniform vec3 uFadeColor;
     varying vec2 vUv;
     float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main() {
@@ -54,7 +58,7 @@ const LookShader = {
       color.rgb += uSweepStrength * exp(-band * band * 90.0) * vec3(1.0, 0.93, 0.82) * 0.55;
       color.rgb += (hash(vUv * vec2(1733.0, 911.0) + fract(uTime)) - 0.5) * uGrain * 0.11;
       color.rgb = mix(color.rgb, vec3(1.0), uFlash);
-      color.rgb = mix(color.rgb, vec3(0.0), uFade);
+      color.rgb = mix(color.rgb, uFadeColor, uFade);
       gl_FragColor = color;
     }`,
 };
@@ -66,16 +70,17 @@ const LookShader = {
  */
 export class PostFX {
   readonly composer: EffectComposer;
-  private readonly bokeh: BokehPass;
+  private readonly dof: DofPass;
   private readonly look: ShaderPass;
   private settings: LookSettings = { ...NEUTRAL_LOOK };
+  private shortSide = 1;
 
   constructor(renderer: WebGLRenderer, scene: Scene, camera: PerspectiveCamera) {
     const target = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4 });
     this.composer = new EffectComposer(renderer, target);
     this.composer.addPass(new RenderPass(scene, camera));
-    this.bokeh = new BokehPass(scene, camera, { focus: 8, aperture: 0, maxblur: 0.012 });
-    this.composer.addPass(this.bokeh);
+    this.dof = new DofPass(scene, camera);
+    this.composer.addPass(this.dof);
     this.composer.addPass(new OutputPass());
     this.look = new ShaderPass(LookShader);
     this.composer.addPass(this.look);
@@ -83,6 +88,7 @@ export class PostFX {
 
   /** Tamaño en píxeles reales del destino. */
   setSize(width: number, height: number): void {
+    this.shortSide = Math.max(1, Math.min(width, height));
     this.composer.setPixelRatio(1);
     this.composer.setSize(width, height);
   }
@@ -98,16 +104,17 @@ export class PostFX {
   /** @param focusDistance distancia de la cámara al plano de foco (unidades de escena). */
   render(focusDistance: number, time: number): void {
     const s = this.settings;
-    this.bokeh.enabled = s.aperture > 0.001;
-    const bokeh = this.bokeh.uniforms as Record<'focus' | 'aperture', { value: number }>;
-    bokeh.focus.value = focusDistance;
-    // Desenfoque proporcional a la distancia relativa al foco: igual en planos cortos y largos.
-    bokeh.aperture.value = (0.032 * s.aperture) / Math.max(0.5, focusDistance);
+    // El desenfoque máximo escala con la resolución: la misma foto en 2K y 4K se ve igual.
+    this.dof.enabled = s.aperture > 0.001;
+    this.dof.focus = focusDistance;
+    this.dof.maxBlur = s.aperture * 0.02 * this.shortSide;
     const u = this.look.uniforms;
     u.uTime.value = time;
     u.uVignette.value = s.vignette;
     u.uGrain.value = s.grain;
     u.uFade.value = s.fade;
+    // El shader trabaja sobre la imagen ya en sRGB: el color va sin convertir.
+    (u.uFadeColor.value as Color).setStyle(s.fadeColor, LinearSRGBColorSpace);
     u.uFlash.value = s.flash;
     u.uSweep.value = s.sweep;
     u.uSweepStrength.value = s.sweepStrength;
@@ -116,6 +123,6 @@ export class PostFX {
 
   dispose(): void {
     this.composer.dispose();
-    this.bokeh.dispose();
+    this.dof.dispose();
   }
 }

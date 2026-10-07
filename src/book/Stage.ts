@@ -10,6 +10,7 @@ import {
   SRGBColorSpace,
   type Scene,
 } from 'three';
+import { StageSet, type StageSetSpec } from './StageSet';
 
 type Vec3 = readonly [number, number, number];
 
@@ -107,6 +108,8 @@ export class Stage {
   readonly group = new Group();
   readonly key: DirectionalLight;
   readonly ground: Mesh<PlaneGeometry, ShadowMaterial>;
+  /** Escenario 3D opcional (superficie, horizonte, foco de luz). */
+  readonly set: StageSet;
   private readonly hemi: HemisphereLight;
   private readonly fill: DirectionalLight;
   private readonly rim: DirectionalLight;
@@ -129,6 +132,7 @@ export class Stage {
     this.ground.position.y = -0.002;
     this.ground.receiveShadow = true;
     this.group.add(this.ground);
+    this.set = new StageSet(this.group);
 
     this.setLighting('estudio');
   }
@@ -151,6 +155,24 @@ export class Stage {
     }
     this.key.shadow.radius = preset.key.shadowRadius;
     this.ground.material.opacity = preset.shadow;
+    this.set.setLighting(preset);
+    this.syncSet();
+  }
+
+  /** Escenario 3D (null = fondo plano con la sombra sobre "nada", como en la navegación). */
+  setSet(scene: Scene, spec: StageSetSpec | null): void {
+    this.set.apply(scene, spec, this.lighting);
+    if (!spec) scene.background = this.backdropTexture;
+    this.syncSet();
+  }
+
+  /** Con escenario, la luz principal es el foco del escenario y la sombra cae sobre la superficie. */
+  private syncSet(): void {
+    const on = this.set.active;
+    this.ground.visible = !on;
+    this.key.visible = !on && this.lighting.key.intensity > 0;
+    // En el escenario el relleno lo da el entorno (más natural): la luz ambiente baja.
+    this.hemi.intensity = this.lighting.hemi.intensity * (on ? 0.45 : 1);
   }
 
   /** Fondo dentro de la escena (sale en fotos y videos). null = transparente. */
@@ -158,7 +180,7 @@ export class Stage {
     this.backdropTexture?.dispose();
     this.backdropTexture = null;
     if (!backdrop) {
-      scene.background = null;
+      if (!this.set.active) scene.background = null;
       return;
     }
     const canvas = document.createElement('canvas');
@@ -171,7 +193,7 @@ export class Stage {
     ctx.fillRect(0, 0, 512, 512);
     this.backdropTexture = new CanvasTexture(canvas);
     this.backdropTexture.colorSpace = SRGBColorSpace;
-    scene.background = this.backdropTexture;
+    if (!this.set.active) scene.background = this.backdropTexture;
   }
 
   /** Ajusta la cámara de sombras al tamaño del libro abierto. */
@@ -192,5 +214,6 @@ export class Stage {
     this.ground.material.dispose();
     this.key.shadow.map?.dispose();
     this.backdropTexture?.dispose();
+    this.set.dispose();
   }
 }

@@ -83,7 +83,11 @@ export function App() {
   useEffect(() => {
     const instance = new BookEngine(viewportRef.current!);
     setEngine(instance);
-    if (import.meta.env.DEV) Object.assign(window, { bookEngine: instance }); // para depurar desde la consola
+    if (import.meta.env.DEV) {
+      // Para depurar desde la consola y para los scripts de punta a punta (motion/scripts).
+      Object.assign(window, { bookEngine: instance });
+      void import('./promo/lab').then((lab) => Object.assign(window, { promoLab: lab }));
+    }
     return () => {
       instance.dispose();
       setEngine(null);

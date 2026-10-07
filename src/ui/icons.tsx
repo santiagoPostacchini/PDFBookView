@@ -146,3 +146,54 @@ export const IconCamera = (p: IconProps) => (
     <circle cx="12" cy="13" r="3.5" />
   </svg>
 );
+
+export const IconPlay = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+export const IconStop = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+export const IconTrash = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12" />
+  </svg>
+);
+
+export const IconArrowLeft = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M19 12H5m0 0l6-6m-6 6l6 6" />
+  </svg>
+);
+
+export const IconArrowRight = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M5 12h14m0 0l-6-6m6 6l-6 6" />
+  </svg>
+);
+
+export const IconCopy = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="8" y="8" width="11" height="11" rx="2" />
+    <path d="M5 15V6a1 1 0 0 1 1-1h9" />
+  </svg>
+);
+
+export const IconFilm = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4" />
+  </svg>
+);
+
+export const IconDownload = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5" />
+    <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+  </svg>
+);

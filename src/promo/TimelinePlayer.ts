@@ -40,6 +40,6 @@ export class TimelinePlayer implements Director {
     const { pose, aperture } = sampleCamera(this.timeline, this.time);
     this.engine.applyPose(pose);
     const { vignette, grain } = this.timeline.look;
-    this.engine.setLook({ aperture, vignette, grain, fade: 0, flash: 0, sweep: 0, sweepStrength: 0 });
+    this.engine.setLook({ aperture, vignette, grain, fade: 0 });
   }
 }

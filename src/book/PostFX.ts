@@ -15,16 +15,14 @@ export interface LookSettings {
   fade: number;
   /** Color del fundido (hex). */
   fadeColor: string;
-  /** Destello a blanco (cortes). Sólo lo usa el video automático anterior. */
-  flash: number;
-  /** Barrido de luz diagonal: posición (0 → 1 cruza el cuadro) e intensidad. Ídem. */
-  sweep: number;
-  sweepStrength: number;
 }
 
-export const NEUTRAL_LOOK: LookSettings = { aperture: 0, vignette: 0, grain: 0, fade: 0, fadeColor: '#000000', flash: 0, sweep: 0, sweepStrength: 0 };
+export const NEUTRAL_LOOK: LookSettings = { aperture: 0, vignette: 0, grain: 0, fade: 0, fadeColor: '#000000' };
 
-/** Viñeta, grano, barrido de luz y fundidos, sobre la imagen ya en sRGB. */
+/**
+ * Viñeta, grano y fundido, sobre la imagen ya en sRGB. A propósito no hay
+ * destellos ni barridos de luz pintados encima: el brillo lo dan las luces reales.
+ */
 const LookShader = {
   uniforms: {
     tDiffuse: { value: null },
@@ -33,9 +31,6 @@ const LookShader = {
     uGrain: { value: 0 },
     uFade: { value: 0 },
     uFadeColor: { value: new Color(0, 0, 0) },
-    uFlash: { value: 0 },
-    uSweep: { value: 0 },
-    uSweepStrength: { value: 0 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -45,7 +40,7 @@ const LookShader = {
     }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
-    uniform float uTime, uVignette, uGrain, uFade, uFlash, uSweep, uSweepStrength;
+    uniform float uTime, uVignette, uGrain, uFade;
     uniform vec3 uFadeColor;
     varying vec2 vUv;
     float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -54,10 +49,7 @@ const LookShader = {
       // Viñeta elíptica que sigue el cuadro (esquinas a distancia √2).
       float edge = smoothstep(0.55, 1.45, length((vUv - 0.5) * 2.0));
       color.rgb *= 1.0 - uVignette * 0.85 * edge;
-      float band = (vUv.x * 0.8 + vUv.y) * 0.62 - (uSweep * 1.6 - 0.3);
-      color.rgb += uSweepStrength * exp(-band * band * 90.0) * vec3(1.0, 0.93, 0.82) * 0.55;
       color.rgb += (hash(vUv * vec2(1733.0, 911.0) + fract(uTime)) - 0.5) * uGrain * 0.11;
-      color.rgb = mix(color.rgb, vec3(1.0), uFlash);
       color.rgb = mix(color.rgb, uFadeColor, uFade);
       gl_FragColor = color;
     }`,
@@ -115,9 +107,6 @@ export class PostFX {
     u.uFade.value = s.fade;
     // El shader trabaja sobre la imagen ya en sRGB: el color va sin convertir.
     (u.uFadeColor.value as Color).setStyle(s.fadeColor, LinearSRGBColorSpace);
-    u.uFlash.value = s.flash;
-    u.uSweep.value = s.sweep;
-    u.uSweepStrength.value = s.sweepStrength;
     this.composer.render();
   }
 

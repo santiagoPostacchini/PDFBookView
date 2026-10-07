@@ -23,7 +23,7 @@ import {
 } from './ui/icons';
 import { ModeSelector } from './ui/ModeSelector';
 import { SheetEditor } from './ui/SheetEditor';
-import { StudioPanel } from './ui/StudioPanel';
+import { StudioPanel, type StudioTab } from './ui/StudioPanel';
 import { useBookLoader } from './ui/useBookLoader';
 
 const MODE_KEY = 'pdf-book-view.mode';
@@ -60,6 +60,9 @@ export function App() {
   const [planNotes, setPlanNotes] = useState<string[]>([]);
   const [editorOpen, setEditorOpenState] = useState(false);
   const [studioOpen, setStudioOpenState] = useState(false);
+  const [studioTab, setStudioTab] = useState<StudioTab>('foto');
+  /** Lugar debajo del visor donde el editor de video pone el guion de escenas. */
+  const [dock, setDock] = useState<HTMLDivElement | null>(null);
   // El editor de hojas y el estudio ocupan el mismo panel lateral: abrir uno cierra el otro.
   const setEditorOpen = useCallback((open: boolean | ((prev: boolean) => boolean)) => {
     setEditorOpenState((prev) => {
@@ -214,10 +217,11 @@ export function App() {
   const showPlanIssue = mode === 'booklet' && !editorOpen && diagnostics && planIssues > 0;
   const editorVisible = editorOpen && mode === 'booklet' && pdf && plan && diagnostics;
   const studioVisible = studioOpen && !!book && !!engine && !!pdf;
+  const videoVisible = studioVisible && studioTab === 'video';
 
   return (
     <div
-      className={`app${dragOver ? ' is-dragover' : ''}${editorVisible || studioVisible ? ' is-editing' : ''}${studioVisible ? ' is-studio' : ''}`}
+      className={`app${dragOver ? ' is-dragover' : ''}${editorVisible || studioVisible ? ' is-editing' : ''}${studioVisible ? ' is-studio' : ''}${videoVisible ? ' is-video' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={(e) => e.currentTarget === e.target && setDragOver(false)}
       onDrop={onDrop}
@@ -389,8 +393,17 @@ export function App() {
         </>
       )}
 
+      {videoVisible && <div ref={setDock} className="studio-dock" />}
+
       {studioVisible && (
-        <StudioPanel engine={engine} fileName={pdf.name} spread={spread} onClose={() => setStudioOpen(false)} />
+        <StudioPanel
+          engine={engine}
+          fileName={pdf.name}
+          spread={spread}
+          dock={dock}
+          onTabChange={setStudioTab}
+          onClose={() => setStudioOpen(false)}
+        />
       )}
 
       {editorVisible && (

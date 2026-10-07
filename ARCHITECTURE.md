@@ -4,7 +4,8 @@
 
 - **Motor 3D** (`src/book/`): `BookEngine` arma escena, cámara, render bajo demanda y ciclo de vida del libro; `Book`/`Leaf`/`paperDeformer` modelan hojas articuladas en el lomo con curvatura por longitud de arco. En modo estudio suma post-proceso (`PostFX`), escenario (`Stage` + `StageSet`) y exportación.
 - **PDF** (`src/pdf/`): `PdfSource` rasteriza con caché; `imposition` resuelve planes de hojas físicas (cuadernillo anidado o pliegos sueltos) a páginas lógicas; `PdfPageProvider` alimenta al motor por la interfaz `PageImageProvider`.
-- **Orquestador de videos** (`src/promo/`, propuesta en `feature/orquestador-video`): proyecto (escenas + textos + formato) → `compileProject` → línea de tiempo pura (cámara, giros de hojas, textos) → `TimelinePlayer` sobre el motor → `recordTimeline` compone 3D + textos y codifica MP4.
+- **Orquestador de videos** (`src/promo/`): proyecto (escenas + textos + formato) → `compileProject` → línea de tiempo pura (cámara, giros de hojas, textos) → `TimelinePlayer` sobre el motor → `recordTimeline` compone 3D + textos y codifica MP4. `VideoPreview` usa el visor como vista previa (capa 2D del motor para los textos) y `projectStorage` guarda el video de cada álbum y "Mi marca".
+- **Editor de video** (`src/ui/video/`): pasos Estilo → Historia → Textos y marca → Exportar en el panel del estudio y el guion de escenas debajo del visor (portal en `.studio-dock`).
 - **Motion graphics** (`motion/`): proyecto Remotion aparte; también aloja los scripts headless (Playwright) de muestras y pruebas de punta a punta.
 
 ## Decisiones

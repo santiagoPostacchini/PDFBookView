@@ -21,7 +21,8 @@ Lectura obligatoria para cualquier agente antes de tocar código. Mantenerlo cor
 ## Convenciones
 
 - Código, comentarios, textos de interfaz y documentación en español rioplatense.
-- `src/book/`: motor 3D sin React (BookEngine, Book, Leaf, Stage, PostFX). `src/pdf/`: PDF e imposición de hojas. `src/promo/`: orquestador de videos (lógica pura en `compile.ts`, testeable sin navegador). `src/studio/`: video automático anterior (a retirar). `src/ui/`: React.
+- `src/book/`: motor 3D sin React (BookEngine, Book, Leaf, Stage, StageSet, PostFX, DofPass). `src/pdf/`: PDF e imposición de hojas. `src/promo/`: orquestador de videos (lógica pura en `compile.ts`, `editing.ts` y `projectStorage.ts`, testeable sin navegador). `src/studio/`: utilidades de cámara (`framing`, `cameraPath`). `src/ui/`: React; `src/ui/video/`: editor de video.
+- Miniaturas de las plantillas (`public/promo/`): regenerar con `cd motion && node scripts/template-previews.mjs` si cambia el look de una plantilla.
 - La lógica que decide (guiones, imposición, tiempos) es pura y determinista, con tests en `*.test.ts` al lado del módulo.
 - Commits en español, en presente y descriptivos.
 

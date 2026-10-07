@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { BookEngine } from '../book/BookEngine';
-import type { PageImage, SpreadInfo } from '../book/types';
+import type { SpreadInfo } from '../book/types';
 import type { BookLayout } from '../pdf/layouts';
 import { CanvasThumb } from './CanvasThumb';
+import { usePageThumbs } from './usePageThumbs';
 
 interface Props {
   engine: BookEngine;
@@ -18,21 +19,8 @@ const THUMB_H = 88;
  */
 export function Filmstrip({ engine, layout, spread }: Props) {
   const pageCount = layout.slots.length;
-  const [images, setImages] = useState<(PageImage | undefined)[]>(() =>
-    Array.from({ length: pageCount }, (_, i) => engine.getThumbnail(i)),
-  );
+  const images = usePageThumbs(engine, pageCount, layout);
   const activeRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    setImages(Array.from({ length: pageCount }, (_, i) => engine.getThumbnail(i)));
-    return engine.on('thumbnail', (page, image) =>
-      setImages((prev) => {
-        const next = prev.slice();
-        next[page] = image;
-        return next;
-      }),
-    );
-  }, [engine, layout, pageCount]);
 
   useLayoutEffect(() => {
     activeRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });

@@ -971,9 +971,8 @@ canvas.is-loading {
   margin: auto;
 }
 
+/* (top y bottom los pone el motor según los márgenes del cuadro) */
 .app.is-studio .book-canvas {
-  top: 96px;
-  bottom: 84px;
   border-radius: 4px;
   box-shadow: 0 0 0 1px rgba(255, 245, 230, 0.14), 0 18px 50px rgba(0, 0, 0, 0.45);
   /* Damero visible sólo con fondo transparente */

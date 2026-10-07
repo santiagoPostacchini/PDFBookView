@@ -60,9 +60,15 @@ El editor muestra cada cara con la miniatura del PDF y el número de página res
 Botón **Estudio** (con un libro cargado):
 
 - **Foto:** luz (Estudio, Cálida, Dramática, Suave, Fría), fondo (presets, color a elección o transparente), encuadre (libre, 1:1, 4:5, 9:16, 16:9 — lo que se ve es lo que se exporta), ángulos predefinidos, lente de 18 a 135 mm conservando el encuadre, profundidad de campo, viñeta, grano y "hoja en el aire". Exporta PNG/JPG en 2K o 4K.
-- **Video promocional:** 9:16 o 1:1, estilo (Elegante, Dinámico, Minimal) y duración (10–30 s). Un director genera el guion a partir del álbum —intro con el libro cerrado, apertura de tapa, dobles páginas destacadas con giros en cámara, cierre— y lo graba cuadro a cuadro (WebCodecs + mediabunny) a MP4 H.264 de 30 fps, sin cuadros perdidos. Hay vista previa en tiempo real.
+- **Video promocional:** un editor en cuatro pasos pensado para quien no sabe de cámaras:
+  1. **Estilo:** Clásica (toma continua), Ritmo (cortes en movimiento, para Reels) o Minimal. Cada uno trae escenario, luz, ritmo y tipografía.
+  2. **Historia:** el guion es una fila de escenas debajo del visor (Portada, Apertura, Doble página, Hojeo, Detalle, Vista cenital, Cierre). Cada escena se elige tocándola y se reordena arrastrándola; para cada una se decide qué páginas se ven (o automática), una frase opcional y si es corta, normal o larga.
+  3. **Textos y marca:** título, línea chica, llamado a la acción y usuario (estos dos se recuerdan para los próximos álbumes), tipografía, escenario y luz.
+  4. **Exportar:** 9:16, 4:5, 1:1 y 16:9 a la vez, duración total, guía de lo que tapa Instagram y vista previa completa.
 
-Código: `src/studio/` (encuadre, guion, reproductor, grabador), `src/book/PostFX.ts` (profundidad de campo, viñeta, grano, barridos, fundidos) y `src/book/Stage.ts` (luces y fondos). Los motion graphics de 10 s se arman aparte, en [`motion/`](motion/README.md).
+  El visor es la vista previa: muestra la escena elegida con sus textos o reproduce el video tal cual se exporta. El video de cada álbum se guarda por nombre de archivo. La grabación es cuadro a cuadro (WebCodecs + mediabunny) a MP4 H.264 de 30 fps, sin cuadros perdidos.
+
+Código: `src/promo/` (proyecto, plantillas, compilador del guion a cámara y textos, vista previa, grabación), `src/ui/video/` (editor), `src/book/StageSet.ts` (escenario 3D: superficie, sombra de contacto, foco y horizonte), `src/book/DofPass.ts` (profundidad de campo sin halos) y `src/book/PostFX.ts` (viñeta, grano, fundidos). Las tipografías del video están autoalojadas en `public/fonts/` (OFL). Los motion graphics especiales se arman aparte, en [`motion/`](motion/README.md).
 
 ## Extender
 

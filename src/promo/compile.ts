@@ -41,6 +41,8 @@ export interface CameraSegment {
 }
 
 export interface CompiledScene {
+  /** Posición de la escena en `project.scenes` (algunas se omiten si el libro no se puede abrir). */
+  index: number;
   kind: SceneKind;
   label: string;
   start: number;
@@ -117,7 +119,8 @@ export function compileProject(project: PromoProject, book: BookShape): Timeline
   const canOpen = L >= 2;
 
   // Escenas utilizables según el libro (con una sola hoja no hay nada que abrir).
-  const specs = project.scenes.filter((s) => canOpen || s.kind === 'portada' || s.kind === 'cierre');
+  const usable = project.scenes.map((s, index) => ({ s, index })).filter(({ s }) => canOpen || s.kind === 'portada' || s.kind === 'cierre');
+  const specs = usable.map(({ s }) => s);
   const weights = specs.map((s) => SCENES[s.kind].base * LENGTH[s.length ?? 'normal'] * template.pace);
   const durations = sceneDurations(
     weights,
@@ -207,7 +210,7 @@ export function compileProject(project: PromoProject, book: BookShape): Timeline
       }
     }
     // La doble página "a la vista" es la que queda al final de la escena.
-    scenes.push({ kind: spec.kind, label: SCENES[spec.kind].label, start, end, spread: current });
+    scenes.push({ index: usable[i].index, kind: spec.kind, label: SCENES[spec.kind].label, start, end, spread: current });
     shots.push({ ...shot, aperture: shot.aperture * template.aperture });
 
     if (spec.kind === 'portada' && (project.texts.title || project.texts.subtitle)) {

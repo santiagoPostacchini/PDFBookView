@@ -192,3 +192,55 @@ Todo el trabajo quedó en `feature/figuritas` (ver commits); las ramas `codex/<s
 - Hallazgos: carga PDF/imágenes, números editables, selección y selector de destino, diseño propio/básico, avisos y nueva plantilla con miniatura genérica. Barra ocultable recordada; margen superior del video 108→24. Prueba con los tres PDFs reales, siete destinos en ambos formatos, persistencia, búsqueda y exportación conjunta de dos MP4 en verde. Trabajo en la rama activa `feature/figuritas`, sin commits; T-006 y `vite.config.ts` preservados.
 
 Validación conjunta (revisada el 2026-10-11): 546 tests, typecheck y build en verde. `figuritas-e2e.mjs` incluye selector manual de página/casillero, límite de seis, barra recordada y dos MP4 reales; `photo-e2e.mjs` sigue en verde (regresión de T-006). T-008 queda postergada por el usuario.
+
+## Repaso de la interfaz (decisiones del usuario, 2026-10-11)
+
+Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Textos y marca, Ambiente, Exportar; (2) **un solo catálogo de escenarios** compartido por Foto y Video; (3) la barra superior arranca **oculta en Video** y visible en el resto. Línea de base: `node scripts/ui-shots.mjs <álbum.pdf> out/ui-shots/antes` (desde `motion/`; también `--mobile`). Cada tarea en su rama `codex/ui-*`, sin cambiar la lógica del estudio salvo lo indicado, con capturas antes/después y `npm test`, `npm run typecheck`, `npm run build`, `photo-e2e.mjs` y `figuritas-e2e.mjs` en verde. Mantener los nombres accesibles que usan las pruebas (p. ej. "Estudio", "Cargar figuritas", "Diseño del paquete") o actualizarlas en la misma tarea.
+
+### U-0: Línea de base de capturas
+- Responsable: claude
+- Estado: hecho
+- Rama: feature/figuritas
+- Aceptación: `motion/scripts/ui-shots.mjs` captura visor, Foto y cada paso del editor, en escritorio (1440×900 y panel completo) y móvil (`--mobile`, 390×844).
+
+### U-1: Componentes comunes
+- Responsable: codex
+- Estado: pendiente
+- Rama: codex/ui-componentes
+- Aceptación: interruptor (reemplaza las casillas nativas), botón de archivo en castellano ("Elegir archivo" + nombre o "Ningún archivo"), muestra de color con nombre visible, bloque plegable "Más ajustes" accesible, y espaciados/tamaños/radios en variables de CSS; usados en los controles actuales sin reorganizar nada ni cambiar comportamiento; sin dependencias nuevas.
+
+### U-2: Cinco pasos del editor de video
+- Responsable: codex
+- Estado: pendiente
+- Rama: codex/ui-pasos
+- Aceptación: Estilo = plantillas (tarjetas compactas); Historia = lo esencial de la escena arriba (páginas, frase, duración), "Movimiento de esta toma" plegado y acciones de la escena (Antes, Después, Duplicar, Quitar, Agregar) siempre visibles; Textos y marca = sólo título, línea chica, llamado a la acción, usuario y tipografía; **Ambiente** (paso nuevo) = escenario, manteles, luz, luz de ventana (un solo control, 0 % la apaga), mesa y sombras de contacto; Exportar sin cambios. El proyecto guardado sigue cargando igual.
+
+### U-3: Catálogo único de escenarios (Foto y Video)
+- Responsable: codex
+- Estado: pendiente
+- Rama: codex/ui-escenarios
+- Aceptación: Foto y Video eligen de la misma lista (colores, superficies, manteles, ventana) con nombres visibles; se conserva el PNG transparente de Foto y que Foto no cambie de aspecto para quien ya la usa; elección recordada; `photo-e2e.mjs`, `manteles-e2e.mjs` y `ventana-e2e.mjs` en verde.
+
+### U-4: Barra superior
+- Responsable: codex
+- Estado: pendiente
+- Rama: codex/ui-barra
+- Aceptación: una sola fila (Archivo, Lectura, Estudio); botón de ocultar con texto; el aviso "Preparando páginas" no se superpone; oculta por defecto al abrir Video y visible al volver a Foto o cerrar el Estudio, recordando lo que la persona elija; el cuadro del video aprovecha el espacio.
+
+### U-5: Panel de Figuritas
+- Responsable: codex
+- Estado: pendiente
+- Rama: codex/ui-figuritas
+- Aceptación: estado vacío claro, cuadrícula compacta de figuritas con número y destino, contador "N de 6", diseño del paquete plegado; `figuritas-e2e.mjs` en verde.
+
+### U-6: Móvil, teclado y contraste
+- Responsable: codex
+- Estado: pendiente
+- Rama: codex/ui-accesibilidad
+- Aceptación: sin recortes ni desbordes a 390 y 768 px de ancho (capturas), orden de tabulación lógico, foco visible, etiquetas accesibles en todos los controles, contraste suficiente del texto secundario.
+
+### U-7: Cierre del repaso
+- Responsable: claude
+- Estado: pendiente
+- Rama: feature/figuritas
+- Aceptación: revisión visual antes/después de cada paso (hoja de contacto), README y docs al día, pruebas de punta a punta actualizadas.

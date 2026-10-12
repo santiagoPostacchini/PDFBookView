@@ -1,4 +1,4 @@
-import { getDocument, GlobalWorkerOptions, type PDFDocumentLoadingTask, type PDFDocumentProxy } from 'pdfjs-dist';
+import { getDocument, GlobalWorkerOptions, Util, type PDFDocumentLoadingTask, type PDFDocumentProxy } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 GlobalWorkerOptions.workerSrc = workerUrl;
@@ -19,6 +19,15 @@ const MAX_LARGE_RASTERS = 6;
 
 export interface PageSize {
   /** En puntos PDF, con la rotación de la página ya aplicada. */
+  width: number;
+  height: number;
+}
+
+/** Caja del texto en puntos de la página ya rotada; origen arriba a la izquierda. */
+export interface PdfTextItem {
+  text: string;
+  x: number;
+  y: number;
   width: number;
   height: number;
 }
@@ -48,6 +57,27 @@ export class PdfSource {
 
   get pageCount(): number {
     return this.doc.numPages;
+  }
+
+  /** Texto y cajas en el mismo sistema que rasterize(), sin modificar el PDF. */
+  async textItems(index: number): Promise<PdfTextItem[]> {
+    const page = await this.doc.getPage(index + 1);
+    const viewport = page.getViewport({ scale: 1 });
+    const content = await page.getTextContent();
+    return content.items.flatMap((item) => {
+      if (!('str' in item) || !item.str.trim()) return [];
+      const matrix = Util.transform(viewport.transform, item.transform);
+      const sx = Math.hypot(matrix[0], matrix[1]);
+      const sy = Math.hypot(matrix[2], matrix[3]);
+      if (!sx || !sy) return [];
+      const dx = matrix[0] / sx * item.width;
+      const dy = matrix[1] / sx * item.width;
+      const hx = matrix[2] / sy * item.height;
+      const hy = matrix[3] / sy * item.height;
+      const xs = [matrix[4], matrix[4] + dx, matrix[4] + hx, matrix[4] + dx + hx];
+      const ys = [matrix[5], matrix[5] + dy, matrix[5] + hy, matrix[5] + dy + hy];
+      return [{ text: item.str, x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) }];
+    });
   }
 
   /** Tamaño de la página `index` (0-based). */

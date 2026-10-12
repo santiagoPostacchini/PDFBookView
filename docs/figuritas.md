@@ -3,7 +3,7 @@
 ## Cómo probarlo
 
 1. Cargá el álbum PDF y elegí el modo de lectura correcto. Para un álbum de dos páginas por hoja, usá **Revista DIY / Cuadernillo** y verificá el armado en **Hojas**.
-2. Abrí **Estudio → Video promocional** y elegí la plantilla **Figuritas**, o usá **Agregar figuritas al video** para conservar tu estilo y guion.
+2. Abrí **Estudio → Video promocional** y elegí la plantilla **Figuritas**, o, para conservar tu estilo y guion, agregá la escena **Figuritas** desde **Historia → Agregar una escena**.
 3. En **Historia**, tocá la tarjeta **Figuritas** del guion. Cargá la hoja PDF de figuritas o imágenes individuales.
 4. El editor detecta los números y elige hasta tres figuritas automáticamente. Podés seleccionar hasta seis por escena, corregir números y elegir **Casillero Nº…** o una **Página…** interior, centrada. Para usar más de seis, agregá otra escena de Figuritas.
 5. Cargá el diseño del paquete como PDF de troquel o imagen, o elegí **Usar paquete básico**. El recorte del PDF reconoce el troquel de referencia (A4 apaisado, panel de frente a la derecha del panel del dorso); otros troqueles deben prepararse como imagen de frente.

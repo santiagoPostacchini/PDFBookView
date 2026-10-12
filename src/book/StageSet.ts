@@ -41,18 +41,7 @@ export interface StageSetSpec {
   horizon?: string;
 }
 
-export const SET_PRESETS: readonly (StageSetSpec & { id: string; label: string })[] = [
-  { id: 'arena', label: 'Arena', color: '#dcc6a8', surface: 'papel' },
-  { id: 'lino', label: 'Lino', color: '#ddd3c4', surface: 'lino' },
-  { id: 'salvia', label: 'Salvia', color: '#bcc7ae', surface: 'papel' },
-  { id: 'rosa', label: 'Rosa', color: '#e9c6c2', surface: 'papel' },
-  { id: 'carbon', label: 'Carbón', color: '#3b3734', surface: 'papel' },
-  { id: 'noche', label: 'Noche', color: '#28324c', surface: 'papel' },
-  { id: 'ventana', label: 'Luz de ventana', color: '#e7d5b9', surface: 'lino', windowShadow: true },
-  { id: 'mantel-rosa', label: 'Mantel · cuadros rosa', color: '#f4e9dc', surface: 'lino', tablecloth: 'vichy-rosa' },
-  { id: 'mantel-azul', label: 'Mantel · cuadros azul', color: '#f4e9dc', surface: 'lino', tablecloth: 'vichy-azul' },
-  { id: 'mantel-rayas', label: 'Mantel · rayas salvia', color: '#f4e9dc', surface: 'lino', tablecloth: 'rayas-salvia' },
-];
+export { SCENARIOS as SET_PRESETS } from './scenarios';
 
 function windowTexture(strength: number): Texture {
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;

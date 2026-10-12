@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { VIEW_PRESETS, type BookEngine } from '../book/BookEngine';
-import { BACKDROP_PRESETS, LIGHTING_PRESETS } from '../book/Stage';
-import type { StageSetSpec, Surface } from '../book/StageSet';
+import { LIGHTING_PRESETS } from '../book/Stage';
+import type { Surface } from '../book/StageSet';
 import type { SpreadInfo } from '../book/types';
-import { Chips, Section, Slider, Swatch } from './controls';
+import { Chips, Section, Slider } from './controls';
+import { migratePhotoBackdrop, photoScenario, resolveScenario } from '../book/scenarios';
+import { ScenarioPicker } from './ScenarioPicker';
 import { downloadBlob, fileSlug } from './download';
 import { IconAlert, IconClose } from './icons';
 import { VideoEditor } from './video/VideoEditor';
@@ -26,6 +28,7 @@ type FrameId = 'libre' | '1:1' | '4:5' | '9:16' | '16:9';
 const FRAMES: Record<FrameId, number | null> = { libre: null, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '16:9': 16 / 9 };
 
 interface Settings {
+  catalogVersion?: number;
   tab: StudioTab;
   lighting: string;
   backdrop: string; // id de preset | 'custom' | 'transparent'
@@ -62,6 +65,8 @@ function loadSettings(): Settings {
     const saved = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') } as Settings;
     return {
       ...saved,
+      backdrop: migratePhotoBackdrop(saved.backdrop, saved.catalogVersion),
+      catalogVersion: 1,
       tab: saved.tab === 'video' ? 'video' : 'foto',
       surface: ['liso', 'papel', 'lino'].includes(saved.surface) ? saved.surface : DEFAULTS.surface,
     };
@@ -100,11 +105,7 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
     return () => engine.exitStudio();
   }, [engine]);
 
-  const stageSet: StageSetSpec | null = useMemo(() => {
-    if (s.backdrop === 'transparent') return null;
-    const preset = BACKDROP_PRESETS.find((b) => b.id === s.backdrop) ?? BACKDROP_PRESETS[0];
-    return { color: s.backdrop === 'custom' ? s.customColor : preset.inner, surface: s.surface };
-  }, [s.backdrop, s.customColor, s.surface]);
+  const stageSet = useMemo(() => photoScenario(s.backdrop, s.customColor, s.surface), [s.backdrop, s.customColor, s.surface]);
 
   // Ajustes de foto. En la pestaña de video manda el editor (escenario, luz, cuadro y cámara).
   useEffect(() => {
@@ -188,29 +189,10 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
           </Section>
 
           <Section title="Escenario" hint="La superficie recibe las sombras del libro. Transparente exporta un PNG sin escenario.">
-            <div className="swatches">
-              {BACKDROP_PRESETS.map((b) => (
-                <Swatch key={b.id} selected={s.backdrop === b.id} color={b.inner}
-                  onClick={() => update({ backdrop: b.id })}
-                  title={b.label}
-                  aria-label={`Fondo ${b.label}`}
-                />
-              ))}
-              <label className={`swatch swatch-custom${s.backdrop === 'custom' ? ' is-active' : ''}`} title="Color a elección">
-                <input
-                  type="color"
-                  value={s.customColor}
-                  onChange={(e) => update({ backdrop: 'custom', customColor: e.target.value })}
-                  aria-label="Color de fondo a elección"
-                />
-              </label>
-              <Swatch selected={s.backdrop === 'transparent'} className="swatch-transparent"
-                onClick={() => update({ backdrop: 'transparent', photoType: 'image/png' })}
-                title="Transparente (PNG)"
-                aria-label="Fondo transparente"
-              />
-            </div>
-            {s.backdrop !== 'transparent' && (
+            <ScenarioPicker photo value={s.backdrop.replace(/^foto:/, '')} customColor={s.customColor}
+              onChange={(backdrop) => update({ backdrop, ...(backdrop === 'transparent' ? { photoType: 'image/png' } : {}) })}
+              onCustomColor={(customColor) => update({ backdrop: 'custom', customColor })} />
+            {s.backdrop !== 'transparent' && !resolveScenario(s.backdrop)?.tablecloth && !resolveScenario(s.backdrop)?.windowShadow && (
               <Chips<Surface>
                 items={[
                   { id: 'liso', label: 'Lisa' },
@@ -284,7 +266,7 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
                   { id: 'image/jpeg', label: 'JPG' },
                 ]}
                 value={s.photoType}
-                onChange={(photoType) => update({ photoType, backdrop: photoType === 'image/jpeg' && s.backdrop === 'transparent' ? 'carbon' : s.backdrop })}
+                onChange={(photoType) => update({ photoType, backdrop: photoType === 'image/jpeg' && s.backdrop === 'transparent' ? 'foto:carbon' : s.backdrop })}
               />
             </div>
             <p className="editor-formula">

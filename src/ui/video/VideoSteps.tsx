@@ -1,12 +1,13 @@
 import type { BookEngine } from '../../book/BookEngine';
 import { LIGHTING_PRESETS } from '../../book/Stage';
-import { SET_PRESETS } from '../../book/StageSet';
+import { customScenarioColor } from '../../book/scenarios';
+import { ScenarioPicker } from '../ScenarioPicker';
 import type { Timeline } from '../../promo/compile';
 import { spreadLabel } from '../../promo/editing';
 import { FORMATS, type FormatId, type PromoProject, type PromoTexts, type SceneKind, type SceneLength, type SceneSpec, type TypographyId } from '../../promo/model';
 import { SCENES, TEMPLATES, TYPOGRAPHY } from '../../promo/templates';
 import { CanvasThumb } from '../CanvasThumb';
-import { Chips, Disclosure, Section, Slider, Swatch, Toggle } from '../controls';
+import { Chips, Disclosure, Section, Slider, Toggle } from '../controls';
 import { IconAlert, IconArrowLeft, IconArrowRight, IconCopy, IconDownload, IconPlay, IconPlus, IconStop, IconTrash } from '../icons';
 import { usePageThumbs } from '../usePageThumbs';
 import { seconds } from './Storyboard';
@@ -253,28 +254,9 @@ export function EnvironmentStep({ project, onChange }: { project: PromoProject; 
   return (
     <>
       <Section title="Escenario">
-        <button className={`btn${project.set === 'automatico' ? ' is-active' : ''}`} aria-pressed={project.set === 'automatico'} onClick={() => onChange({ set: 'automatico' })}>Automático · color de la tapa</button>
-        <div className="swatches">
-          {SET_PRESETS.filter((s) => !s.tablecloth).map((s) => (
-            <Swatch key={s.id} selected={project.set === s.id} color={s.color}
-              title={s.label} name={s.label}
-              aria-label={`Escenario ${s.label}`}
-              aria-pressed={project.set === s.id}
-              onClick={() => onChange(s.id === 'ventana' ? { set: s.id, windowShadow: 0.45 } : { set: s.id })}
-            />
-          ))}
-        </div>
-      </Section>
-      <Section title="Manteles" hint="El álbum se apoya sobre tela tejida. Elegí un dibujo o volvé a los escenarios lisos de arriba.">
-        <div className="style-cards">
-          {SET_PRESETS.filter((s) => s.tablecloth).map((s) => (
-            <button key={s.id} className={`style-card${project.set === s.id ? ' is-active' : ''}`} aria-pressed={project.set === s.id} onClick={() => onChange({ set: s.id })}>
-              <span className={`tablecloth-sample ${s.tablecloth}`} aria-hidden="true" />
-              <b>{s.label}</b>
-              <small>Lino con {s.tablecloth === 'rayas-salvia' ? 'rayas' : 'cuadros'}</small>
-            </button>
-          ))}
-        </div>
+        <ScenarioPicker value={project.set} customColor={customScenarioColor(project.set) ?? '#c9a27e'}
+          onChange={(set) => onChange(set === 'ventana' ? { set, windowShadow: 0.45 } : { set })}
+          onCustomColor={(color) => onChange({ set: `color:${color}` })} />
       </Section>
       <Section title="Luz">
         <Chips items={LIGHTING_PRESETS.map((p) => ({ id: p.id, label: p.label }))} value={project.lighting} onChange={(lighting) => onChange({ lighting })} />

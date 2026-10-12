@@ -19,7 +19,7 @@ El título de **Al empezar** aparece en la primera toma utilizable, aunque hayas
 
 En **Ambiente → Escenario**, **Automático · color de la tapa** toma un tono de la portada para el escenario. Si no encuentra un tono útil, usa Arena. El botón **Luz de ventana** permite elegir lino cálido con sombras suaves del marco para cualquier plantilla, sin cambiar el guion.
 
-En **Manteles**, elegí cuadros rosa, cuadros azul o rayas salvia. En **Luz**, **Sombra de ventana** ajusta cuánto se ve el marco sobre cualquier superficie o mantel; 0% lo apaga. **Sombras de contacto** regula la oclusión ambiental y **Mostrar mesa con bordes y patas** permite alternar entre una mesa finita y la superficie extendida. Estos ajustes quedan guardados con el video. El antialiasing se aplica automáticamente.
+En las muestras compactas de **Ambiente → Escenario**, compartidas con Foto, elegí cuadros rosa, cuadros azul o rayas salvia. En **Luz**, **Sombra de ventana** ajusta cuánto se ve el marco sobre cualquier superficie o mantel; 0% lo apaga. **Sombras de contacto** regula la oclusión ambiental y **Mostrar mesa con bordes y patas** permite alternar entre una mesa finita y la superficie extendida. Estos ajustes quedan guardados con el video. El antialiasing se aplica automáticamente.
 
 ## Tamaños y destinos
 

@@ -29,6 +29,11 @@ try {
   await page.waitForFunction(() => window.bookEngine.stageSet?.tablecloth === 'rayas-salvia');
   await page.getByRole('button', { name: 'Escenario Arena', exact: true }).click();
   await page.waitForFunction(() => !window.bookEngine.stageSet?.tablecloth);
+  await page.getByLabel('Color de escenario a elección', { exact: true }).fill('#a1b2c3');
+  await page.waitForFunction(() => window.bookEngine.stageSet?.color === '#a1b2c3');
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf'))?.project.set === 'color:#a1b2c3');
+  await load();
+  await page.waitForFunction(() => window.bookEngine.stageSet?.color === '#a1b2c3');
   await page.getByRole('button', { name: 'Cerrar estudio', exact: true }).click();
   const result = await page.evaluate(async () => {
     const { bookEngine: engine, promoLab: lab } = window;

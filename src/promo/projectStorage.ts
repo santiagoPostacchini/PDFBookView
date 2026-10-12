@@ -1,4 +1,5 @@
 import { LIGHTING_PRESETS } from '../book/Stage';
+import { customScenarioColor } from '../book/scenarios';
 import { SET_PRESETS } from '../book/StageSet';
 import { FORMATS, type FormatId, type PromoProject, type PromoTexts, type SceneLength, type SceneSpec, type TypographyId } from './model';
 import { DEFAULT_TEXTS, projectFromTemplate, SCENES, TEMPLATES, TYPOGRAPHY } from './templates';
@@ -85,7 +86,7 @@ export function sanitizeProject(raw: unknown): PromoProject | null {
       handle: text(texts.handle, 60, DEFAULT_TEXTS.handle),
     },
     typography: oneOf(raw.typography, Object.keys(TYPOGRAPHY) as TypographyId[], base.typography),
-    set: oneOf(
+    set: typeof raw.set === 'string' && customScenarioColor(raw.set) ? raw.set : oneOf(
       raw.set,
       [...SET_PRESETS.map((s) => s.id), 'automatico'],
       base.set,

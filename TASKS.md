@@ -224,9 +224,14 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 
 ### U-3: Catálogo único de escenarios (Foto y Video)
 - Responsable: codex
-- Estado: pendiente
+- Estado: hecho (pendiente de revisión visual del usuario)
 - Rama: codex/ui-escenarios
 - Aceptación: Foto y Video eligen de la misma lista (colores, superficies, manteles, ventana) con nombres visibles; se conserva el PNG transparente de Foto y que Foto no cambie de aspecto para quien ya la usa; elección recordada; `photo-e2e.mjs`, `manteles-e2e.mjs` y `ventana-e2e.mjs` en verde.
+- Hallazgos: catálogo común en scenarios.ts y ScenarioPicker con nombres visibles, manteles de dos columnas y color propio; Foto conserva superficies y Transparente, suma manteles/ventana recordados. Ajustes antiguos migrados a ids foto:* sin alterar color/superficie; nuevas elecciones usan los colores comunes de Video.
+- Compatibilidad: ids y aspecto anteriores de Video intactos; color propio validado como color:#rrggbb dentro del campo set existente, sin cambiar el modelo. Sin cambios de cámara, figuritas ni proceso de exportación; sin dependencias nuevas ni commits.
+- Validación: 550 tests, typecheck y build en verde; photo (incluye nuevos escenarios y recarga), manteles (incluye color propio recordado), ventana, entorno, studio (arrastre y MP4 9:16/4:5), camera-motion y figuritas (dos MP4) en verde, puerto 5173.
+- Capturas: motion/out/ui-shots/u3 y u3-mobile con el álbum del usuario, revisadas; nombres completos y manteles compactos sin desbordes. README/docs y pruebas actualizados; TEMP/TMP local por permisos del sandbox.
+- Pendientes: revisión visual del usuario; refinamientos generales de móvil siguen en U-6.
 
 ### U-4: Barra superior
 - Responsable: codex

@@ -140,7 +140,23 @@ try {
   await waitSet({ surface: 'lino', color: '#3d3832' });
   await page.getByRole('radio', { name: 'PNG', exact: true }).click();
   await page.getByLabel('Fondo Rosa', { exact: true }).click();
-  await waitSet({ surface: 'lino', color: '#fbdde3' });
+  await waitSet({ surface: 'lino', color: '#e9c6c2' });
+  // Nuevos escenarios de Foto: dibujo, persistencia y retiro real.
+  for (const [label, pattern] of [['cuadros rosa', 'vichy-rosa'], ['cuadros azul', 'vichy-azul'], ['rayas salvia', 'rayas-salvia']]) {
+    await page.getByRole('button', { name: `Mantel · ${label}` }).click();
+    await waitSet({ surface: 'lino', tablecloth: pattern });
+    await loadBook();
+    await waitSet({ surface: 'lino', tablecloth: pattern });
+  }
+  await page.getByLabel('Fondo Luz de ventana', { exact: true }).click();
+  await waitSet({ surface: 'lino', windowShadow: true });
+  await loadBook();
+  await waitSet({ surface: 'lino', windowShadow: true });
+  await page.getByLabel('Fondo transparente', { exact: true }).click();
+  await page.waitForFunction(() => window.bookEngine.stageSet === null);
+  await page.getByLabel('Fondo Rosa', { exact: true }).click();
+  await waitSet({ surface: 'lino', color: '#e9c6c2' });
+  assert.ok(!(await set()).tablecloth && !(await set()).windowShadow, 'Volver a un color retira mantel y ventana.');
   await page.getByRole('button', { name: 'Cerrar estudio', exact: true }).click();
   await page.waitForFunction(() => window.bookEngine.stageSet === null && window.bookEngine.scene.background === null);
   assert.deepEqual(errors, [], 'Hubo errores de ejecución en la app.');

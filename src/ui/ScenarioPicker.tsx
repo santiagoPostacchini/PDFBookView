@@ -1,13 +1,16 @@
 import { SCENARIOS } from '../book/scenarios';
 import { Swatch } from './controls';
 
-export function ScenarioPicker({ value, onChange, customColor, onCustomColor, photo = false }: {
+export function ScenarioPicker({ value, onChange, customColor, onCustomColor, photo = false, legacy = null }: {
   value: string; onChange: (id: string) => void; customColor: string;
   onCustomColor: (color: string) => void; photo?: boolean;
+  /** Fondo guardado antes del catálogo (sólo Foto): se muestra seleccionado con su color real. */
+  legacy?: { id: string; label: string; color: string } | null;
 }) {
   return <div className="scenario-picker">
     {!photo && <button className={`btn${value === 'automatico' ? ' is-active' : ''}`} aria-pressed={value === 'automatico'} onClick={() => onChange('automatico')}>Automático · color de la tapa</button>}
     <div className="swatches">
+      {legacy && <Swatch color={legacy.color} name={legacy.label} title={legacy.label} selected aria-label={`Fondo ${legacy.label}`} onClick={() => onChange(legacy.id)} />}
       {SCENARIOS.filter((s) => !s.tablecloth).map((s) => <Swatch key={s.id} color={s.color} name={s.label} title={s.label}
         selected={value === s.id} aria-label={`${photo ? 'Fondo' : 'Escenario'} ${s.label}`} onClick={() => onChange(s.id)} />)}
       <label className={`swatch swatch-named scenario-custom${value === 'custom' || value.startsWith('color:') ? ' is-active' : ''}`}>

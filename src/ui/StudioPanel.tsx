@@ -4,7 +4,7 @@ import { LIGHTING_PRESETS } from '../book/Stage';
 import type { Surface } from '../book/StageSet';
 import type { SpreadInfo } from '../book/types';
 import { Chips, Section, Slider } from './controls';
-import { migratePhotoBackdrop, photoScenario, resolveScenario } from '../book/scenarios';
+import { legacyPhotoSwatch, migratePhotoBackdrop, photoScenario, resolveScenario } from '../book/scenarios';
 import { ScenarioPicker } from './ScenarioPicker';
 import { downloadBlob, fileSlug } from './download';
 import { IconAlert, IconClose } from './icons';
@@ -205,7 +205,7 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
           </Section>
 
           <Section title="Escenario" hint="La superficie recibe las sombras del libro. Transparente exporta un PNG sin escenario.">
-            <ScenarioPicker photo value={s.backdrop.replace(/^foto:/, '')} customColor={s.customColor}
+            <ScenarioPicker photo value={legacyPhotoSwatch(s.backdrop) ? '' : s.backdrop} legacy={legacyPhotoSwatch(s.backdrop)} customColor={s.customColor}
               onChange={(backdrop) => update({ backdrop, ...(backdrop === 'transparent' ? { photoType: 'image/png' } : {}) })}
               onCustomColor={(customColor) => update({ backdrop: 'custom', customColor })} />
             {s.backdrop !== 'transparent' && !resolveScenario(s.backdrop)?.tablecloth && !resolveScenario(s.backdrop)?.windowShadow && (

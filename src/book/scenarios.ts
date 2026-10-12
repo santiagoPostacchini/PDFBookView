@@ -41,3 +41,13 @@ export function photoScenario(backdrop: string, customColor: string, surface: Su
   const spec = resolveScenario(backdrop) ?? { color: LEGACY_PHOTO_COLORS.carbon, surface };
   return spec.tablecloth || spec.windowShadow ? spec : { ...spec, surface };
 }
+
+/** Fondo de Foto guardado antes del catálogo: conserva su color y se muestra aparte, sin confundirlo con el del catálogo. */
+export function legacyPhotoSwatch(backdrop: string): { id: string; label: string; color: string } | null {
+  if (!backdrop.startsWith('foto:')) return null;
+  const name = backdrop.slice(5);
+  const color = LEGACY_PHOTO_COLORS[name];
+  if (!color) return null;
+  const label = SCENARIOS.find((s) => s.id === name)?.label ?? name;
+  return { id: backdrop, label: `${label} (anterior)`, color };
+}

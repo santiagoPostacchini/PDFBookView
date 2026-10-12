@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BACKDROP_PRESETS } from './Stage';
 import { SET_PRESETS, type Surface } from './StageSet';
-import { migratePhotoBackdrop, photoScenario, resolveScenario, SCENARIOS } from './scenarios';
+import { legacyPhotoSwatch, migratePhotoBackdrop, photoScenario, resolveScenario, SCENARIOS } from './scenarios';
 import { sanitizeProject } from '../promo/projectStorage';
 import { projectFromTemplate } from '../promo/templates';
 
@@ -38,5 +38,15 @@ describe('catálogo compartido', () => {
     expect(resolveScenario('color:rojo')).toBeUndefined();
     expect(photoScenario('rosa', '#123456', 'liso')).toMatchObject({ color: '#e9c6c2', surface: 'liso' });
     for (const id of ['ventana', 'mantel-rosa', 'mantel-azul', 'mantel-rayas']) expect(photoScenario(id, '#123456', 'liso')).toEqual(resolveScenario(id));
+  });
+  it('muestra el fondo anterior de Foto con su color real, aparte del catálogo', () => {
+    for (const old of BACKDROP_PRESETS) {
+      const swatch = legacyPhotoSwatch(migratePhotoBackdrop(old.id));
+      expect(swatch?.color).toBe(old.inner);
+      expect(swatch?.label).toMatch(/\(anterior\)$/);
+    }
+    expect(legacyPhotoSwatch('rosa')).toBeNull();
+    expect(legacyPhotoSwatch('custom')).toBeNull();
+    expect(legacyPhotoSwatch('foto:inexistente')).toBeNull();
   });
 });

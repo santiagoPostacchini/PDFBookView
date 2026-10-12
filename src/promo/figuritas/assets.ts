@@ -1,6 +1,7 @@
 export interface StickerInfo { id: string; number: number; widthPt: number; heightPt: number }
 export interface StickerAsset extends StickerInfo { image: Blob }
-export interface PackAsset { widthPt: number; heightPt: number; front: Blob; back: Blob }
+/** `custom`: diseño cargado por la persona (true) o paquete básico (false). */
+export interface PackAsset { widthPt: number; heightPt: number; front: Blob; back: Blob; custom?: boolean }
 export interface FiguritasKit { stickers: StickerInfo[]; pack: Pick<PackAsset, 'widthPt' | 'heightPt'> }
 export interface FiguritasLibrary { stickers: StickerAsset[]; pack: PackAsset }
 export interface FiguritasImages { stickers: ReadonlyMap<string, HTMLCanvasElement>; front: HTMLCanvasElement; back: HTMLCanvasElement }

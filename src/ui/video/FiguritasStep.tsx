@@ -17,20 +17,6 @@ export function FiguritasStep({ scene, shape, library, onLibrary, onChange }: {
   onLibrary: (library: FiguritasLibrary) => void; onChange: (patch: Partial<SceneSpec>) => void;
 }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
-  const [customPack, setCustomPack] = useState(false);
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const base = await basicPack();
-      const same = async (a: Blob, b: Blob) => {
-        const x = new Uint8Array(await a.arrayBuffer()), y = new Uint8Array(await b.arrayBuffer());
-        return x.length === y.length && x.every((v, i) => v === y[i]);
-      };
-      const custom = !!library && !(await same(library.pack.front, base.front) && await same(library.pack.back, base.back));
-      if (active) setCustomPack(custom);
-    })();
-    return () => { active = false; };
-  }, [library?.pack]);
   const selected: NonNullable<SceneSpec['stickers']> = scene.stickers ?? resolveTargets(scene, shape, library ?? undefined).map((t) => ({ id: t.sticker.id }));
   const load = async (files: FileList | null, pack = false) => {
     if (!files?.length) return;
@@ -100,7 +86,7 @@ export function FiguritasStep({ scene, shape, library, onLibrary, onChange }: {
       <button className="btn" disabled={busy} onClick={() => { setBusy(true); void basicPack().then((pack) => onLibrary({ stickers: library?.stickers ?? [], pack })).finally(() => setBusy(false)); }}>Usar paquete básico</button>
       {library && <div className="pack-thumbs"><BlobThumb blob={library.pack.front} /><BlobThumb blob={library.pack.back} /></div>}
     </Disclosure>
-    <p className="sticker-pack-summary">{customPack ? 'Tu diseño' : 'Paquete básico'}</p>
+    <p className="sticker-pack-summary">{library?.pack.custom ? 'Tu diseño' : 'Paquete básico'}</p>
     </div>
   </>;
 }

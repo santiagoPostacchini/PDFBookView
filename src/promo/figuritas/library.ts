@@ -1,4 +1,4 @@
-import type { FiguritasLibrary } from './assets';
+import type { FiguritasLibrary, PackAsset } from './assets';
 const memory = new Map<string, FiguritasLibrary>();
 const key = (album: string) => album.toLowerCase();
 const open = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
@@ -7,6 +7,21 @@ const open = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
   request.onsuccess = () => resolve(request.result);
   request.onerror = () => reject(request.error);
 });
+
+/** Bibliotecas guardadas antes del indicador: se compara una sola vez con el paquete básico y se deja anotado. */
+async function withPackFlag(library: FiguritasLibrary): Promise<FiguritasLibrary> {
+  if (typeof library.pack.custom === 'boolean') return library;
+  try {
+    const { basicPack } = await import('./packArt');
+    const base = await basicPack();
+    const same = async (a: Blob, b: Blob) => {
+      const x = new Uint8Array(await a.arrayBuffer()), y = new Uint8Array(await b.arrayBuffer());
+      return x.length === y.length && x.every((v, i) => v === y[i]);
+    };
+    const pack: PackAsset = { ...library.pack, custom: !(await same(library.pack.front, base.front) && await same(library.pack.back, base.back)) };
+    return { ...library, pack };
+  } catch { return library; }
+}
 
 export async function saveLibrary(album: string, library: FiguritasLibrary): Promise<void> {
   memory.set(key(album), library);
@@ -32,7 +47,7 @@ export async function loadLibrary(album: string): Promise<FiguritasLibrary | nul
     });
     if (record?.version === 1 && Array.isArray(record.library?.stickers) && record.library.pack?.front instanceof Blob && record.library.pack.back instanceof Blob
       && record.library.stickers.every((s) => typeof s.id === 'string' && s.image instanceof Blob && s.widthPt > 0 && s.heightPt > 0)) {
-      memory.set(key(album), record.library);
+      memory.set(key(album), await withPackFlag(record.library));
     }
   } catch { /* respaldo en memoria */ }
   finally { db?.close(); }

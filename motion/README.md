@@ -32,6 +32,9 @@ node scripts/demo-album.mjs
 # Punta a punta: carga el PDF, saca una foto y arma y exporta un video con el editor
 node scripts/studio-e2e.mjs out/demo/album-demo.pdf --mode simple --template ritmo --formats 9:16,1:1 --drag --out out/e2e
 
+# Foto: superficies, persistencia, cambio Foto/Video y alfa real de los PNG
+node scripts/photo-e2e.mjs out/demo/album-demo.pdf
+
 # Muestras sin interfaz: cuadros por escena, hoja de contacto y (con --video) el MP4
 node scripts/promo-sample.mjs out/demo/album-demo.pdf --template clasica --format 9:16 --video
 

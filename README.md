@@ -59,7 +59,7 @@ El editor muestra cada cara con la miniatura del PDF y el número de página res
 
 Botón **Estudio** (con un libro cargado):
 
-- **Foto:** luz (Estudio, Cálida, Dramática, Suave, Fría), fondo (presets, color a elección o transparente), encuadre (libre, 1:1, 4:5, 9:16, 16:9 — lo que se ve es lo que se exporta), ángulos predefinidos, lente de 18 a 135 mm conservando el encuadre, profundidad de campo, viñeta, grano y "hoja en el aire". Exporta PNG/JPG en 2K o 4K.
+- **Foto:** luz (Estudio, Cálida, Dramática, Suave, Fría), escenario 3D (superficie lisa, papel o lino, con sombras; colores predefinidos o a elección), encuadre (libre, 1:1, 4:5, 9:16, 16:9 — lo que se ve es lo que se exporta), ángulos predefinidos, lente de 18 a 135 mm conservando el encuadre, profundidad de campo, viñeta, grano y "hoja en el aire". Exporta PNG/JPG en 2K o 4K; la opción Transparente genera un PNG sin escenario.
 - **Video promocional:** un editor en cuatro pasos pensado para quien no sabe de cámaras:
   1. **Estilo:** Clásica (toma continua), Ritmo (cortes en movimiento, para Reels) o Minimal. Cada uno trae escenario, luz, ritmo y tipografía.
   2. **Historia:** el guion es una fila de escenas debajo del visor (Portada, Apertura, Doble página, Hojeo, Detalle, Vista cenital, Cierre). Cada escena se elige tocándola y se reordena arrastrándola; para cada una se decide qué páginas se ven (o automática), una frase opcional y si es corta, normal o larga.

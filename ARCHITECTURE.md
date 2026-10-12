@@ -50,7 +50,7 @@ Una entrada por decisión. No se borran: si una cambia, se marca como reemplazad
 - Decisión: `StageSet`: superficie con textura que recibe sombras, sombra de contacto bajo cada pila de hojas, foco de luz con caída suave, luz de entorno y niebla del color del horizonte para que la superficie se funda sin bordes.
 - Razón: la perspectiva de la superficie es lo que hace creíble el movimiento de cámara.
 - Alternativas descartadas: ciclorama curvo modelado (más geometría, mismo resultado visible).
-- Estado: vigente (falta usarlo también en el modo Foto, T-006)
+- Estado: vigente (también en el modo Foto desde T-006; PNG transparente desactiva el escenario)
 
 ### D-006: Tipografías de los textos del video, autoalojadas (2026-10-07)
 

@@ -1,6 +1,7 @@
 // Capturas del Estudio para revisar la interfaz (antes/después de un cambio).
 // Con npm run dev en la raíz, desde motion/:
 //   node scripts/ui-shots.mjs <álbum.pdf> <carpeta-salida> [--mobile] [--url http://localhost:5173/]
+//     [--figuritas <hoja.pdf>] [--paquete <troquel.pdf>]
 // Saca el visor, la pestaña Foto y cada paso del editor de video (normal y panel completo).
 import assert from 'node:assert/strict';
 import { mkdirSync, readdirSync } from 'node:fs';
@@ -14,6 +15,10 @@ const flag = (name) => {
 };
 const mobile = !!flag('mobile');
 const url = flag('url') || 'http://localhost:5173/';
+const figuritas = flag('figuritas');
+const paquete = flag('paquete');
+assert.ok(!figuritas || typeof figuritas === 'string', '--figuritas requiere un PDF');
+assert.ok(!paquete || typeof paquete === 'string', '--paquete requiere un PDF');
 const [album, outArg] = args;
 assert.ok(album && outArg, 'Uso: ui-shots.mjs <álbum.pdf> <carpeta-salida> [--mobile] [--url …]');
 const out = resolve(outArg);
@@ -51,6 +56,12 @@ try {
     await page.evaluate(() => {
       localStorage.clear();
       localStorage.setItem('pdf-book-view.mode', 'booklet');
+    });
+    if (figuritas || paquete) await page.evaluate(async () => {
+      await new Promise((resolve, reject) => {
+        const req = indexedDB.deleteDatabase('pdf-book-view.figuritas');
+        req.onsuccess = () => resolve(); req.onerror = () => reject(req.error);
+      });
     });
     await page.reload();
     await page.setInputFiles('input[type=file]', album);
@@ -103,6 +114,44 @@ try {
         await page.locator('.scene-content').evaluate((el) => { el.scrollTop = 0; });
       }
       await shot(`2-${i + 1}-${label.replace(/^\d\s*/, '').replace(/\W+/g, '')}`);
+    }
+    if ((figuritas || paquete) && !mobile) {
+      await page.locator('.video-steps button').first().click();
+      await page.locator('.template-card').filter({ has: page.locator('b', { hasText: /^Figuritas$/ }) }).click();
+      await page.locator('.storyboard .scene-card').nth(3).click();
+      await page.getByText('Todavía no cargaste figuritas', { exact: true }).waitFor();
+      await shot('3-figuritas-vacio');
+      if (figuritas) {
+        await page.getByLabel('Cargar figuritas', { exact: true }).setInputFiles(figuritas);
+        await page.locator('.sticker-row').first().waitFor({ timeout: 120000 });
+      }
+      if (paquete) {
+        await page.locator('.sticker-pack summary').click();
+        await page.getByLabel('Diseño del paquete', { exact: true }).setInputFiles(paquete);
+        await page.getByText('Tu diseño', { exact: true }).waitFor({ timeout: 120000 });
+        await page.locator('.sticker-pack summary').click();
+      }
+      await page.locator('.scene-content').evaluate((el) => { el.scrollTop = 0; });
+      await shot('3-figuritas-cargado');
+      if (figuritas) {
+        const images = await page.locator('.sticker-grid img').evaluateAll((imgs) => imgs.map((img) => ({ w: img.width, h: img.height, nw: img.naturalWidth, nh: img.naturalHeight })));
+        assert.ok(images.every((img) => img.nw > img.nh ? img.w > img.h : img.h >= img.w), 'Miniaturas conservan la orientación');
+        if (tag === 'n') {
+          const overflow = await page.locator('.scene-content').evaluate((el) => el.scrollHeight - el.clientHeight);
+          assert.ok(overflow <= 300, `Desplazamiento corto: ${overflow}px`);
+          console.log(`Figuritas: desplazamiento ${overflow}px a 1440×900`);
+        }
+        await page.locator('.sticker-row input.toggle').first().focus();
+        await page.keyboard.press('Tab');
+        assert.equal(await page.locator('.sticker-row summary').first().evaluate((el) => el === document.activeElement), true, 'Tabulación: elegir → ajustar');
+        await page.locator('.sticker-row summary').first().click();
+        await shot('3-figuritas-ajustar');
+        await page.locator('.sticker-row summary').first().click();
+        await page.locator('.scene-content').evaluate((el) => { el.scrollTop = el.scrollHeight; });
+        const footer = await page.locator('.scene-footer').boundingBox();
+        assert.ok(footer && footer.y + footer.height <= viewport.height, 'Pie de acciones visible con figuritas');
+        await shot('3-figuritas-final');
+      }
     }
     await page.getByRole('button', { name: 'Cerrar estudio', exact: true }).click();
     assert.equal(await page.locator('.topbar').isVisible(), true, 'Cerrar el Estudio recupera la preferencia general');

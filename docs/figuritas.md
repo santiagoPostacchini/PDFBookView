@@ -4,9 +4,9 @@
 
 1. Cargá el álbum PDF y elegí el modo de lectura correcto. Para un álbum de dos páginas por hoja, usá **Revista DIY / Cuadernillo** y verificá el armado en **Hojas**.
 2. Abrí **Estudio → Video promocional** y elegí la plantilla **Figuritas**, o, para conservar tu estilo y guion, agregá la escena **Figuritas** desde **Historia → Agregar una escena**.
-3. En **Historia**, tocá la tarjeta **Figuritas** del guion. Cargá la hoja PDF de figuritas o imágenes individuales.
-4. El editor detecta los números y elige hasta tres figuritas automáticamente. Podés seleccionar hasta seis por escena, corregir números y elegir **Casillero Nº…** o una **Página…** interior, centrada. Para usar más de seis, agregá otra escena de Figuritas.
-5. Cargá el diseño del paquete como PDF de troquel o imagen, o elegí **Usar paquete básico**. El recorte del PDF reconoce el troquel de referencia (A4 apaisado, panel de frente a la derecha del panel del dorso); otros troqueles deben prepararse como imagen de frente.
+3. En **Historia**, tocá la tarjeta **Figuritas** del guion. Sin imágenes, una tarjeta explica qué podés cargar y la escena se omite. Usá **Cargar figuritas** para subir una hoja PDF sobre blanco o imágenes sueltas; después podés sumar otras con **Cargar más**.
+4. El editor detecta los números y elige hasta tres figuritas automáticamente. El contador muestra cuántas elegiste de las seis permitidas; las tarjetas atenuadas no están elegidas. Abrí **Ajustar** en una tarjeta para corregir su número, elegir un casillero o una página interior centrada, o quitarla. Las miniaturas conservan su orientación y cada tarjeta muestra el destino y los avisos breves. Para usar más de seis, agregá otra escena de Figuritas.
+5. Abrí **Diseño del paquete**, cerrado inicialmente: el resumen indica **Paquete básico** o **Tu diseño**. Cargá un PDF de troquel o imagen, o elegí **Usar paquete básico**; dentro se ven frente y dorso. El recorte del PDF reconoce el troquel de referencia (A4 apaisado, panel de frente a la derecha del panel del dorso); otros troqueles deben prepararse como imagen de frente.
 6. Usá **Ver cómo se pegan** para reproducir la animación desde esa escena. El botón principal del guion reproduce desde el principio. En **Exportar**, elegí uno o varios formatos; se descargan los MP4 con un solo clic.
 
 **Ocultar barra** y **Mostrar barra** recuerdan la preferencia por separado para Video (oculta por defecto) y Foto/lectura (visible por defecto). Al volver a Foto o cerrar el Estudio se recupera la preferencia general. El cuadro del video aprovecha el espacio liberado.
@@ -34,6 +34,7 @@ Las imágenes y el paquete se guardan por nombre de álbum en el navegador, medi
 - `npm test` y `npm run build`.
 - Desde `motion/`, con el visualizador corriendo: `node scripts/slots-e2e.mjs <álbum.pdf> [URL]`.
 - `node scripts/figuritas-e2e.mjs <álbum.pdf> <figuritas.pdf> <paquete.pdf> [URL]` recorre la interfaz, valida recursos/destinos, búsqueda hacia atrás, persistencia, barra y exportación 9:16 + 16:9. Las muestras quedan en `motion/out/figuritas-e2e/`, ignoradas por Git.
+- `node scripts/ui-shots.mjs <álbum.pdf> out/ui-shots/u5 --figuritas <hoja.pdf> --paquete <troquel.pdf>` agrega capturas de escritorio del panel vacío, cargado, con **Ajustar** abierto y del final del panel; comprueba orientación, desplazamiento corto, tabulación y pie visible. Sin esos flags conserva las capturas habituales.
 - `node scripts/ventana-e2e.mjs [URL]` genera una muestra genérica de la plantilla para revisión visual en `motion/out/ventana/`.
 - `node scripts/entorno-e2e.mjs [URL]` comprueba el título en cuadro 0, reproducción desde el inicio, intensidad de ventana sobre mantel, persistencia, mesa y oclusión; muestras genéricas en `motion/out/entorno/`.
 - `node scripts/camera-motion-e2e.mjs [URL]` verifica zoom y lateral por toma, ambos puntos, reproducción acotada, persistencia, desactivación y exportación MP4 real.

@@ -6,11 +6,11 @@ export function Toggle(props: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'
 }
 
 /** El input real cubre el botón; no se oculta del teclado ni de Playwright. */
-export function FileButton({ onChange, className, ...props }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'defaultValue'>) {
+export function FileButton({ onChange, className, buttonLabel = 'Elegir archivo', ...props }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'defaultValue'> & { buttonLabel?: string }) {
   const [names, setNames] = useState('');
   return <span className={`file-control ${className ?? ''}`}>
     <span className="file-button">
-      <span aria-hidden="true">Elegir archivo</span>
+      <span aria-hidden="true">{buttonLabel}</span>
       <input {...props} type="file" onChange={(event) => {
         setNames(Array.from(event.currentTarget.files ?? []).map((file) => file.name).join(', '));
         onChange?.(event);

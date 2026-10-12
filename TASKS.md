@@ -246,9 +246,14 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 
 ### U-5: Panel de Figuritas
 - Responsable: codex
-- Estado: pendiente
+- Estado: hecho (pendiente de revisión visual del usuario)
 - Rama: codex/ui-figuritas
 - Aceptación: estado vacío claro, cuadrícula compacta de figuritas con número y destino, contador "N de 6", diseño del paquete plegado; `figuritas-e2e.mjs` en verde.
+- Hallazgos: tarjetas en dos columnas con miniaturas proporcionales, destino y avisos breves; Ajustar contiene número/destino/quitar. Paquete plegado con resumen básico/propio; FileButton admite texto opcional sin alterar sus otros usos.
+- Validación: 553 tests, typecheck y build en verde; figuritas (dos MP4), photo, studio (arrastre y MP4 9:16/4:5), entorno, manteles, ventana y camera-motion en verde, puerto 5173.
+- Capturas: motion/out/ui-shots/u5 revisadas (vacío, cargado, Ajustar y final; escritorio y panel completo). Siete figuritas requieren 289 px de desplazamiento a 1440×900; pie visible, horizontales horizontales y Tab elegir → ajustar comprobados.
+- Compatibilidad: carga, resolveTargets, destinos y límites intactos; scripts reforzados y docs/figuritas.md actualizada. Sin dependencias nuevas, cambios de arquitectura ni commits; TEMP/TMP local para navegador/tests.
+- Pendientes: revisión visual del usuario; ajustes generales de móvil siguen en U-6.
 
 ### U-6: Móvil, teclado y contraste
 - Responsable: codex

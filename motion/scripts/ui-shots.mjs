@@ -109,13 +109,13 @@ try {
         const disclosure = page.locator('.scene-content details');
         assert.equal(await disclosure.getAttribute('open'), null, 'Movimiento cerrado en una toma sin ajustes.');
         await disclosure.locator('summary').click();
-        await page.locator('.scene-content').evaluate((el) => { el.scrollTop = el.scrollHeight; });
+        await page.locator(compact ? '.scene-editor' : '.scene-content').evaluate((el) => { el.scrollTop = el.scrollHeight; });
         for (const name of ['Antes', 'Despu\u00e9s', 'Duplicar', 'Quitar', 'Agregar una escena']) {
           const box = await page.locator('.scene-footer').getByRole('button', { name, exact: true }).boundingBox();
           assert.ok(box && box.y >= 0 && box.y + box.height <= viewport.height, `Acci\u00f3n visible: ${name}`);
         }
         await disclosure.locator('summary').click();
-        await page.locator('.scene-content').evaluate((el) => { el.scrollTop = 0; });
+        await page.locator(compact ? '.scene-editor' : '.scene-content').evaluate((el) => { el.scrollTop = 0; });
       }
       await shot(`2-${i + 1}-${label.replace(/^\d\s*/, '').replace(/\W+/g, '')}`);
     }
@@ -135,13 +135,13 @@ try {
         await page.getByText('Tu diseño', { exact: true }).waitFor({ timeout: 120000 });
         await page.locator('.sticker-pack summary').click();
       }
-      await page.locator('.scene-content').evaluate((el) => { el.scrollTop = 0; });
+      await page.locator(compact ? '.scene-editor' : '.scene-content').evaluate((el) => { el.scrollTop = 0; });
       await shot('3-figuritas-cargado');
       if (figuritas) {
         const images = await page.locator('.sticker-grid img').evaluateAll((imgs) => imgs.map((img) => ({ w: img.width, h: img.height, nw: img.naturalWidth, nh: img.naturalHeight })));
         assert.ok(images.every((img) => img.nw > img.nh ? img.w > img.h : img.h >= img.w), 'Miniaturas conservan la orientación');
         if (tag === 'n') {
-          const overflow = await page.locator('.scene-content').evaluate((el) => el.scrollHeight - el.clientHeight);
+          const overflow = await page.locator(compact ? '.scene-editor' : '.scene-content').evaluate((el) => el.scrollHeight - el.clientHeight);
           assert.ok(overflow <= 300, `Desplazamiento corto: ${overflow}px`);
           console.log(`Figuritas: desplazamiento ${overflow}px a 1440×900`);
         }
@@ -151,7 +151,7 @@ try {
         await page.locator('.sticker-row summary').first().click();
         await shot('3-figuritas-ajustar');
         await page.locator('.sticker-row summary').first().click();
-        await page.locator('.scene-content').evaluate((el) => { el.scrollTop = el.scrollHeight; });
+        await page.locator(compact ? '.scene-editor' : '.scene-content').evaluate((el) => { el.scrollTop = el.scrollHeight; });
         const footer = await page.locator('.scene-footer').boundingBox();
         assert.ok(footer && footer.y + footer.height <= viewport.height, 'Pie de acciones visible con figuritas');
         await shot('3-figuritas-final');

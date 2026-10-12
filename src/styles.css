@@ -1348,8 +1348,8 @@ input.toggle:disabled { opacity: 0.55; cursor: default; }
   .app.is-editing .topbar { max-width: calc(100% - 28px); right: 14px; }
 }
 @media (max-width: 768px) {
-  .app { --sheet-height: 55dvh; }
-  .app:has(.studio-panel.is-collapsed) { --sheet-height: 22dvh; }
+  .app { --sheet-height: 60dvh; }
+  .app:has(.studio-panel.is-expanded) { --sheet-height: 88dvh; }
   .topbar, .app.is-editing .topbar {
     left: 8px; right: 8px; top: 8px; width: auto; max-width: none;
     display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; z-index: 6;
@@ -1394,10 +1394,6 @@ input.toggle:disabled { opacity: 0.55; cursor: default; }
 @media (max-width: 768px) {
   .scene-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px 0; }
   .scene-actions .btn { font-size: 11px; gap: 2px; }
-  .scene-actions .btn svg { display: none; }
-  .app:has(.studio-panel.is-collapsed) .studio-panel > .editor-scroll,
-  .app:has(.studio-panel.is-collapsed) .studio-panel > .video-steps,
-  .app:has(.studio-panel.is-collapsed) .studio-panel > .studio-tabs { display: none; }
 }
 @media (max-width: 768px) {
   .app.is-editing .topbar .topbar-label { display: inline; }
@@ -1416,8 +1412,9 @@ input.toggle:disabled { opacity: 0.55; cursor: default; }
 }
 @media (max-width: 768px) {
   .studio-panel .studio-tabs {
-    position: absolute; top: 28px; left: 82px; right: 50px;
-    margin: 0; height: 40px;
+    position: static; width: calc(100% - 28px);
+    margin: 0 14px 6px; height: 46px;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .studio-panel .studio-tabs button { font-size: 12px; white-space: nowrap; }
   .studio-panel .editor-head h2 { font-size: 14px; }
@@ -1432,4 +1429,28 @@ input.toggle:disabled { opacity: 0.55; cursor: default; }
 }
 @media (max-width: 768px) {
   .app.is-studio .camera-controls { flex-direction: row; }
+}
+
+/* U-6b: escena desplazable completa y guion reservado al pie de la hoja. */
+@media (max-width: 768px) {
+  .studio-panel .studio-tabs button { min-width: 0; width: 100%; padding-inline: 4px; }
+  .app.is-video .studio-panel { padding-bottom: 88px; }
+  .app .studio-dock { left: 0; right: 0; bottom: 0; height: 88px; }
+  .app .storyboard { padding: 4px 8px; gap: 8px; border-radius: 0; background: #181614; }
+  .storyboard-play { position: static; flex: 0 0 40px; width: 40px; height: 40px; }
+  .storyboard-track { flex: 1 1 0; min-width: 0; }
+  .storyboard-track > li { flex: none; }
+  .scene-card { width: max-content; min-width: 112px; height: 72px; gap: 2px; }
+  .scene-card-label b { overflow: visible; text-overflow: clip; }
+  .scene-card-caption { display: none; }
+  .scene-thumb-page { height: 30px !important; width: auto !important; }
+  .scene-add { min-height: 72px; }
+  .scene-editor { overflow-y: auto; display: block; scrollbar-width: thin; }
+  .scene-content { overflow: visible; }
+  .scene-footer { position: static; padding-bottom: 6px; }
+  .scene-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .scene-actions .btn { flex-direction: column; min-height: 44px; gap: 2px; }
+  .scene-actions .btn svg { display: block; width: 16px; height: 16px; }
+  .scene-footer > .btn { min-height: 32px; width: auto; margin: 4px auto 0; font-size: 12px; }
+  .app.is-video .book-canvas { top: 4px !important; bottom: 4px !important; height: calc(100% - 8px) !important; width: auto !important; max-width: calc(100% - 16px); object-fit: contain; }
 }

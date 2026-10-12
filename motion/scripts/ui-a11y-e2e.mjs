@@ -1,10 +1,20 @@
-// Desde motion/: node scripts/ui-a11y-e2e.mjs <álbum.pdf> [URL]
+// Desde motion/: node scripts/ui-a11y-e2e.mjs <álbum.pdf> [URL] [--figuritas <hoja.pdf>] [--paquete <troquel.pdf>]
 // Verifica los tres tamaños, nombres accesibles, alcance y foco de teclado.
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
-const [album, url = 'http://localhost:5173/'] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const option = (name) => {
+  const index = args.indexOf(`--${name}`);
+  if (index < 0) return null;
+  const value = args[index + 1];
+  assert.ok(value && !value.startsWith('--'), `--${name} requiere un PDF`);
+  args.splice(index, 2); return value;
+};
+const figuritas = option('figuritas');
+const paquete = option('paquete');
+const [album, url = 'http://localhost:5173/'] = args;
 assert.ok(album, 'Falta el álbum PDF');
 const entry = readdirSync('node_modules/.remotion/chrome-headless-shell', { recursive: true, withFileTypes: true })
   .find((e) => e.isFile() && /^chrome-headless-shell(\.exe)?$/.test(e.name));
@@ -48,9 +58,16 @@ try {
     if (width <= 768) {
       const viewport = await page.locator('.viewport').boundingBox();
       assert.ok(viewport.height >= height * .35, 'Visor conserva al menos 35% del alto');
-      await page.getByRole('button', { name: 'Colapsar estudio' }).click();
+      const handle = page.locator('.sheet-handle');
+      assert.equal(await handle.getAttribute('aria-expanded'), 'false');
+      const initial = await page.locator('.studio-panel').boundingBox();
+      assert.ok(Math.abs(initial.height - height * .60) < 2, 'Hoja inicial de 60%');
+      await handle.focus(); await page.keyboard.press('Enter');
+      assert.equal(await handle.getAttribute('aria-expanded'), 'true');
+      assert.ok(Math.abs((await page.locator('.studio-panel').boundingBox()).height - height * .88) < 2, 'Hoja expandida de 88%');
       await reachable(page.getByRole('button', { name: 'Cerrar estudio', exact: true }));
-      await page.getByRole('button', { name: 'Expandir estudio' }).click();
+      await handle.focus(); await page.keyboard.press('Space');
+      assert.equal(await handle.getAttribute('aria-expanded'), 'false');
     }
     await page.getByRole('tab', { name: 'Video promocional' }).click();
     for (let i = 0; i < 5; i++) {
@@ -59,6 +76,62 @@ try {
       if (i === 1) for (const name of ['Antes', 'Después']) await reachable(page.getByRole('button', { name, exact: true }));
       if (i === 4) await reachable(page.getByRole('button', { name: /^Exportar/ }).first());
     }
+    // Geometría del selector y del guion, incluso con las tarjetas desplazadas.
+    const selector = page.locator('.studio-tabs');
+    const bounds = await selector.boundingBox();
+    const tabs = await selector.locator('button').all();
+    const boxes = await Promise.all(tabs.map((tab) => tab.boundingBox()));
+    assert.ok(boxes.every((box) => box.x >= bounds.x && box.x + box.width <= bounds.x + bounds.width + 1), 'Foto/Video dentro del selector');
+    if (width <= 768) {
+      assert.ok(Math.abs(boxes[0].width - boxes[1].width) < 1, 'Dos mitades iguales');
+      const preview = await page.locator('.viewport').boundingBox();
+      const frame = await page.locator('.viewport canvas').first().boundingBox();
+      assert.ok(frame.y >= preview.y && frame.y + frame.height <= preview.y + preview.height + 1 && frame.height >= preview.height - 9, 'Video aprovecha el alto libre');
+      const playBox = await page.locator('.storyboard-play').boundingBox();
+      for (const card of await page.locator('.storyboard .scene-card').all()) {
+        await card.scrollIntoViewIfNeeded();
+        const box = await card.boundingBox();
+        assert.ok(box.x >= playBox.x + playBox.width, 'Reproducir no se superpone con tarjetas');
+        const thumbBox = await card.locator('.scene-thumb').boundingBox();
+        const labelBox = await card.locator('.scene-card-label').boundingBox();
+        assert.ok(thumbBox.y + thumbBox.height <= labelBox.y + 1, 'Miniatura separada del nombre');
+        assert.ok(await card.locator('b').evaluate((el) => el.scrollWidth <= el.clientWidth), 'Nombre completo de escena');
+      }
+    }
+    await page.locator('.video-steps button').first().click();
+    await page.locator('.template-card').filter({ has: page.locator('b', { hasText: /^Figuritas$/ }) }).click();
+    await page.locator('.storyboard .scene-card').nth(3).click();
+    if (figuritas) {
+      await page.getByLabel('Cargar figuritas', { exact: true }).setInputFiles(figuritas);
+      await page.locator('.sticker-row').first().waitFor({ timeout: 120000 });
+    }
+    if (paquete) {
+      await page.locator('.sticker-pack summary').click();
+      await page.getByLabel('Dise\u00f1o del paquete', { exact: true }).setInputFiles(paquete);
+      await page.getByText('Tu dise\u00f1o', { exact: true }).waitFor({ timeout: 120000 });
+      await page.locator('.sticker-pack summary').click();
+    }
+    if (width <= 768) {
+      const scroll = page.locator('.scene-editor');
+      const area = await scroll.boundingBox();
+      const track = await page.locator('.studio-dock').boundingBox();
+      console.log(`Hoja ${width}: ${area.height}px de contenido desplazable`);
+      assert.ok(area.height >= 220, `Contenido útil >= 220 px: ${area.height}`);
+      assert.ok(area.y + area.height <= track.y + 1 && track.height <= 96, 'Guion reservado sin superposición');
+      if (figuritas) {
+        for (const toggle of await page.getByRole('checkbox', { name: /^Elegir figurita / }).all()) {
+          await scroll.evaluate((el) => { el.scrollTop = 0; });
+          await toggle.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+          await reachable(toggle);
+          const box = await toggle.boundingBox();
+          assert.ok(box.y >= area.y && box.y + box.height <= area.y + area.height, 'Figurita dentro del área desplazable');
+        }
+        assert.ok(await scroll.evaluate((el) => el.scrollTop > 0), 'Figuritas alcanzadas desplazando la hoja');
+      }
+    }
+    // Restaurar el guion inicial para conservar las pruebas de reordenamiento.
+    await page.locator('.video-steps button').first().click();
+    await page.locator('.template-card').first().click();
     await page.locator('.video-steps button').first().focus();
     await page.keyboard.press('ArrowRight');
     assert.equal(await page.locator('.video-steps button').nth(1).getAttribute('aria-selected'), 'true');

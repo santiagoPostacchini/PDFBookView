@@ -266,6 +266,15 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 - Capturas: motion/out/ui-shots/u6, u6-mobile y u6-tablet con recursos del usuario; revisadas sin desbordes, barra alcanzable, visor libre y hoja inferior utilizable. ui-shots admite --tablet y figuritas en móvil; README actualizado.
 - Pendientes: revisión visual del usuario. Sin dependencias, cambios de motor/compilador/catálogo/figuritas, cambios de rama ni commits; TEMP/TMP local y PDFs originales fuera de archivos versionados.
 
+### U-6b: Hoja inferior usable en móvil
+- Responsable: codex; rama: codex/ui-movil.
+- Estado: hecho (pendiente de revisión visual del usuario).
+- Hallazgos: hoja inicial 60% y expandida 88%, asa con Enter/Espacio y aria-expanded; escena completa desplazable con acciones compactas, sin pie fijo; escritorio conservado.
+- Presentación: guion reservado en franja de 88 px, reproducción al lado, nombres completos y miniaturas separadas; Foto/Video en mitades iguales; video aprovecha el alto libre.
+- Validación: 559 tests, typecheck y build; ui-a11y a 390/768/1440 con recursos y sin argumentos opcionales; contenido útil 239,75/347,75 px y figuritas alcanzables por scroll.
+- Regresiones: photo, figuritas (dos MP4), studio (arrastre y dos MP4), entorno, manteles, ventana y camera-motion en verde; servidor 5173 confirmado con curl (Cámara repetida con URL explícita).
+- Capturas: motion/out/ui-shots/u6b-mobile y u6b-tablet regeneradas con recursos y revisadas; sin dependencias, cambios de motor/compilador/catálogos, commits ni cambio de rama. Pendiente: revisión del usuario.
+
 ### U-7: Cierre del repaso
 - Responsable: claude
 - Estado: pendiente

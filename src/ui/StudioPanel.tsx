@@ -83,7 +83,7 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [hold, setHold] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [videoBusy, setVideoBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -158,7 +158,7 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
   };
 
   return (
-    <aside className={`studio-panel panel${expanded ? '' : ' is-collapsed'}`} aria-label="Estudio de fotos y video">
+    <aside className={`studio-panel panel${expanded ? ' is-expanded' : ''}`} aria-label="Estudio de fotos y video">
       <button className="sheet-handle" aria-label={expanded ? 'Colapsar estudio' : 'Expandir estudio'} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}><span aria-hidden="true" /></button>
       <header className="editor-head">
         <h2>Estudio</h2>

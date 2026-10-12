@@ -1239,3 +1239,4 @@ canvas.is-loading {
     display: none;
   }
 }
+.show-topbar { position: absolute; top: 12px; left: 12px; z-index: 20; }

@@ -1,6 +1,7 @@
 import type { Timeline } from './compile';
 import type { PromoProject, SceneKind, SceneSpec } from './model';
 import { templateById } from './templates';
+import { sanitizeSceneCamera } from './sceneCamera';
 
 /**
  * Ediciones del guion que hace la persona desde el editor. Funciones puras: el
@@ -17,9 +18,12 @@ export interface Edit {
 /** Quita claves sin valor (p. ej. `spread: undefined` = automática) para que el JSON quede limpio. */
 function clean(scene: SceneSpec): SceneSpec {
   const out: SceneSpec = { kind: scene.kind };
+  const camera = sanitizeSceneCamera(scene.camera);
+  if (camera) out.camera = camera;
   if (scene.spread !== undefined) out.spread = scene.spread;
   if (scene.caption) out.caption = scene.caption;
   if (scene.length && scene.length !== 'normal') out.length = scene.length;
+  if (scene.stickers !== undefined) out.stickers = scene.stickers.map((s) => ({ ...s }));
   return out;
 }
 
@@ -83,6 +87,7 @@ export function applyTemplate(project: PromoProject, id: string): PromoProject {
   return {
     ...project,
     template: next.id,
+    windowShadow: next.set === 'ventana' ? 0.45 : project.windowShadow,
     set: next.set,
     lighting: next.lighting,
     typography: next.typography,
@@ -95,7 +100,7 @@ export function applyTemplate(project: PromoProject, id: string): PromoProject {
 export function sceneFocusTime(timeline: Timeline, sceneIndex: number): number {
   const scene = timeline.scenes.find((s) => s.index === sceneIndex) ?? timeline.scenes[0];
   if (!scene) return 0;
-  const at = scene.kind === 'portada' ? 0.62 : scene.kind === 'cierre' ? 0.9 : 0.55;
+  const at = scene.kind === 'portada' ? 0.62 : scene.kind === 'cierre' || scene.kind === 'figuritas' ? 0.9 : 0.55;
   return scene.start + (scene.end - scene.start) * at;
 }
 

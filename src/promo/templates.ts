@@ -2,13 +2,14 @@ import type { PromoProject, PromoTexts, SceneKind, SceneSpec, TypographyId } fro
 
 /** Catálogo de escenas tal como se muestran en el guion (storyboard). */
 export const SCENES: Record<SceneKind, { label: string; hint: string; base: number; usesSpread: boolean }> = {
-  portada: { label: 'Portada', hint: 'El álbum cerrado; la cámara se acerca despacio.', base: 2.6, usesSpread: false },
+  portada: { label: 'Portada', hint: 'Plano fijo de la tapa del álbum cerrado.', base: 2.6, usesSpread: false },
   apertura: { label: 'Apertura', hint: 'Se abre la tapa y aparece la primera página.', base: 2.4, usesSpread: false },
-  doblePagina: { label: 'Doble página', hint: 'Recorrido lento por una doble página.', base: 2.8, usesSpread: true },
+  doblePagina: { label: 'Doble página', hint: 'Una doble página completa desde un ángulo fijo.', base: 2.8, usesSpread: true },
   hojeo: { label: 'Hojeo', hint: 'Pasan varias hojas seguidas, vistas de costado.', base: 2.6, usesSpread: true },
   detalle: { label: 'Detalle', hint: 'Primer plano de una página, con fondo desenfocado.', base: 2.4, usesSpread: true },
   cenital: { label: 'Vista cenital', hint: 'Desde arriba, como una foto de producto plana.', base: 2.4, usesSpread: true },
   cierre: { label: 'Cierre', hint: 'El álbum se cierra y aparece tu llamado a la acción.', base: 3.0, usesSpread: false },
+  figuritas: { label: 'Figuritas', hint: 'El paquete se abre y tus figuritas vuelan hasta su lugar en el álbum.', base: 6, usesSpread: false },
 };
 
 /**
@@ -29,7 +30,7 @@ export interface Template {
   id: string;
   label: string;
   description: string;
-  /** continua = una sola toma que fluye; corte = planos que se cortan en movimiento. */
+  /** Montaje con cortes entre planos fijos. */
   transition: Transition;
   /** Multiplicador de duración de las escenas (ritmo). */
   pace: number;
@@ -49,8 +50,8 @@ export const TEMPLATES: Template[] = [
   {
     id: 'clasica',
     label: 'Clásica',
-    description: 'Estudio cálido, una sola toma que fluye y títulos con serifa.',
-    transition: 'continua',
+    description: 'Estudio cálido, planos fijos y títulos con serifa.',
+    transition: 'corte',
     pace: 1,
     flipSpeed: 0.8,
     set: 'arena',
@@ -73,7 +74,7 @@ export const TEMPLATES: Template[] = [
   {
     id: 'ritmo',
     label: 'Ritmo',
-    description: 'Planos cortos que se cortan en movimiento, ideal para Reels.',
+    description: 'Planos fijos cortos con cortes directos, ideal para Reels.',
     transition: 'corte',
     pace: 0.8,
     flipSpeed: 1.15,
@@ -97,7 +98,7 @@ export const TEMPLATES: Template[] = [
     id: 'minimal',
     label: 'Minimal',
     description: 'Fondo liso, vistas desde arriba y casi sin texto.',
-    transition: 'continua',
+    transition: 'corte',
     pace: 1.15,
     flipSpeed: 0.75,
     set: 'salvia',
@@ -108,6 +109,18 @@ export const TEMPLATES: Template[] = [
     grain: 0,
     duration: 12,
     scenes: [{ kind: 'portada' }, { kind: 'apertura' }, { kind: 'cenital' }, { kind: 'doblePagina' }, { kind: 'cierre' }],
+  },
+  {
+    id: 'figuritas', label: 'Figuritas', description: 'Tus recuerdos salen del paquete y se pegan en el álbum.',
+    transition: 'corte', pace: 1, flipSpeed: 1, set: 'rosa', lighting: 'suave', typography: 'manuscrita',
+    aperture: 0.15, vignette: 0.15, grain: 0.02, duration: 20,
+    scenes: [{ kind: 'portada' }, { kind: 'apertura' }, { kind: 'doblePagina' }, { kind: 'figuritas' }, { kind: 'detalle' }, { kind: 'cierre' }],
+  },
+  {
+    id: 'ventana', label: 'Luz de ventana', description: 'Lino cálido y sombras de una ventana sobre el papel.',
+    transition: 'corte', pace: 1.1, flipSpeed: 0.8, set: 'ventana', lighting: 'calida', typography: 'clasica',
+    aperture: 0.25, vignette: 0.15, grain: 0.02, duration: 15,
+    scenes: [{ kind: 'portada' }, { kind: 'apertura' }, { kind: 'doblePagina' }, { kind: 'cenital' }, { kind: 'cierre' }],
   },
 ];
 

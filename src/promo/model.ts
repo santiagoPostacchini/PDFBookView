@@ -4,17 +4,26 @@
  * tiempos exactos) lo resuelve `compile.ts` a partir de la plantilla.
  */
 
-export type SceneKind = 'portada' | 'apertura' | 'doblePagina' | 'hojeo' | 'detalle' | 'cenital' | 'cierre';
+export type SceneKind = 'portada' | 'apertura' | 'doblePagina' | 'hojeo' | 'detalle' | 'cenital' | 'cierre' | 'figuritas';
 
 export type SceneLength = 'corta' | 'normal' | 'larga';
 
+export interface SceneCamera {
+  framingZoom?: number;
+  zoom?: { enabled: boolean; from: number; to: number };
+  lateral?: { enabled: boolean; amount: number; direction: 'izquierda' | 'derecha'; orbit?: boolean };
+}
+
 export interface SceneSpec {
+  camera?: SceneCamera;
   kind: SceneKind;
   /** Doble página que muestra (escenas con páginas). Si falta, se elige sola. */
   spread?: number;
   /** Frase en pantalla durante la escena (opcional). */
   caption?: string;
   length?: SceneLength;
+  /** Casillero numerado o página 1-based elegida a mano. Vacío = ninguna; ausente = automático. */
+  stickers?: { id: string; slot?: number; page?: number }[];
 }
 
 export type FormatId = '9:16' | '4:5' | '1:1' | '16:9';
@@ -40,6 +49,10 @@ export interface PromoTexts {
 export type TypographyId = 'clasica' | 'moderna' | 'manuscrita';
 
 export interface PromoProject {
+  /** Intensidad de la sombra de ventana, independiente de la superficie. */
+  windowShadow?: number;
+  table?: boolean;
+  ambientOcclusion?: number;
   template: string;
   format: FormatId;
   /** Duración objetivo en segundos (las escenas se reparten ese tiempo). */
@@ -58,4 +71,7 @@ export interface BookShape {
   leafCount: number;
   pageWidth: number;
   pageHeight: number;
+  pagePt?: { width: number; height: number };
+  slots?: ReadonlyMap<number, import('../pdf/slots').SlotSite[]>;
+  coverColor?: string;
 }

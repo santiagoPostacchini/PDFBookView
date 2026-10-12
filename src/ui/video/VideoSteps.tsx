@@ -6,7 +6,7 @@ import { spreadLabel } from '../../promo/editing';
 import { FORMATS, type FormatId, type PromoProject, type PromoTexts, type SceneKind, type SceneLength, type SceneSpec, type TypographyId } from '../../promo/model';
 import { SCENES, TEMPLATES, TYPOGRAPHY } from '../../promo/templates';
 import { CanvasThumb } from '../CanvasThumb';
-import { Chips, Section } from '../controls';
+import { Chips, Section, Slider } from '../controls';
 import { IconAlert, IconArrowLeft, IconArrowRight, IconCopy, IconDownload, IconPlay, IconPlus, IconStop, IconTrash } from '../icons';
 import { usePageThumbs } from '../usePageThumbs';
 import { seconds } from './Storyboard';
@@ -27,7 +27,7 @@ export function StyleStep({ project, onPick, onNext }: { project: PromoProject; 
                 <b>{t.label}</b>
                 <small>{t.description}</small>
                 <small className="template-meta">
-                  {t.transition === 'continua' ? 'Toma continua' : 'Cortes en movimiento'} · {t.duration} s · {t.scenes.length} escenas
+                  Planos fijos · {t.duration} s · {t.scenes.length} escenas
                 </small>
               </span>
             </button>
@@ -44,6 +44,7 @@ export function StyleStep({ project, onPick, onNext }: { project: PromoProject; 
 // ── 2. Historia ──────────────────────────────────────────────────────────────
 
 interface SceneStepProps {
+  figuritas?: import('react').ReactNode;
   engine: BookEngine;
   project: PromoProject;
   timeline: Timeline;
@@ -54,6 +55,8 @@ interface SceneStepProps {
   onRemove: () => void;
   onAdd: () => void;
   onGoToTexts: () => void;
+  onShowPoint: (point: 'inicio' | 'fin') => void;
+  onPlayScene: () => void;
 }
 
 const LENGTHS: { id: SceneLength; label: string }[] = [
@@ -62,7 +65,7 @@ const LENGTHS: { id: SceneLength; label: string }[] = [
   { id: 'larga', label: 'Larga' },
 ];
 
-export function SceneStep({ engine, project, timeline, index, onChange, onMove, onDuplicate, onRemove, onAdd, onGoToTexts }: SceneStepProps) {
+export function SceneStep({ engine, project, timeline, index, onChange, onMove, onDuplicate, onRemove, onAdd, onGoToTexts, onShowPoint, onPlayScene, figuritas }: SceneStepProps) {
   const scene = project.scenes[index];
   const book = engine.currentBook;
   const thumbs = usePageThumbs(engine, book?.pageCount ?? 0);
@@ -70,7 +73,10 @@ export function SceneStep({ engine, project, timeline, index, onChange, onMove, 
   const info = SCENES[scene.kind];
   const compiled = timeline.scenes.find((s) => s.index === index);
   const interior = Math.max(1, book.leafCount - 1);
-  const isText = scene.kind === 'portada' || scene.kind === 'cierre';
+  const isOpening = timeline.scenes[0]?.index === index;
+  const isText = isOpening || scene.kind === 'cierre';
+  const zoom = scene.camera?.zoom ?? { enabled: false, from: 0, to: 0.06 };
+  const lateral = scene.camera?.lateral ?? { enabled: false, amount: 0.08, direction: 'derecha' as const };
 
   return (
     <>
@@ -101,10 +107,12 @@ export function SceneStep({ engine, project, timeline, index, onChange, onMove, 
         </Section>
       )}
 
+      {scene.kind === 'figuritas' && figuritas}
+
       {isText ? (
         <Section title="Textos">
           <p className="editor-formula">
-            {scene.kind === 'portada' ? 'El título y la línea chica' : 'El llamado a la acción y tu usuario'} se editan en{' '}
+            {isOpening ? 'El título y la línea chica' : 'El llamado a la acción y tu usuario'} se editan en{' '}
             <button className="link-btn" onClick={onGoToTexts}>
               Textos y marca
             </button>
@@ -127,6 +135,28 @@ export function SceneStep({ engine, project, timeline, index, onChange, onMove, 
 
       <Section title="Duración" hint={compiled ? `Ahora dura ${seconds(compiled.end - compiled.start)} s.` : undefined}>
         <Chips items={LENGTHS} value={scene.length ?? 'normal'} onChange={(length) => onChange({ length })} />
+      </Section>
+
+      <Section title="Movimiento de esta toma" hint="Sólo afecta a esta escena. Podés combinar ambos movimientos o apagarlos para volver al plano fijo.">
+        <Slider label="Acercamiento de esta toma" min={0} max={1} step={0.01} value={scene.camera?.framingZoom ?? 0} onChange={(framingZoom) => onChange({ camera: { ...scene.camera, framingZoom } })} hint="Elegí tu encuadre: hasta el doble de acercamiento. Se mantiene fijo aunque el zoom suave esté apagado; podés dejar objetos fuera del cuadro." />
+        <label className="check"><input type="checkbox" checked={zoom.enabled} onChange={(e) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, enabled: e.target.checked } } })} /><span>Activar zoom suave</span></label>
+        {zoom.enabled && <>
+          <Slider label="Zoom inicial" min={0} max={0.1} step={0.01} value={zoom.from} onChange={(from) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, from } } })} />
+          <Slider label="Zoom final" min={0} max={0.1} step={0.01} value={zoom.to} onChange={(to) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, to } } })} />
+          <p className="editor-formula">0% es el encuadre original; 10% es un acercamiento leve. Para alejarte, poné el inicio mayor que el final.</p>
+        </>}
+        <label className="check"><input type="checkbox" checked={lateral.enabled} onChange={(e) => onChange({ camera: { ...scene.camera, lateral: { ...lateral, enabled: e.target.checked } } })} /><span>Activar movimiento lateral</span></label>
+        {lateral.enabled && <>
+          <label className="check"><input type="checkbox" checked={lateral.orbit ?? false} onChange={(e) => onChange({ camera: { ...scene.camera, lateral: { ...lateral, orbit: e.target.checked } } })} /><span>Girar alrededor del centro del álbum</span></label>
+          <Slider label="Recorrido lateral" min={0} max={0.15} step={0.01} value={lateral.amount} onChange={(amount) => onChange({ camera: { ...scene.camera, lateral: { ...lateral, amount } } })} />
+          {lateral.orbit && <p className="editor-formula">El recorrido regula un giro suave de hasta 9°, manteniendo el centro del álbum en foco.</p>}
+          <Chips items={[{ id: 'izquierda', label: 'Cámara hacia izquierda' }, { id: 'derecha', label: 'Cámara hacia derecha' }]} value={lateral.direction} onChange={(direction) => onChange({ camera: { ...scene.camera, lateral: { ...lateral, direction } } })} />
+        </>}
+        <div className="scene-actions">
+          <button className="btn" disabled={!compiled} onClick={() => onShowPoint('inicio')}>Ver punto inicial</button>
+          <button className="btn" disabled={!compiled} onClick={() => onShowPoint('fin')}>Ver punto final</button>
+          <button className="btn" disabled={!compiled} onClick={onPlayScene}><IconPlay /> Ver esta toma</button>
+        </div>
       </Section>
 
       <div className="scene-actions">
@@ -213,8 +243,9 @@ export function TextsStep({ project, onTexts, onChange, onShow }: TextsStepProps
         />
       </Section>
       <Section title="Escenario">
+        <button className={`btn${project.set === 'automatico' ? ' is-active' : ''}`} aria-pressed={project.set === 'automatico'} onClick={() => onChange({ set: 'automatico' })}>Automático · color de la tapa</button>
         <div className="swatches">
-          {SET_PRESETS.map((s) => (
+          {SET_PRESETS.filter((s) => s.id !== 'ventana' && !s.tablecloth).map((s) => (
             <button
               key={s.id}
               className={`swatch${project.set === s.id ? ' is-active' : ''}`}
@@ -226,9 +257,31 @@ export function TextsStep({ project, onTexts, onChange, onShow }: TextsStepProps
             />
           ))}
         </div>
+        <button
+          className={`btn btn-block${project.set === 'ventana' ? ' is-on' : ''}`}
+          aria-pressed={project.set === 'ventana'}
+          onClick={() => onChange({ set: 'ventana', windowShadow: 0.45 })}
+        >
+          Luz de ventana
+        </button>
+        <p className="editor-formula">Lino cálido con sombras suaves. La intensidad se ajusta en Luz y se puede combinar con cualquier mantel.</p>
+      </Section>
+      <Section title="Manteles" hint="El álbum se apoya sobre tela tejida. Elegí un dibujo o volvé a los escenarios lisos de arriba.">
+        <div className="style-cards">
+          {SET_PRESETS.filter((s) => s.tablecloth).map((s) => (
+            <button key={s.id} className={`style-card${project.set === s.id ? ' is-active' : ''}`} aria-pressed={project.set === s.id} onClick={() => onChange({ set: s.id })}>
+              <span className={`tablecloth-sample ${s.tablecloth}`} aria-hidden="true" />
+              <b>{s.label}</b>
+              <small>Lino con {s.tablecloth === 'rayas-salvia' ? 'rayas' : 'cuadros'}</small>
+            </button>
+          ))}
+        </div>
       </Section>
       <Section title="Luz">
         <Chips items={LIGHTING_PRESETS.map((p) => ({ id: p.id, label: p.label }))} value={project.lighting} onChange={(lighting) => onChange({ lighting })} />
+        <Slider label="Sombra de ventana" min={0} max={1} step={0.05} value={project.windowShadow ?? (project.set === 'ventana' ? 0.45 : 0)} onChange={(windowShadow) => onChange({ windowShadow })} hint="Se combina con cualquier mantel o superficie. En 0% se apaga." />
+        <label className="check"><input type="checkbox" checked={project.table ?? true} onChange={(e) => onChange({ table: e.target.checked })} /><span>Mostrar mesa con bordes y patas</span></label>
+        <Slider label="Sombras de contacto" min={0} max={1} step={0.05} value={project.ambientOcclusion ?? 0.35} onChange={(ambientOcclusion) => onChange({ ambientOcclusion })} hint="Refuerza el apoyo del álbum, el lomo y los bordes de la mesa." />
       </Section>
     </>
   );
@@ -338,7 +391,8 @@ export function ExportStep(p: ExportStepProps) {
         <p className="editor-formula">
           {count === 1 ? 'Un video' : `${count} videos`} MP4 de {Math.round(p.timeline.duration)} s, listos para subir.
         </p>
-        <button className="btn btn-primary btn-block" onClick={p.onExport} disabled={!!p.recording}>
+        {!p.timeline.scenes.length && <p className="diag diag-warn">Cargá figuritas con un destino válido o agregá otra escena para exportar.</p>}
+        <button className="btn btn-primary btn-block" onClick={p.onExport} disabled={!!p.recording || !p.timeline.scenes.length}>
           <IconDownload /> {count === 1 ? 'Exportar el video' : `Exportar ${count} videos`}
         </button>
         {p.recording && (

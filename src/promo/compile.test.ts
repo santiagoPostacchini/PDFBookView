@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { posePosition } from '../studio/framing';
-import { compileProject, pagesToPreload, sampleCamera, sceneDurations, spreadPlan, type Timeline } from './compile';
+import { compileProject, pagesToPreload, sampleCamera, sceneDurations, spreadPlan } from './compile';
 import { FORMATS, type FormatId } from './model';
 import { projectFromTemplate, TEMPLATES } from './templates';
 
@@ -9,27 +8,6 @@ const shape = (leafCount: number) => ({ leafCount, pageWidth: 3 * Math.SQRT1_2, 
 const cases = TEMPLATES.flatMap((t) =>
   (Object.keys(FORMATS) as FormatId[]).flatMap((format) => [10, 15, 30].flatMap((duration) => [1, 2, 6, 40].map((leafCount) => ({ template: t.id, format, duration, leafCount })))),
 );
-
-/** Velocidad de la cámara (cámara + objetivo, unidades/s) cuadro a cuadro. */
-function speeds(timeline: Timeline, from = 0, to = timeline.duration): number[] {
-  const dt = 1 / 30;
-  const at = (t: number) => {
-    const { pose } = sampleCamera(timeline, t);
-    return [...posePosition(pose), ...pose.target];
-  };
-  // Muestras estrictamente dentro de [from, to): en los cortes, el cuadro anterior es de otro plano.
-  const times: number[] = [];
-  for (let k = 0; from + 1e-6 + k * dt < to - 1e-6; k++) times.push(from + 1e-6 + k * dt);
-  const out: number[] = [];
-  for (let k = 1; k < times.length; k++) {
-    const a = at(times[k - 1]);
-    const b = at(times[k]);
-    out.push(Math.hypot(...a.map((v, i) => b[i] - v)) / dt);
-  }
-  return out;
-}
-
-const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
 
 describe('sceneDurations', () => {
   it('reparte el total según el peso y respeta el mínimo por escena', () => {
@@ -116,32 +94,31 @@ describe('compileProject', () => {
     expect(tl.actions.every((a) => a.at > 0)).toBe(true);
   });
 
-  it.each(cases.filter((c) => c.leafCount > 2 && TEMPLATES.find((t) => t.id === c.template)!.transition === 'continua'))(
-    'toma continua $template $format $duration s: la cámara nunca frena ni salta',
+  it.each(cases)(
+    'planos fijos $template $format $duration s: cámara y foco quietos hasta cada corte',
     (c) => {
       const tl = compileProject(projectFromTemplate(c.template, { format: c.format, duration: c.duration }), shape(c.leafCount));
-      const v = speeds(tl);
-      const m = median(v);
-      expect(Math.min(...v)).toBeGreaterThan(m * 0.12);
-      expect(Math.max(...v)).toBeLessThan(m * 6);
-      for (let i = 1; i < v.length; i++) expect(Math.abs(v[i] - v[i - 1])).toBeLessThan(m * 1.5 + 0.5);
-    },
-  );
-
-  it.each(cases.filter((c) => c.leafCount > 2 && TEMPLATES.find((t) => t.id === c.template)!.transition === 'corte'))(
-    'cortes $template $format $duration s: cada plano se mueve a velocidad pareja hasta el corte',
-    (c) => {
-      const tl = compileProject(projectFromTemplate(c.template, { format: c.format, duration: c.duration }), shape(c.leafCount));
+      expect(tl.segments).toHaveLength(tl.scenes.length);
+      expect(tl.transition).toBe('corte');
       for (const segment of tl.segments) {
-        const v = speeds(tl, segment.start, segment.end);
-        const m = median(v);
-        expect(m).toBeGreaterThan(0);
-        // Sin aceleraciones ni frenadas dentro del plano: se corta en pleno movimiento.
-        expect(Math.min(...v)).toBeGreaterThan(m * 0.7);
-        expect(Math.max(...v)).toBeLessThan(m * 1.4);
+        const first = sampleCamera(tl, segment.start);
+        for (const fraction of [0.1, 0.5, 0.9, 0.9999]) {
+          expect(sampleCamera(tl, segment.start + (segment.end - segment.start) * fraction)).toEqual(first);
+        }
+        expect(sampleCamera(tl, segment.start)).toEqual(segment.path.sample(0));
       }
     },
   );
+
+  it('alterna ángulos y acercamientos con cortes exactos, incluso al buscar hacia atrás', () => {
+    const tl = compileProject(projectFromTemplate('clasica'), shape(6));
+    const poses = tl.scenes.map((s) => sampleCamera(tl, s.start).pose);
+    expect(new Set(poses.map((p) => p.elevation)).size).toBeGreaterThan(3);
+    expect(new Set(poses.map((p) => p.distance.toFixed(2))).size).toBeGreaterThan(3);
+    for (const scene of [...tl.scenes].reverse().slice(0, -1)) {
+      expect(sampleCamera(tl, scene.start - 0.0001)).not.toEqual(sampleCamera(tl, scene.start));
+    }
+  });
 
   it('precarga las páginas que aparecen en cámara', () => {
     const tl = compileProject(projectFromTemplate('clasica'), shape(6));

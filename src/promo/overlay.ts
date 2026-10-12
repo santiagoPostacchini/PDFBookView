@@ -102,7 +102,8 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
 
 /** Opacidad y desplazamiento de un elemento que entra en `delay` y sale al final del cue. */
 function motion(cue: OverlayCue, t: number, delay: number, unit: number) {
-  const enter = easeOut((t - cue.start - delay) / 0.7);
+  // La apertura ya tiene texto visible en el primer cuadro; el resto entra suavemente.
+  const enter = cue.kind === 'titulo' ? 1 : easeOut((t - cue.start - delay) / 0.7);
   const exit = cue.end >= Number.MAX_SAFE_INTEGER ? 1 : 1 - easeOut((t - (cue.end - 0.45)) / 0.45);
   return { alpha: Math.min(enter, exit), dy: (1 - enter) * 26 * unit - (1 - exit) * 10 * unit, enter };
 }

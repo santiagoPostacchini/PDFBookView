@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { VIEW_PRESETS, type BookEngine } from '../book/BookEngine';
-import { BACKDROP_PRESETS, backdropFromColor, LIGHTING_PRESETS, type Backdrop } from '../book/Stage';
+import { BACKDROP_PRESETS, LIGHTING_PRESETS } from '../book/Stage';
+import type { StageSetSpec, Surface } from '../book/StageSet';
 import type { SpreadInfo } from '../book/types';
 import { Chips, Section, Slider } from './controls';
 import { downloadBlob, fileSlug } from './download';
@@ -29,6 +30,7 @@ interface Settings {
   lighting: string;
   backdrop: string; // id de preset | 'custom' | 'transparent'
   customColor: string;
+  surface: Surface;
   frame: FrameId;
   lens: number;
   aperture: number;
@@ -43,6 +45,7 @@ const DEFAULTS: Settings = {
   lighting: 'estudio',
   backdrop: 'carbon',
   customColor: '#c9a27e',
+  surface: 'papel',
   frame: '4:5',
   lens: 50,
   aperture: 0.35,
@@ -57,14 +60,18 @@ const STORAGE_KEY = 'pdf-book-view.studio';
 function loadSettings(): Settings {
   try {
     const saved = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') } as Settings;
-    return { ...saved, tab: saved.tab === 'video' ? 'video' : 'foto' };
+    return {
+      ...saved,
+      tab: saved.tab === 'video' ? 'video' : 'foto',
+      surface: ['liso', 'papel', 'lino'].includes(saved.surface) ? saved.surface : DEFAULTS.surface,
+    };
   } catch {
     return DEFAULTS;
   }
 }
 
 /**
- * Estudio: modo fotografía (luz, fondo, lente, encuadre, efectos, foto en alta)
+ * Estudio: modo fotografía (luz, escenario, lente, encuadre, efectos, foto en alta)
  * y editor de video promocional.
  */
 export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClose }: Props) {
@@ -93,19 +100,21 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
     return () => engine.exitStudio();
   }, [engine]);
 
-  const backdrop: Backdrop | null = useMemo(() => {
+  const stageSet: StageSetSpec | null = useMemo(() => {
     if (s.backdrop === 'transparent') return null;
-    if (s.backdrop === 'custom') return backdropFromColor(s.customColor);
-    return BACKDROP_PRESETS.find((b) => b.id === s.backdrop) ?? BACKDROP_PRESETS[0];
-  }, [s.backdrop, s.customColor]);
+    const preset = BACKDROP_PRESETS.find((b) => b.id === s.backdrop) ?? BACKDROP_PRESETS[0];
+    return { color: s.backdrop === 'custom' ? s.customColor : preset.inner, surface: s.surface };
+  }, [s.backdrop, s.customColor, s.surface]);
 
   // Ajustes de foto. En la pestaña de video manda el editor (escenario, luz, cuadro y cámara).
   useEffect(() => {
     if (photo) engine.setLighting(s.lighting);
   }, [engine, photo, s.lighting]);
   useEffect(() => {
-    if (photo) engine.setBackdrop(backdrop);
-  }, [engine, photo, backdrop]);
+    if (!photo) return;
+    engine.setBackdrop(null);
+    engine.setSet(stageSet);
+  }, [engine, photo, stageSet]);
   useEffect(() => {
     if (photo) engine.setFrameAspect(FRAMES[s.frame]);
   }, [engine, photo, s.frame]);
@@ -178,13 +187,13 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
             <Chips items={LIGHTING_PRESETS.map((p) => ({ id: p.id, label: p.label }))} value={s.lighting} onChange={(lighting) => update({ lighting })} />
           </Section>
 
-          <Section title="Fondo">
+          <Section title="Escenario" hint="La superficie recibe las sombras del libro. Transparente exporta un PNG sin escenario.">
             <div className="swatches">
               {BACKDROP_PRESETS.map((b) => (
                 <button
                   key={b.id}
                   className={`swatch${s.backdrop === b.id ? ' is-active' : ''}`}
-                  style={{ background: `radial-gradient(circle at 50% 40%, ${b.inner}, ${b.outer})` }}
+                  style={{ background: b.inner }}
                   onClick={() => update({ backdrop: b.id })}
                   title={b.label}
                   aria-label={`Fondo ${b.label}`}
@@ -205,6 +214,17 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
                 aria-label="Fondo transparente"
               />
             </div>
+            {s.backdrop !== 'transparent' && (
+              <Chips<Surface>
+                items={[
+                  { id: 'liso', label: 'Lisa' },
+                  { id: 'papel', label: 'Papel' },
+                  { id: 'lino', label: 'Lino' },
+                ]}
+                value={s.surface}
+                onChange={(surface) => update({ surface })}
+              />
+            )}
           </Section>
 
           <Section title="Encuadre">

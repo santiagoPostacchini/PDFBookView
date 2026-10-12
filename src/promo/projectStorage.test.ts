@@ -8,6 +8,14 @@ function memory() {
 }
 
 describe('guardado del video', () => {
+  it('recuerda ventana y oclusión independientemente del mantel, y limita intensidades inválidas', () => {
+    const storage = memory(); const draft = newDraft();
+    Object.assign(draft.project, { set: 'mantel-azul', windowShadow: 0.75, ambientOcclusion: 0.6, table: false });
+    saveDraft('mesa.pdf', draft, storage);
+    expect(loadDraft('mesa.pdf', storage)?.project).toMatchObject({ set: 'mantel-azul', windowShadow: 0.75, ambientOcclusion: 0.6, table: false });
+    expect(sanitizeProject({ ...draft.project, windowShadow: 2, ambientOcclusion: -1 })).toMatchObject({ windowShadow: 1, ambientOcclusion: 0 });
+    expect(sanitizeProject({ ...draft.project, windowShadow: Number.NaN, ambientOcclusion: Number.POSITIVE_INFINITY })).toMatchObject({ windowShadow: undefined, ambientOcclusion: undefined });
+  });
   it('guarda y recupera el video de cada álbum por nombre de archivo', () => {
     const storage = memory();
     const draft = newDraft({ handle: '@wave.impresiones' });

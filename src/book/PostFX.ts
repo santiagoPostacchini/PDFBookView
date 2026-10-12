@@ -3,10 +3,13 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { DofPass } from './DofPass';
 
 /** Ajustes de "look" fotográfico. Todos 0..1 salvo que se indique. */
 export interface LookSettings {
+  ambientOcclusion?: number;
   /** Profundidad de campo (desenfoque fuera del plano de foco). 0 = apagada. */
   aperture: number;
   vignette: number;
@@ -17,7 +20,7 @@ export interface LookSettings {
   fadeColor: string;
 }
 
-export const NEUTRAL_LOOK: LookSettings = { aperture: 0, vignette: 0, grain: 0, fade: 0, fadeColor: '#000000' };
+export const NEUTRAL_LOOK: LookSettings = { ambientOcclusion: 0, aperture: 0, vignette: 0, grain: 0, fade: 0, fadeColor: '#000000' };
 
 /**
  * Viñeta, grano y fundido, sobre la imagen ya en sRGB. A propósito no hay
@@ -56,14 +59,17 @@ const LookShader = {
 };
 
 /**
- * Cadena de post-proceso para fotos y videos: render con MSAA → profundidad
- * de campo → tone mapping/sRGB → look. En la navegación normal no se usa
+ * Cadena de post-proceso para fotos y videos: render con MSAA → oclusión → profundidad
+ * de campo → tone mapping/sRGB → antialiasing FXAA → look. En la navegación normal no se usa
  * (render directo, más liviano).
  */
 export class PostFX {
   readonly composer: EffectComposer;
   private readonly dof: DofPass;
   private readonly look: ShaderPass;
+  private readonly antialias: ShaderPass;
+  private readonly output: OutputPass;
+  private readonly occlusion: SSAOPass;
   private settings: LookSettings = { ...NEUTRAL_LOOK };
   private shortSide = 1;
 
@@ -71,9 +77,21 @@ export class PostFX {
     const target = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4 });
     this.composer = new EffectComposer(renderer, target);
     this.composer.addPass(new RenderPass(scene, camera));
+    this.occlusion = new SSAOPass(scene, camera, 1, 1, 16);
+    this.occlusion.kernelRadius = 0.22;
+    this.occlusion.minDistance = 0.00001;
+    this.occlusion.maxDistance = 0.015;
+    // La mezcla multiplicativa parte de blanco: 0 desactiva el oscurecimiento.
+    this.occlusion.copyMaterial.fragmentShader = this.occlusion.copyMaterial.fragmentShader.replace('gl_FragColor = opacity * texel;', 'gl_FragColor = vec4(mix(vec3(1.0), texel.rgb, opacity), 1.0);');
+    this.composer.addPass(this.occlusion);
     this.dof = new DofPass(scene, camera);
     this.composer.addPass(this.dof);
-    this.composer.addPass(new OutputPass());
+    this.output = new OutputPass();
+    this.composer.addPass(this.output);
+    // Suaviza también los bordes que aparecen después del desenfoque. El grano
+    // se aplica después para que conserve su detalle.
+    this.antialias = new ShaderPass(FXAAShader);
+    this.composer.addPass(this.antialias);
     this.look = new ShaderPass(LookShader);
     this.composer.addPass(this.look);
   }
@@ -83,6 +101,7 @@ export class PostFX {
     this.shortSide = Math.max(1, Math.min(width, height));
     this.composer.setPixelRatio(1);
     this.composer.setSize(width, height);
+    this.antialias.uniforms.resolution.value.set(1 / Math.max(1, width), 1 / Math.max(1, height));
   }
 
   set(settings: Partial<LookSettings>): void {
@@ -96,6 +115,11 @@ export class PostFX {
   /** @param focusDistance distancia de la cámara al plano de foco (unidades de escena). */
   render(focusDistance: number, time: number): void {
     const s = this.settings;
+    this.occlusion.enabled = (s.ambientOcclusion ?? 0) > 0;
+    this.occlusion.copyMaterial.uniforms.opacity.value = s.ambientOcclusion ?? 0;
+    // La cámara cambia su proyección al entrar y salir de una exportación.
+    this.occlusion.ssaoMaterial.uniforms.cameraProjectionMatrix.value.copy(this.occlusion.camera.projectionMatrix);
+    this.occlusion.ssaoMaterial.uniforms.cameraInverseProjectionMatrix.value.copy(this.occlusion.camera.projectionMatrixInverse);
     // El desenfoque máximo escala con la resolución: la misma foto en 2K y 4K se ve igual.
     this.dof.enabled = s.aperture > 0.001;
     this.dof.focus = focusDistance;
@@ -113,5 +137,11 @@ export class PostFX {
   dispose(): void {
     this.composer.dispose();
     this.dof.dispose();
+    this.output.dispose();
+    this.antialias.dispose();
+    this.look.dispose();
+    this.occlusion.dispose();
+    this.occlusion.ssaoMaterial.dispose();
+    this.occlusion.noiseTexture.dispose();
   }
 }

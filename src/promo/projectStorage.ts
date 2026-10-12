@@ -2,6 +2,7 @@ import { LIGHTING_PRESETS } from '../book/Stage';
 import { SET_PRESETS } from '../book/StageSet';
 import { FORMATS, type FormatId, type PromoProject, type PromoTexts, type SceneLength, type SceneSpec, type TypographyId } from './model';
 import { DEFAULT_TEXTS, projectFromTemplate, SCENES, TEMPLATES, TYPOGRAPHY } from './templates';
+import { sanitizeSceneCamera } from './sceneCamera';
 
 /**
  * Guardado del video de cada álbum (como el plan de hojas: por nombre de
@@ -43,10 +44,21 @@ const LENGTHS: readonly SceneLength[] = ['corta', 'normal', 'larga'];
 function sanitizeScene(raw: unknown): SceneSpec | null {
   if (!isObject(raw) || !(typeof raw.kind === 'string' && raw.kind in SCENES)) return null;
   const scene: SceneSpec = { kind: raw.kind as SceneSpec['kind'] };
+  const camera = sanitizeSceneCamera(raw.camera);
+  if (camera) scene.camera = camera;
   if (Number.isInteger(raw.spread) && (raw.spread as number) >= 1 && (raw.spread as number) <= 999) scene.spread = raw.spread as number;
   if (typeof raw.caption === 'string' && raw.caption.trim()) scene.caption = raw.caption.slice(0, 80);
   const length = oneOf(raw.length, LENGTHS, 'normal');
   if (length !== 'normal') scene.length = length;
+  if (scene.kind === 'figuritas' && Array.isArray(raw.stickers)) {
+    scene.stickers = raw.stickers.filter(isObject).flatMap((ref) => {
+      if (typeof ref.id !== 'string' || !ref.id || ref.id.length > 100) return [];
+      const clean: { id: string; slot?: number; page?: number } = { id: ref.id };
+      if (Number.isInteger(ref.slot) && (ref.slot as number) > 0 && (ref.slot as number) <= 999) clean.slot = ref.slot as number;
+      if (Number.isInteger(ref.page) && (ref.page as number) >= 2 && (ref.page as number) <= 999) clean.page = ref.page as number;
+      return [clean];
+    }).slice(0, 6);
+  }
   return scene;
 }
 
@@ -59,6 +71,9 @@ export function sanitizeProject(raw: unknown): PromoProject | null {
   const texts = isObject(raw.texts) ? raw.texts : {};
   const duration = typeof raw.duration === 'number' && Number.isFinite(raw.duration) ? Math.max(6, Math.min(60, raw.duration)) : base.duration;
   return {
+    windowShadow: typeof raw.windowShadow === 'number' && Number.isFinite(raw.windowShadow) ? Math.max(0, Math.min(1, raw.windowShadow)) : undefined,
+    table: typeof raw.table === 'boolean' ? raw.table : undefined,
+    ambientOcclusion: typeof raw.ambientOcclusion === 'number' && Number.isFinite(raw.ambientOcclusion) ? Math.max(0, Math.min(1, raw.ambientOcclusion)) : undefined,
     template: template.id,
     format: oneOf(raw.format, FORMAT_IDS, base.format),
     duration: Math.round(duration * 10) / 10,
@@ -72,7 +87,7 @@ export function sanitizeProject(raw: unknown): PromoProject | null {
     typography: oneOf(raw.typography, Object.keys(TYPOGRAPHY) as TypographyId[], base.typography),
     set: oneOf(
       raw.set,
-      SET_PRESETS.map((s) => s.id),
+      [...SET_PRESETS.map((s) => s.id), 'automatico'],
       base.set,
     ),
     lighting: oneOf(

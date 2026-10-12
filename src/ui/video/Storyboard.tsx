@@ -29,7 +29,7 @@ export const seconds = (s: number) => s.toFixed(1).replace('.', ',');
 /**
  * Guion del video debajo del visor: una tarjeta por escena con las páginas que
  * muestra y cuánto dura. Se elige tocando, se reordena arrastrando y el botón
- * de la izquierda reproduce desde la escena elegida.
+ * de la izquierda reproduce desde el principio.
  */
 export function Storyboard({ engine, project, timeline, selected, playing, clock, disabled, onSelect, onPlace, onAdd, onTogglePlay }: Props) {
   const book = engine.currentBook;
@@ -64,8 +64,8 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
         className="storyboard-play"
         onClick={onTogglePlay}
         disabled={disabled}
-        aria-label={playing ? 'Detener' : 'Reproducir desde la escena elegida'}
-        title={playing ? 'Detener' : 'Reproducir desde la escena elegida'}
+        aria-label={playing ? 'Detener' : 'Reproducir desde el principio'}
+        title={playing ? 'Detener' : 'Reproducir desde el principio'}
       >
         {playing ? <IconStop width={20} height={20} /> : <IconPlay width={20} height={20} />}
       </button>

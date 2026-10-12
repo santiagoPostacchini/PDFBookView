@@ -16,7 +16,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { fitDistance, posePosition, type CamPose } from '../studio/framing';
 import { Book, type BookOptions } from './Book';
 import { PageInteraction } from './PageInteraction';
-import { PageTextureManager } from './PageTextureManager';
+import { PageTextureManager, type PageDecoration } from './PageTextureManager';
 import { NEUTRAL_LOOK, PostFX, type LookSettings } from './PostFX';
 import { Stage, type Backdrop } from './Stage';
 import type { StageSetSpec } from './StageSet';
@@ -207,6 +207,15 @@ export class BookEngine {
 
   getThumbnail(pageIndex: number): PageImage | undefined {
     return this.textures?.getThumbnail(pageIndex);
+  }
+
+  /** Reemplaza lo pegado sobre una página; null restaura la imagen original. */
+  setPageDecorations(pageIndex: number, painters: readonly PageDecoration[] | null): void {
+    this.textures?.setDecorations(pageIndex, painters);
+  }
+
+  clearPageDecorations(): void {
+    this.textures?.clearDecorations();
   }
 
   next(): void {
@@ -429,13 +438,18 @@ export class BookEngine {
   async capturePhoto({ longSide, type, transparent = false }: PhotoOptions): Promise<Blob> {
     const { width, height } = this.exportSize(longSide);
     const background = this.scene.background;
-    if (transparent) this.scene.background = null;
+    const stageSet = this.stageSet;
+    if (transparent) {
+      this.setSet(null);
+      this.scene.background = null;
+    }
     try {
       return await this.renderSession(width, height, null, async (draw) => {
         draw(this.clock, !transparent);
         return canvasToBlob(this.renderer.domElement, type, 0.95);
       });
     } finally {
+      if (transparent) this.setSet(stageSet);
       this.scene.background = background;
       this.invalidate();
     }

@@ -1,5 +1,6 @@
 import {
   CanvasTexture,
+  BoxGeometry,
   Color,
   Fog,
   Mesh,
@@ -26,6 +27,13 @@ import type { LightingPreset } from './Stage';
 export type Surface = 'liso' | 'papel' | 'lino';
 
 export interface StageSetSpec {
+  table?: boolean;
+  tableSize?: { width: number; depth: number };
+  windowStrength?: number;
+  /** Mantel tejido, con dibujo repetido en coordenadas de la mesa. */
+  tablecloth?: 'vichy-rosa' | 'vichy-azul' | 'rayas-salvia';
+  /** Marco de ventana proyectado por el foco sobre el libro y la superficie. */
+  windowShadow?: boolean;
   /** Color de la superficie. */
   color: string;
   surface: Surface;
@@ -40,7 +48,23 @@ export const SET_PRESETS: readonly (StageSetSpec & { id: string; label: string }
   { id: 'rosa', label: 'Rosa', color: '#e9c6c2', surface: 'papel' },
   { id: 'carbon', label: 'Carbón', color: '#3b3734', surface: 'papel' },
   { id: 'noche', label: 'Noche', color: '#28324c', surface: 'papel' },
+  { id: 'ventana', label: 'Luz de ventana', color: '#e7d5b9', surface: 'lino', windowShadow: true },
+  { id: 'mantel-rosa', label: 'Mantel · cuadros rosa', color: '#f4e9dc', surface: 'lino', tablecloth: 'vichy-rosa' },
+  { id: 'mantel-azul', label: 'Mantel · cuadros azul', color: '#f4e9dc', surface: 'lino', tablecloth: 'vichy-azul' },
+  { id: 'mantel-rayas', label: 'Mantel · rayas salvia', color: '#f4e9dc', surface: 'lino', tablecloth: 'rayas-salvia' },
 ];
+
+function windowTexture(strength: number): Texture {
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 256, 256);
+  ctx.filter = 'blur(4px)';
+  const shade = Math.round(255 * (1 - strength * 0.85));
+  ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+  ctx.fillRect(82, 0, 9, 256); ctx.fillRect(165, 0, 9, 256); ctx.fillRect(0, 124, 256, 10);
+  const texture = new CanvasTexture(canvas); texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
 
 const FLOOR_SIZE = 240;
 /** Tamaño (unidades de escena) de un mosaico de la textura: una página mide ~3 de alto. */
@@ -54,7 +78,7 @@ function noise(seed: number) {
 }
 
 /** Variación de tono de la superficie (gris medio = sin cambio), en mosaico. */
-function surfaceTexture(surface: Surface): Texture | null {
+function surfaceTexture(surface: Surface, tablecloth?: StageSetSpec['tablecloth']): Texture | null {
   if (surface === 'liso') return null;
   const size = 512;
   const canvas = document.createElement('canvas');
@@ -81,6 +105,7 @@ function surfaceTexture(surface: Surface): Texture | null {
   };
   const rowsV = new Float32Array(size).map(() => rand());
   const rowsH = new Float32Array(size).map(() => rand());
+  const ink = tablecloth === 'vichy-rosa' ? [0.76, 0.40, 0.48] : tablecloth === 'vichy-azul' ? [0.36, 0.53, 0.72] : [0.44, 0.60, 0.43];
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       let v = 1 + (smooth(x, y) - 0.5) * 0.02 + (rand() - 0.5) * 0.028;
@@ -92,6 +117,14 @@ function surfaceTexture(surface: Surface): Texture | null {
       const c = Math.max(0, Math.min(255, Math.round(v * 236)));
       const i = (y * size + x) * 4;
       data[i] = data[i + 1] = data[i + 2] = c;
+      if (tablecloth) {
+        // Ocho cuadros por mosaico: unos diez cuadros por página. Al cruzar
+        // los hilos teñidos, la intersección toma un tono más fuerte.
+        const vertical = Math.floor(x / 64) % 2;
+        const horizontal = Math.floor(y / 64) % 2;
+        const dye = tablecloth === 'rayas-salvia' ? vertical * 0.65 : (vertical + horizontal) * 0.34;
+        for (let channel = 0; channel < 3; channel++) data[i + channel] = Math.round(c * (1 - dye * (1 - ink[channel])));
+      }
     }
   }
   ctx.putImageData(image, 0, 0);
@@ -130,6 +163,12 @@ export class StageSet {
   private readonly contact: Mesh<PlaneGeometry, MeshBasicMaterial>[];
   private surfaceMap: Texture | null = null;
   private surface: Surface | null = null;
+  private tablecloth: StageSetSpec['tablecloth'];
+  private windowMap: Texture | null = null;
+  private windowStrength = -1;
+  private readonly tabletop: Mesh<BoxGeometry, MeshStandardMaterial>;
+  private readonly legs: Mesh<BoxGeometry, MeshStandardMaterial>[];
+  private readonly ground: Mesh<PlaneGeometry, MeshStandardMaterial>;
   spec: StageSetSpec | null = null;
 
   constructor(group: Group) {
@@ -138,6 +177,22 @@ export class StageSet {
     this.floor.position.y = -0.004;
     this.floor.receiveShadow = true;
     this.floor.visible = false;
+    // El mantel es la única cara superior: quitar la tapa de madera evita
+    // competencia de profundidad incluso en el pase de normales de SSAO.
+    const body = new BoxGeometry(1, 1, 1);
+    const top = body.groups.find((g) => g.materialIndex === 2)!;
+    body.setIndex(Array.from(body.index!.array).filter((_, i) => i < top.start || i >= top.start + top.count));
+    body.clearGroups();
+    this.tabletop = new Mesh(body, new MeshStandardMaterial({ color: '#957353', roughness: 0.82 }));
+    this.tabletop.position.y = this.floor.position.y - 0.17 / 2;
+    this.tabletop.castShadow = this.tabletop.receiveShadow = true;
+    this.legs = Array.from({ length: 4 }, () => {
+      const leg = new Mesh(new BoxGeometry(0.18, 2.7, 0.18), new MeshStandardMaterial({ color: '#795b40', roughness: 0.85 }));
+      leg.position.y = -1.5; leg.castShadow = leg.receiveShadow = true; return leg;
+    });
+    this.ground = new Mesh(new PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE), new MeshStandardMaterial({ color: '#b8ada0', roughness: 1 }));
+    this.ground.rotation.x = -Math.PI / 2; this.ground.position.y = -2.86; this.ground.receiveShadow = true;
+    for (const mesh of [this.tabletop, ...this.legs, this.ground]) mesh.visible = false;
 
     const shadow = contactTexture();
     this.contact = [0, 1].map(() => {
@@ -161,7 +216,7 @@ export class StageSet {
     this.key.penumbra = 0.65;
     this.key.decay = 0;
     this.key.visible = false;
-    group.add(this.floor, ...this.contact, this.key, this.key.target);
+    group.add(this.floor, this.tabletop, ...this.legs, this.ground, ...this.contact, this.key, this.key.target);
   }
 
   get active(): boolean {
@@ -174,14 +229,22 @@ export class StageSet {
     this.floor.visible = on;
     this.key.visible = on;
     for (const c of this.contact) c.visible = on;
+    for (const mesh of [this.tabletop, ...this.legs, this.ground]) mesh.visible = on && !!spec?.table;
     if (!spec) {
+      this.key.map = null;
       scene.fog = null;
       return;
     }
-    if (spec.surface !== this.surface) {
+    const strength = Math.max(0, Math.min(1, spec.windowStrength ?? 0.45));
+    if (spec.windowShadow && (!this.windowMap || strength !== this.windowStrength)) {
+      this.windowMap?.dispose(); this.windowMap = windowTexture(strength); this.windowStrength = strength;
+    }
+    this.key.map = spec.windowShadow ? this.windowMap : null;
+    if (spec.surface !== this.surface || spec.tablecloth !== this.tablecloth) {
       this.surfaceMap?.dispose();
-      this.surfaceMap = surfaceTexture(spec.surface);
+      this.surfaceMap = surfaceTexture(spec.surface, spec.tablecloth);
       this.surface = spec.surface;
+      this.tablecloth = spec.tablecloth;
     }
     const material = this.floor.material;
     material.color.set(spec.color);
@@ -215,6 +278,12 @@ export class StageSet {
     }
     const W = book.pageWidth;
     const H = book.pageHeight;
+    const width = this.spec.table ? Math.max(7, W * 3.8, this.spec.tableSize?.width ?? 0) : FLOOR_SIZE;
+    const depth = this.spec.table ? Math.max(6, H * 2.2, this.spec.tableSize?.depth ?? 0) : FLOOR_SIZE;
+    this.floor.scale.set(width / FLOOR_SIZE, depth / FLOOR_SIZE, 1);
+    this.surfaceMap?.repeat.set(width / TILE, depth / TILE);
+    this.tabletop.scale.set(width, 0.17, depth);
+    this.legs.forEach((leg, i) => { leg.position.x = (i % 2 ? 1 : -1) * (width / 2 - 0.35); leg.position.z = (i < 2 ? 1 : -1) * (depth / 2 - 0.35); });
     const x0 = book.root.position.x;
     let left = 0;
     let right = 0;
@@ -236,9 +305,11 @@ export class StageSet {
   }
 
   dispose(): void {
+    for (const mesh of [this.tabletop, ...this.legs, this.ground]) { mesh.geometry.dispose(); mesh.material.dispose(); }
     this.floor.geometry.dispose();
     this.floor.material.dispose();
     this.surfaceMap?.dispose();
+    this.windowMap?.dispose();
     for (const c of this.contact) {
       c.geometry.dispose();
       c.material.map?.dispose();

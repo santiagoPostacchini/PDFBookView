@@ -1,7 +1,11 @@
 import { CameraPath, type PathKey } from '../studio/cameraPath';
-import { fitDistance, type CamPose, type Region } from '../studio/framing';
-import { FORMATS, type BookShape, type PromoProject, type SceneKind, type SceneLength, type TypographyId } from './model';
+import { fitDistance, lerpPose, type CamPose, type Region } from '../studio/framing';
+import { FORMATS, type BookShape, type PromoProject, type SceneKind, type SceneLength, type SceneSpec, type TypographyId } from './model';
+import { sceneCameraPoints } from './sceneCamera';
 import { SCENES, templateById, type Template, type Transition } from './templates';
+import type { FiguritasKit } from './figuritas/assets';
+import { resolveTargets } from './figuritas/targets';
+import { createShow, packTableBounds, showDuration, type StickerShow } from './figuritas/choreography';
 
 /**
  * Compilador del guion: proyecto (escenas, textos, formato) + medidas del libro
@@ -9,9 +13,8 @@ import { SCENES, templateById, type Template, type Transition } from './template
  * Lógica pura y determinista (se prueba sin navegador).
  *
  * Criterios tomados de videos de producto profesionales:
- * - una sola idea de cámara por escena, lenta y a velocidad pareja;
- * - la cámara nunca se detiene: o fluye de una escena a la otra (toma continua)
- *   o se corta en pleno movimiento;
+ * - un encuadre fijo por escena, con ángulos y acercamientos distintos;
+ * - cortes directos entre planos; sólo se mueven el álbum y las figuritas;
  * - el giro de hoja que lleva a la escena siguiente arranca un poco antes del
  *   cambio, así la acción "cruza" el corte;
  * - el producto se ve desde el primer cuadro (sin fundido desde negro) y los
@@ -37,7 +40,7 @@ export interface OverlayCue {
 export interface CameraSegment {
   start: number;
   end: number;
-  path: CameraPath;
+  path: Pick<CameraPath, 'sample'>;
 }
 
 export interface CompiledScene {
@@ -52,6 +55,10 @@ export interface CompiledScene {
 }
 
 export interface Timeline {
+  windowShadow?: number;
+  table?: boolean;
+  coverColor?: string;
+  shows?: StickerShow[];
   duration: number;
   width: number;
   height: number;
@@ -63,7 +70,7 @@ export interface Timeline {
   actions: BookAction[];
   cues: OverlayCue[];
   scenes: CompiledScene[];
-  look: { vignette: number; grain: number };
+  look: { vignette: number; grain: number; ambientOcclusion?: number };
   set: string;
   lighting: string;
   typography: TypographyId;
@@ -107,7 +114,7 @@ export function spreadPlan(leafCount: number, count: number): number[] {
 
 const FOV: Record<string, number> = { '9:16': 36, '4:5': 32, '1:1': 30, '16:9': 24 };
 
-export function compileProject(project: PromoProject, book: BookShape): Timeline {
+export function compileProject(project: PromoProject, book: BookShape, kit?: FiguritasKit): Timeline {
   const template = templateById(project.template);
   const format = FORMATS[project.format];
   const aspect = format.width / format.height;
@@ -119,13 +126,15 @@ export function compileProject(project: PromoProject, book: BookShape): Timeline
   const canOpen = L >= 2;
 
   // Escenas utilizables según el libro (con una sola hoja no hay nada que abrir).
-  const usable = project.scenes.map((s, index) => ({ s, index })).filter(({ s }) => canOpen || s.kind === 'portada' || s.kind === 'cierre');
+  const usable = project.scenes.map((s, index) => ({ s, index })).filter(({ s }) =>
+    (canOpen || s.kind === 'portada' || s.kind === 'cierre') && (s.kind !== 'figuritas' || resolveTargets(s, book, kit).length > 0));
   const specs = usable.map(({ s }) => s);
   const weights = specs.map((s) => SCENES[s.kind].base * LENGTH[s.length ?? 'normal'] * template.pace);
+  const mins = specs.map((s) => s.kind === 'figuritas' ? showDuration(resolveTargets(s, book, kit)) * 0.8 : MIN_SCENE[s.kind] ?? MIN_DEFAULT);
   const durations = sceneDurations(
     weights,
-    project.duration,
-    specs.map((s) => MIN_SCENE[s.kind] ?? MIN_DEFAULT),
+    specs.some((s) => s.kind === 'figuritas') ? Math.max(project.duration, mins.reduce((a, b) => a + b, 0)) : project.duration,
+    mins,
   );
   const D = durations.reduce((a, b) => a + b, 0);
 
@@ -137,6 +146,7 @@ export function compileProject(project: PromoProject, book: BookShape): Timeline
   const shots: Shot[] = [];
   const actions: BookAction[] = [];
   const cues: OverlayCue[] = [];
+  const shows: StickerShow[] = [];
   let current = 0;
   let startSpread = 0;
   let t = 0;
@@ -162,6 +172,16 @@ export function compileProject(project: PromoProject, book: BookShape): Timeline
     t = end;
     let shot: Shot;
     switch (spec.kind) {
+      case 'figuritas': {
+        const targets = resolveTargets(spec, book, kit);
+        turnTo(targets[0].spread, start, prevStart);
+        const show = createShow(targets, book, kit!, aspect, start, durations[i]);
+        shows.push(show);
+        actions.push(...show.turns.map((a) => ({ ...a, speed: 1.5 })));
+        current = targets[targets.length - 1].spread;
+        shot = framing.figuritas(show);
+        break;
+      }
       case 'portada':
         turnTo(0, start, prevStart);
         shot = framing.portada();
@@ -209,23 +229,36 @@ export function compileProject(project: PromoProject, book: BookShape): Timeline
         shot = spec.kind === 'detalle' ? framing.detalle() : framing.cenital();
       }
     }
+    // Los planos generales posteriores conservan el mazo junto al álbum.
+    if (shows.length && ['cierre', 'portada', 'cenital', 'doblePagina'].includes(spec.kind)) {
+      const bounds = packTableBounds(shows.at(-1)!);
+      const region = { width: bounds.maxX - bounds.minX, depth: bounds.maxZ - bounds.minZ };
+      const target: CamPose['target'] = [(bounds.minX + bounds.maxX) / 2, 0.04, (bounds.minZ + bounds.maxZ) / 2];
+      const widen = (p: CamPose): CamPose => ({ ...p, target, distance: Math.max(p.distance, fitDistance(region, p, fov, aspect) * 1.2) });
+      shot = { ...shot, from: widen(shot.from), to: widen(shot.to) };
+    }
     // La doble página "a la vista" es la que queda al final de la escena.
     scenes.push({ index: usable[i].index, kind: spec.kind, label: SCENES[spec.kind].label, start, end, spread: current });
     shots.push({ ...shot, aperture: shot.aperture * template.aperture });
 
-    if (spec.kind === 'portada' && (project.texts.title || project.texts.subtitle)) {
-      cues.push({ kind: 'titulo', start: start + 0.2, end: end + (template.transition === 'continua' ? 0.25 : 0), lines: [project.texts.subtitle, project.texts.title] });
-    } else if (spec.kind === 'cierre' && (project.texts.cta || project.texts.handle)) {
+    if (i === 0 && (project.texts.title || project.texts.subtitle)) {
+      cues.push({ kind: 'titulo', start, end, lines: [project.texts.subtitle, project.texts.title] });
+    }
+    if (spec.kind === 'cierre' && (project.texts.cta || project.texts.handle)) {
       cues.push({ kind: 'cierre', start: start + Math.min(0.7, durations[i] * 0.25), end: D, lines: [project.texts.cta, project.texts.handle] });
     }
-    if (spec.caption && spec.kind !== 'portada' && spec.kind !== 'cierre') {
+    if (spec.caption && spec.kind !== 'portada' && spec.kind !== 'cierre' && !(i === 0 && (project.texts.title || project.texts.subtitle))) {
       cues.push({ kind: 'frase', start: start + 0.3, end: end - 0.1, lines: [spec.caption] });
     }
   });
 
-  const segments = template.transition === 'continua' ? continuousSegments(scenes, shots, D) : cutSegments(scenes, shots);
+  const segments = fixedSegments(scenes, shots, specs, W);
 
   return {
+    windowShadow: project.windowShadow,
+    table: project.table,
+    shows,
+    coverColor: book.coverColor,
     duration: D,
     width: format.width,
     height: format.height,
@@ -236,7 +269,7 @@ export function compileProject(project: PromoProject, book: BookShape): Timeline
     actions: actions.sort((a, b) => a.at - b.at),
     cues,
     scenes,
-    look: { vignette: template.vignette, grain: template.grain },
+    look: { vignette: template.vignette, grain: template.grain, ambientOcclusion: project.ambientOcclusion ?? 0.35 },
     set: project.set,
     lighting: project.lighting,
     typography: project.typography,
@@ -281,74 +314,78 @@ function makeFraming(W: number, H: number, fov: number, aspect: number) {
   };
 
   return {
+    figuritas: (show: StickerShow): Shot => {
+      const x = show.packPosition.x, z = show.packPosition.z;
+      const bounds = packTableBounds(show);
+      const minX = Math.min(bounds.minX, x - show.packWidth / 2), maxX = Math.max(bounds.maxX, x + show.packWidth / 2);
+      const minZ = bounds.minZ, maxZ = Math.max(bounds.maxZ, z + show.packHeight / 2);
+      const region = { width: maxX - minX, depth: maxZ - minZ + (landscape ? show.packHeight * 1.5 : 0) };
+      const target: [number, number, number] = [(minX + maxX) / 2, show.packHeight * 0.25, (minZ + maxZ) / 2];
+      // En apaisado el vuelo ocupa más altura que el libro apoyado: dejar aire
+      // arriba evita cortar la figurita cuando sale erguida por la boca.
+      return { from: pose(region, -10, 58, target, 1.2), to: pose(region, 8, 62, target, 1.14), aperture: 0.15 };
+    },
     portada: (): Shot => ({
-      from: hero(-36, 18, 1.32),
-      to: hero(-22, 27, 1.14),
+      from: hero(-28, 32, 1.24),
+      to: hero(-28, 32, 1.18),
       aperture: 1,
     }),
     apertura: (): Shot => ({
-      from: hero(-14, 34, 1.16, room * 0.6),
-      to: pose(spread, -4, 54, [0, 0.02, 0], 1.1),
+      from: pose(spread, -14, 50, [0, 0.02, 0], 1.2),
+      to: pose(spread, -14, 50, [0, 0.02, 0], 1.14),
       aperture: 0.8,
     }),
-    // En vertical la doble página es más ancha que el cuadro: se recorre de un
-    // borde al otro (un paneo con los bordes apenas recortados llena el cuadro).
-    // En cuadrado y apaisado queda margen abajo para la frase de la escena.
+    // Doble página completa; en cuadrado y apaisado queda margen para la frase.
     doblePagina: (side: number): Shot => ({
-      from: pose(spread, -16 * side, 58, [-0.12 * W * side, 0.02, (portrait ? 0.08 : 0.02) * H], portrait ? 0.94 : landscape ? 1.3 : 1.14),
-      to: pose(spread, 12 * side, 63, [0.12 * W * side, 0.02, (portrait ? 0.06 : 0) * H], portrait ? 0.88 : landscape ? 1.22 : 1.06),
+      from: pose(spread, -8 * side, 58, [-0.08 * W * side, 0.02, 0.04 * H], portrait ? 1.08 : landscape ? 1.28 : 1.14),
+      to: pose(spread, -8 * side, 58, [0.08 * W * side, 0.02, 0.04 * H], portrait ? 1.08 : landscape ? 1.28 : 1.14),
       aperture: 0.7,
     }),
     hojeo: (): Shot => ({
-      from: pose(spread, 44, 24, [0.3 * W, 0.25, 0.02 * H], portrait ? 0.98 : 1.1),
-      to: pose(spread, 30, 30, [0.16 * W, 0.2, 0], portrait ? 0.9 : 1.0),
+      from: pose(spread, 22, 40, [0.12 * W, 0.2, 0], 1.14),
+      to: pose(spread, 22, 40, [0.12 * W, 0.2, 0], 1.08),
       aperture: 1.1,
     }),
     detalle: (): Shot => ({
-      from: pose(page, 26, 44, [0.6 * W, 0.02, -0.12 * H], 0.7),
-      to: pose(page, 10, 38, [0.44 * W, 0.02, -0.04 * H], 0.6),
+      from: pose(page, 20, 52, [0.55 * W, 0.02, -0.06 * H], 0.85),
+      to: pose(page, 20, 52, [0.55 * W, 0.02, -0.06 * H], 0.8),
       aperture: 2,
     }),
     cenital: (): Shot => ({
       // Objetivo corrido hacia el pie de las páginas: el libro sube y deja lugar a la frase.
-      from: pose(spread, -10, 82, [0, 0, portrait ? 0 : 0.07 * H], portrait ? 1.12 : landscape ? 1.42 : 1.26),
-      to: pose(spread, 7, 84, [0, 0, portrait ? 0 : 0.07 * H], portrait ? 1.0 : landscape ? 1.3 : 1.14),
+      from: pose(spread, 0, 82, [0, 0, portrait ? 0 : 0.07 * H], portrait ? 1.12 : landscape ? 1.42 : 1.26),
+      to: pose(spread, 0, 82, [0, 0, portrait ? 0 : 0.07 * H], portrait ? 1.08 : landscape ? 1.38 : 1.22),
       aperture: 0.4,
     }),
     cierre: (): Shot => ({
-      from: pose(spread, 10, 50, [0, 0.02, 0], 1.1),
-      to: hero(-26, 25, 1.12),
+      from: hero(-28, 38, 1.55),
+      to: hero(-28, 38, 1.55),
       aperture: 0.9,
     }),
   };
 }
 
-/** Toma continua: la cámara recorre todos los planos en una sola curva sin frenar. */
-function continuousSegments(scenes: CompiledScene[], shots: Shot[], D: number): CameraSegment[] {
-  const keys: PathKey[] = [];
-  scenes.forEach((scene, i) => {
-    const length = scene.end - scene.start;
-    const bridge = Math.min(0.9, length * 0.3);
-    keys.push({ t: i === 0 ? 0 : scene.start + bridge, pose: shots[i].from, aperture: shots[i].aperture });
-    keys.push({ t: i === scenes.length - 1 ? D : scene.end - bridge, pose: shots[i].to, aperture: shots[i].aperture });
-  });
-  return [{ start: 0, end: D, path: new CameraPath(keys, D, 0.7) }];
-}
-
-/** Cortes: cada plano es un movimiento a velocidad constante, cortado en pleno movimiento. */
-function cutSegments(scenes: CompiledScene[], shots: Shot[]): CameraSegment[] {
+/** Encuadre fijo por escena, con dos puntos si se activa un movimiento opcional. */
+function fixedSegments(scenes: CompiledScene[], shots: Shot[], specs: SceneSpec[], pageWidth: number): CameraSegment[] {
   return scenes.map((scene, i) => {
     const length = scene.end - scene.start;
+    const pose = lerpPose(shots[i].from, shots[i].to, 0.5);
+    const [from, to] = sceneCameraPoints(pose, specs[i].camera, pageWidth);
     const keys: PathKey[] = [
-      { t: 0, pose: shots[i].from, aperture: shots[i].aperture },
-      { t: length, pose: shots[i].to, aperture: shots[i].aperture },
+      { t: 0, pose: from, aperture: shots[i].aperture },
+      { t: length, pose: to, aperture: shots[i].aperture },
     ];
-    return { start: scene.start, end: scene.end, path: new CameraPath(keys, length, 1) };
+    const orbit = specs[i].camera?.lateral;
+    const path = orbit?.enabled && orbit.orbit
+      ? { sample: (t: number) => ({ pose: lerpPose(from, to, Math.max(0, Math.min(1, t / length))), aperture: shots[i].aperture }) }
+      : new CameraPath(keys, length, 1);
+    return { start: scene.start, end: scene.end, path };
   });
 }
 
 /** Estado de cámara en el instante t. */
 export function sampleCamera(timeline: Timeline, t: number): { pose: CamPose; aperture: number } {
+  if (!timeline.segments.length) return { pose: { azimuth: 0, elevation: 58, distance: 8, target: [0, 0, 0] }, aperture: 0 };
   const time = Math.max(0, Math.min(timeline.duration, t));
   const segment = timeline.segments.find((s) => time < s.end) ?? timeline.segments[timeline.segments.length - 1];
   return segment.path.sample(time - segment.start);

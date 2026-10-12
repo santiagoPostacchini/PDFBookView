@@ -1,13 +1,15 @@
 import type { BookEngine, Director } from '../book/BookEngine';
-import { SET_PRESETS } from '../book/StageSet';
+import { timelineSet } from './timelineSet';
 import { pagesToPreload, type Timeline } from './compile';
 import { drawOverlay, loadTypography, overlayTheme, type OverlayTheme } from './overlay';
 import { TimelinePlayer } from './TimelinePlayer';
+import type { FiguritasImages } from './figuritas/assets';
 
 const FPS = 30;
 
 /** Margen del cuadro en el editor de video: abajo queda el guion de escenas. */
 export const VIDEO_FRAME_MARGINS = { top: 108, bottom: 168, side: 28 };
+const frameMargins = () => ({ ...VIDEO_FRAME_MARGINS, top: document.documentElement.dataset.topbarHidden === 'true' ? 24 : VIDEO_FRAME_MARGINS.top });
 
 /**
  * Vista previa del video en el visor 3D: muestra cualquier instante (al tocar
@@ -27,11 +29,14 @@ export class VideoPreview {
   private timeline: Timeline | null = null;
   private player: TimelinePlayer | null = null;
   private theme: OverlayTheme = overlayTheme('#dcc6a8');
-  private fontsReady = false;
   private preloadTimer = 0;
   private disposed = false;
+  private readonly updateFrame = () => {
+    if (this.timeline) this.engine.setFrameAspect(this.timeline.aspect, frameMargins());
+  };
 
-  constructor(private readonly engine: BookEngine) {
+  constructor(private readonly engine: BookEngine, private readonly images?: FiguritasImages) {
+    window.addEventListener('pdf-book-view.topbar', this.updateFrame);
     engine.setInteractive(false);
     engine.setOverlay((ctx) => this.paint(ctx));
   }
@@ -46,17 +51,15 @@ export class VideoPreview {
     const previous = this.timeline;
     if (this.playing) this.stop();
     this.timeline = timeline;
-    const set = SET_PRESETS.find((s) => s.id === timeline.set) ?? SET_PRESETS[0];
-    if (previous?.set !== timeline.set) this.engine.setSet(set);
+    const set = timelineSet(timeline);
+    if (previous?.set !== timeline.set || previous?.coverColor !== timeline.coverColor || previous?.windowShadow !== timeline.windowShadow || previous?.table !== timeline.table || previous?.shows !== timeline.shows) this.engine.setSet(set);
     if (previous?.lighting !== timeline.lighting) this.engine.setLighting(timeline.lighting);
-    if (previous?.aspect !== timeline.aspect) this.engine.setFrameAspect(timeline.aspect, VIDEO_FRAME_MARGINS);
+    if (previous?.aspect !== timeline.aspect) this.engine.setFrameAspect(timeline.aspect, frameMargins());
     this.theme = overlayTheme(set.color);
     if (previous?.typography !== timeline.typography) {
-      this.fontsReady = false;
       loadTypography(timeline.typography)
         .then(() => {
           if (this.timeline?.typography !== timeline.typography) return;
-          this.fontsReady = true;
           this.engine.invalidate();
         })
         .catch((error) => console.error(error));
@@ -71,7 +74,8 @@ export class VideoPreview {
     if (!timeline || this.disposed) return;
     if (this.playing) this.stop();
     this.engine.setFov(timeline.fov);
-    const player = new TimelinePlayer(this.engine, timeline);
+    this.player?.dispose();
+    const player = new TimelinePlayer(this.engine, timeline, this.images);
     player.reset();
     const frames = Math.round(Math.max(0, Math.min(timeline.duration, t)) * FPS);
     for (let i = 0; i < frames; i++) player.step(1 / FPS);
@@ -80,18 +84,19 @@ export class VideoPreview {
     this.engine.invalidate();
   }
 
-  /** Reproduce en tiempo real desde `from` hasta el final (o hasta `stop()`). */
-  play(from = 0): void {
+  /** Reproduce desde `from` hasta `until` o el final (también se puede detener). */
+  play(from = 0, until?: number): void {
     const timeline = this.timeline;
     if (!timeline || this.disposed) return;
     this.seek(from >= timeline.duration - 0.1 ? 0 : from);
     const player = this.player!;
+    const end = Math.max(player.time, Math.min(timeline.duration, until ?? timeline.duration));
     const director: Director = {
       step: (dt) => {
-        const running = player.step(dt);
+        const running = player.step(Math.min(dt, Math.max(0, end - player.time)));
         this.time = player.time;
         this.onTick?.(this.time);
-        return running;
+        return running && player.time < end;
       },
     };
     this.playing = true;
@@ -116,7 +121,9 @@ export class VideoPreview {
 
   dispose(): void {
     this.stop();
+    this.player?.dispose();
     this.disposed = true;
+    window.removeEventListener('pdf-book-view.topbar', this.updateFrame);
     window.clearTimeout(this.preloadTimer);
     this.engine.setOverlay(null);
     this.engine.setInteractive(true);
@@ -136,7 +143,7 @@ export class VideoPreview {
   private paint(ctx: CanvasRenderingContext2D): void {
     const timeline = this.timeline;
     if (!timeline) return;
-    if (this.fontsReady) drawOverlay(ctx, timeline, this.time, this.theme);
+    drawOverlay(ctx, timeline, this.time, this.theme);
     if (this.safeZones && timeline.aspect < 0.7) drawSafeZones(ctx);
   }
 }

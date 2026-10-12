@@ -25,6 +25,7 @@ import { ModeSelector } from './ui/ModeSelector';
 import { SheetEditor } from './ui/SheetEditor';
 import { StudioPanel, type StudioTab } from './ui/StudioPanel';
 import { useBookLoader } from './ui/useBookLoader';
+import { AlbumContext } from './ui/video/AlbumContext';
 
 const MODE_KEY = 'pdf-book-view.mode';
 
@@ -48,6 +49,14 @@ export function App() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [engine, setEngine] = useState<BookEngine | null>(null);
+  const [topbarHidden, setTopbarHidden] = useState(() => {
+    try { return localStorage.getItem('pdf-book-view.topbar-hidden') === 'true'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('pdf-book-view.topbar-hidden', String(topbarHidden)); } catch { /* sin almacenamiento */ }
+    document.documentElement.dataset.topbarHidden = String(topbarHidden);
+    window.dispatchEvent(new Event('pdf-book-view.topbar'));
+  }, [topbarHidden]);
   const [pdf, setPdf] = useState<PdfSource | null>(null);
   const [mode, setMode] = useState<ReadingModeId>(readStoredMode);
   const [opening, setOpening] = useState(false);
@@ -228,7 +237,8 @@ export function App() {
     >
       <div ref={viewportRef} className="viewport" />
 
-      <header className="topbar panel">
+      {topbarHidden && <button className="btn panel show-topbar" onClick={() => setTopbarHidden(false)} aria-label="Mostrar barra superior">Mostrar barra ▾</button>}
+      <header className="topbar panel" style={topbarHidden ? { display: 'none' } : undefined}>
         <div className="brand">
           <IconBook width={20} height={20} />
           <span>PDF Book View</span>
@@ -277,6 +287,7 @@ export function App() {
             {pdf.name}
           </span>
         )}
+        <button className="icon-btn" onClick={() => setTopbarHidden(true)} aria-label="Ocultar barra superior" title="Ocultar barra superior">▴</button>
       </header>
 
       <div className="camera-controls panel" role="toolbar" aria-label="Cámara">
@@ -396,6 +407,7 @@ export function App() {
       {videoVisible && <div ref={setDock} className="studio-dock" />}
 
       {studioVisible && (
+        <AlbumContext.Provider value={pdf && book ? { pdf, layout: book.layout } : null}>
         <StudioPanel
           engine={engine}
           fileName={pdf.name}
@@ -404,6 +416,7 @@ export function App() {
           onTabChange={setStudioTab}
           onClose={() => setStudioOpen(false)}
         />
+        </AlbumContext.Provider>
       )}
 
       {editorVisible && (

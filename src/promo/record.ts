@@ -1,10 +1,12 @@
 import type { BookEngine } from '../book/BookEngine';
-import { SET_PRESETS } from '../book/StageSet';
+import { timelineSet } from './timelineSet';
 import { pagesToPreload, type Timeline } from './compile';
 import { drawOverlay, loadTypography, overlayTheme } from './overlay';
 import { TimelinePlayer } from './TimelinePlayer';
+import type { FiguritasImages } from './figuritas/assets';
 
 export interface ProductionOptions {
+  images?: FiguritasImages;
   fps?: number;
   signal?: AbortSignal;
   onProgress?: (phase: 'preparando' | 'grabando' | 'finalizando', done: number, total: number) => void;
@@ -18,7 +20,6 @@ const yieldToEventLoop = () =>
     channel.port2.postMessage(null);
   });
 
-const setSpec = (id: string) => SET_PRESETS.find((s) => s.id === id) ?? SET_PRESETS[0];
 
 /**
  * Prepara el motor para la línea de tiempo (escenario, luz, tipografías, páginas
@@ -35,7 +36,7 @@ async function produce<T>(
   if (!book) throw new Error('No hay un libro cargado.');
   const fps = options.fps ?? 30;
   const previous = { set: engine.stageSet, lighting: engine.lightingId };
-  const spec = setSpec(timeline.set);
+  const spec = timelineSet(timeline);
   await loadTypography(timeline.typography);
   engine.setLighting(timeline.lighting);
   engine.setSet(spec);
@@ -47,8 +48,8 @@ async function produce<T>(
     composite.height = timeline.height;
     const ctx = composite.getContext('2d')!;
     const theme = overlayTheme(spec.color);
-    const player = new TimelinePlayer(engine, timeline);
-    return await engine.renderSession(timeline.width, timeline.height, timeline.fov, async (draw, canvas) => {
+    const player = new TimelinePlayer(engine, timeline, options.images);
+    try { return await engine.renderSession(timeline.width, timeline.height, timeline.fov, async (draw, canvas) => {
       player.reset();
       let simulated = 0;
       const frame = (i: number) => {
@@ -64,7 +65,7 @@ async function produce<T>(
         return composite;
       };
       return work(frame, player);
-    });
+    }); } finally { player.dispose(); }
   } finally {
     engine.unpinPages();
     engine.setSet(previous.set);
@@ -74,6 +75,7 @@ async function produce<T>(
 
 /** Graba la línea de tiempo en MP4 (H.264) cuadro a cuadro con WebCodecs. */
 export async function recordTimeline(engine: BookEngine, timeline: Timeline, options: ProductionOptions = {}): Promise<Blob> {
+  if (!timeline.scenes.length) throw new Error('El video no tiene escenas utilizables. Cargá figuritas o agregá una escena.');
   const fps = options.fps ?? 30;
   const { width, height } = timeline;
   const mb = await import('mediabunny');

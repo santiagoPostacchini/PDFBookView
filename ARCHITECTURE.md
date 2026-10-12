@@ -91,7 +91,7 @@ Una entrada por decisión. No se borran: si una cambia, se marca como reemplazad
 - Alternativas descartadas: volver a la toma continua como única opción.
 - Estado: vigente (reemplaza parcialmente a D-003)
 
-- Nota U-8 (2026-10-12): Figuritas conserva un plano fijo, ajustado en perspectiva a la entrada del paquete, su aleta, los vuelos con curvatura y el mazo, con margen de 2,5%. El mazo descansa debajo del álbum en vertical/cuadrado y a la derecha en apaisado. El paquete se coloca al fondo, inclinado 65°/85° respectivamente; el recorrido y los tiempos permanecen iguales. Se elige la mayor elevación que cumple el ancho del álbum, explorando también azimuts en apaisado. La huella de mesa incluye paquete abierto y mazo; las opciones de movimiento por toma siguen disponibles.
+- Nota U-8 (2026-10-12): Figuritas conserva un plano fijo, ajustado en perspectiva a la entrada del paquete, su aleta, los vuelos con curvatura y el mazo, con margen de 2,5%. El mazo descansa debajo del álbum en vertical/cuadrado y a la derecha en apaisado. El paquete se coloca al fondo, inclinado 65°/85° respectivamente; el recorrido y los tiempos permanecen iguales. Se elige la mayor elevación que cumple el ancho del álbum, con tope de 55° y, en apaisado, azimuts de ±16° (variante B, elegida por el usuario el 2026-10-12 frente a la A de 80° y ±40°: mismas metas medidas, mejor 16:9 y perspectiva algo más marcada en 9:16). La huella de mesa incluye paquete abierto y mazo; las opciones de movimiento por toma siguen disponibles.
 
 ### D-011: Mesa, manteles y luz de ventana como parte del escenario (2026-10-11)
 

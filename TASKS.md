@@ -293,3 +293,4 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 - Validación: npm test (577 pruebas), typecheck y build; figuritas (dos MP4), photo, entorno, camera-motion (MP4), manteles, ventana y ui-a11y (390/768/1440) en verde; servidor 5173 confirmado con curl.
 - Comparación: motion/out/u8-antes/ y u8-despues/, cuadros 10/12,5/15 s extraídos con -ss y hoja motion/out/u8-comparacion.png revisada: álbum mayor, figuritas legibles y vuelo completo; a 15 s aparece Detalle, conservado.
 - Pendientes: revisión del usuario. Sin dependencias, cambios de arquitectura, commits ni cambios de rama; TEMP/TMP local por permisos.
+- Decisión (2026-10-12): se integra la variante B del encuadre (elevación máxima 55° y azimuts ±16° en apaisado) en lugar de la A (80° y ±40°); sin costo en las metas medidas y mejor 16:9. Rama de trabajo: experimento/plano-b, integrada en integracion/figuritas-ui.

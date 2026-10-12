@@ -46,7 +46,7 @@ export function figuritasFraming(show: StickerShow, fov: number, aspect: number)
   let best: CamPose | undefined, bestWidth = 0;
   const desired = aspect < 0.7 ? 0.82 : aspect > 1.3 ? 0.57 : 0.72;
   let bestElevation = 0;
-  for (const azimuth of aspect > 1.3 ? [-40, -20, 0, 20, 40] : [0]) for (let elevation = 18; elevation <= 80; elevation += 2) {
+  for (const azimuth of aspect > 1.3 ? [-16, -8, 0, 8, 16] : [0]) for (let elevation = 18; elevation <= 55; elevation += 2) {
     const el = elevation * Math.PI / 180, az = azimuth * Math.PI / 180;
     const rightAxis = new Vector3(Math.cos(az), 0, -Math.sin(az));
     const up = new Vector3(-Math.sin(az) * Math.sin(el), Math.cos(el), -Math.cos(az) * Math.sin(el));

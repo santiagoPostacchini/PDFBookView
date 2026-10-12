@@ -1,10 +1,13 @@
 // Recorre el Estudio de la app de punta a punta en Chrome headless (el de Remotion):
-// carga un PDF por el input real, abre el Estudio, toma una foto y exporta el video.
-// Sirve como prueba y para generar el video promocional de un álbum sin intervención.
+// carga un PDF por el input real, abre el Estudio, toma una foto y arma y exporta un
+// video con el editor (estilo → historia → textos → ambiente → exportar), como lo haría una persona.
+// Sirve como prueba y para generar los videos de un álbum sin intervención.
 //
-//   node scripts/studio-e2e.mjs <pdf> [--out out/e2e] [--style elegante] [--format 9:16]
-//                               [--duration 15] [--view tresCuartos] [--spread 2]
-//                               [--lighting calida] [--backdrop rosa] [--no-video] [--no-photo]
+//   node scripts/studio-e2e.mjs <pdf> [--mode booklet|simple] [--out out/e2e]
+//        [--template clasica|ritmo|minimal] [--formats 9:16,1:1] [--duration 15]
+//        [--caption "Tus fotos, tu historia"] [--handle @tu.marca] [--drag]
+//        [--view tresCuartos] [--spread 2] [--lighting calida] [--backdrop rosa]
+//        [--no-video] [--no-photo]
 //
 // Requiere la app corriendo (npm run dev en la raíz, http://localhost:5173).
 import { mkdirSync, readdirSync } from 'node:fs';
@@ -31,9 +34,17 @@ page.on('console', (msg) => msg.type() === 'error' && console.error('[console]',
 
 const t0 = Date.now();
 const log = (...m) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...m);
+const shot = async (name) => {
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: join(out, name) });
+  log('captura:', name);
+};
 
 await page.goto(url);
-await page.evaluate(() => localStorage.setItem('pdf-book-view.mode', 'booklet'));
+await page.evaluate((mode) => {
+  localStorage.clear();
+  localStorage.setItem('pdf-book-view.mode', mode);
+}, flag('mode', 'booklet'));
 await page.reload();
 await page.setInputFiles('input[type=file]', pdf);
 await page.waitForSelector('.pager-label', { timeout: 60_000 });
@@ -42,29 +53,26 @@ if (await page.$('.sheet-editor')) await page.click('.sheet-editor button[aria-l
 
 await page.click('.topbar .btn:has-text("Estudio")');
 await page.waitForSelector('.studio-panel');
-if (flag('lighting')) await page.click(`.studio-section:has(h3:text("Luz")) .chip:text-is("${cap(flag('lighting'))}")`);
-if (flag('backdrop')) await page.click(`.swatch[aria-label="Fondo ${cap(flag('backdrop'))}"]`);
-
-// Doble página a fotografiar, esperando sus texturas en alta.
-const spread = Number(flag('spread', '2'));
-await page.evaluate((s) => window.bookEngine.goToSpread(s), spread);
-await page.waitForFunction(
-  (s) => {
-    const tm = window.bookEngine.textures;
-    return [2 * s - 1, 2 * s].every((p) => p < 0 || tm.fulls.has(p));
-  },
-  spread,
-  { timeout: 180_000, polling: 500 },
-);
-if (flag('view')) {
-  const labels = { frontal: 'Frontal', tresCuartos: '3/4', cenital: 'Cenital', rasante: 'Rasante', detalle: 'Detalle' };
-  await page.click(`.studio-section:has(h3:text("Ángulo")) .chip:text-is("${labels[flag('view')]}")`);
-}
-await page.waitForTimeout(1500);
-await page.screenshot({ path: join(out, 'ui-foto.png') });
-log('captura de la interfaz: ui-foto.png');
 
 if (!has('no-photo')) {
+  if (flag('lighting')) await page.click(`.studio-section:has(h3:text("Luz")) .chip:text-is("${cap(flag('lighting'))}")`);
+  if (flag('backdrop')) await page.click(`.swatch[aria-label="Fondo ${cap(flag('backdrop'))}"]`);
+  // Doble página a fotografiar, esperando sus texturas en alta.
+  const spread = Number(flag('spread', '2'));
+  await page.evaluate((s) => window.bookEngine.goToSpread(s), spread);
+  await page.waitForFunction(
+    (s) => {
+      const tm = window.bookEngine.textures;
+      return [2 * s - 1, 2 * s].every((p) => p < 0 || tm.fulls.has(p));
+    },
+    spread,
+    { timeout: 180_000, polling: 500 },
+  );
+  if (flag('view')) {
+    const labels = { frontal: 'Frontal', tresCuartos: '3/4', cenital: 'Cenital', rasante: 'Rasante', detalle: 'Detalle' };
+    await page.click(`.studio-section:has(h3:text("Ángulo")) .chip:text-is("${labels[flag('view')]}")`);
+  }
+  await shot('ui-foto.png');
   const [download] = await Promise.all([page.waitForEvent('download', { timeout: 120_000 }), page.click('button:has-text("Tomar foto")')]);
   const file = join(out, download.suggestedFilename());
   await download.saveAs(file);
@@ -73,34 +81,78 @@ if (!has('no-photo')) {
 
 if (!has('no-video')) {
   await page.click('.studio-tabs button:has-text("Video")');
-  await page.click(`.studio-section:has(h3:text("Formato")) .chip:has-text("${flag('format', '9:16')}")`);
-  await page.click(`.style-card:has-text("${cap(flag('style', 'elegante'))}")`);
-  await page.click(`.studio-section:has(h3:text("Duración")) .chip:text-is("${flag('duration', '15')} s")`);
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: join(out, 'ui-video.png') });
-  const [download] = await Promise.all([
-    page.waitForEvent('download', { timeout: 900_000 }),
-    page.click('button:has-text("Exportar MP4")'),
-    (async () => {
-      // Progreso en la consola mientras graba.
-      for (let i = 0; i < 900; i++) {
-        await page.waitForTimeout(3000);
-        const text = await page.textContent('.record-progress span').catch(() => null);
-        if (!text) break;
-        log(text);
-      }
-    })(),
-  ]);
-  const file = join(out, download.suggestedFilename());
-  await download.saveAs(file);
-  log('video:', basename(file));
-  await page.screenshot({ path: join(out, 'ui-video-listo.png') });
+  await page.waitForSelector('.video-steps');
+  await page.waitForSelector('.storyboard .scene-card');
+
+  // 1. Estilo
+  const template = { clasica: 'Clásica', ritmo: 'Ritmo', minimal: 'Minimal' }[flag('template', 'clasica')];
+  await page.click(`.template-card:has-text("${template}")`);
+  await shot('ui-video-1-estilo.png');
+
+  // 2. Historia: una frase en la tercera escena (si se puede escribir ahí) y
+  // reordenar arrastrando la última escena antes del cierre hasta la segunda posición.
+  await page.click('.storyboard .scene-card >> nth=2');
+  const caption = await page.$('input[aria-label="Frase en pantalla"]');
+  if (caption && flag('caption')) await caption.fill(flag('caption'));
+  const order = () => page.$$eval('.storyboard .scene-card-label b', (els) => els.map((e) => e.textContent.replace(/^\d+\.\s*/, '')).join(' → '));
+  if (has('drag')) {
+    const cards = page.locator('.storyboard .scene-card');
+    const from = await cards.nth((await cards.count()) - 2).boundingBox();
+    const to = await cards.nth(1).boundingBox();
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2 - 30, from.y + from.height / 2, { steps: 4 });
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+    await page.mouse.up();
+    log('guion reordenado:', await order());
+  } else {
+    log('guion:', await order());
+  }
+  await shot('ui-video-2-historia.png');
+
+  // 3. Textos y marca
+  await page.click('.video-steps button:has-text("Textos")');
+  if (flag('handle')) await page.fill('.field:has-text("Usuario") input', flag('handle'));
+  await shot('ui-video-3-textos.png');
+
+  await page.click('.video-steps button:has-text("Ambiente")');
+  await page.getByRole('button', { name: 'Escenario Arena', exact: true }).click();
+  await shot('ui-video-4-ambiente.png');
+
+  // 5. Exportar: formatos y duración.
+  await page.click('.video-steps button:has-text("Exportar")');
+  const formats = flag('formats', '9:16').split(',');
+  for (const f of ['9:16', '4:5', '1:1', '16:9']) {
+    const button = page.locator(`.format-option:has(b:text-is("${f}"))`);
+    const on = (await button.getAttribute('aria-pressed')) === 'true';
+    if (on !== formats.includes(f)) await button.click();
+  }
+  if (flag('duration')) await page.click(`.studio-section:has(h3:text("Duración total")) .chip:text-is("${flag('duration')} s")`);
+  await shot('ui-video-5-exportar.png');
+
+  const files = [];
+  page.on('download', async (download) => {
+    const file = join(out, download.suggestedFilename());
+    files.push(download.saveAs(file).then(() => file));
+  });
+  await page.click('button:has-text("Exportar")>> nth=-1');
+  let last = '';
+  for (;;) {
+    await page.waitForTimeout(1500);
+    const text = await (await page.$('.record-progress span'))?.textContent();
+    if (!text) break;
+    if (text !== last) log(text);
+    last = text;
+  }
+  await page.waitForSelector('.video-result', { timeout: 30_000 });
+  for (const file of await Promise.all(files)) log('video:', basename(file));
+  await shot('ui-video-listo.png');
 }
 
 await browser.close();
 
 function cap(text) {
-  const map = { calida: 'Cálida', dramatica: 'Dramática', fria: 'Fría', dinamico: 'Dinámico' };
+  const map = { calida: 'Cálida', dramatica: 'Dramática', fria: 'Fría' };
   return map[text] ?? text.charAt(0).toUpperCase() + text.slice(1);
 }
 

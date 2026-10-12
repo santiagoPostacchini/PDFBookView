@@ -21,10 +21,12 @@ import {
   IconZoomIn,
   IconZoomOut,
 } from './ui/icons';
+import { readTopbarPrefs, topbarIsHidden, updateTopbarPrefs } from './ui/topbarPrefs';
 import { ModeSelector } from './ui/ModeSelector';
 import { SheetEditor } from './ui/SheetEditor';
-import { StudioPanel } from './ui/StudioPanel';
+import { StudioPanel, type StudioTab } from './ui/StudioPanel';
 import { useBookLoader } from './ui/useBookLoader';
+import { AlbumContext } from './ui/video/AlbumContext';
 
 const MODE_KEY = 'pdf-book-view.mode';
 
@@ -47,6 +49,7 @@ function describeSpread(spread: SpreadInfo): string {
 export function App() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [topbarPrefs, setTopbarPrefs] = useState(() => readTopbarPrefs({ getItem: (key) => localStorage.getItem(key) }));
   const [engine, setEngine] = useState<BookEngine | null>(null);
   const [pdf, setPdf] = useState<PdfSource | null>(null);
   const [mode, setMode] = useState<ReadingModeId>(readStoredMode);
@@ -60,6 +63,9 @@ export function App() {
   const [planNotes, setPlanNotes] = useState<string[]>([]);
   const [editorOpen, setEditorOpenState] = useState(false);
   const [studioOpen, setStudioOpenState] = useState(false);
+  const [studioTab, setStudioTab] = useState<StudioTab>('foto');
+  /** Lugar debajo del visor donde el editor de video pone el guion de escenas. */
+  const [dock, setDock] = useState<HTMLDivElement | null>(null);
   // El editor de hojas y el estudio ocupan el mismo panel lateral: abrir uno cierra el otro.
   const setEditorOpen = useCallback((open: boolean | ((prev: boolean) => boolean)) => {
     setEditorOpenState((prev) => {
@@ -83,7 +89,11 @@ export function App() {
   useEffect(() => {
     const instance = new BookEngine(viewportRef.current!);
     setEngine(instance);
-    if (import.meta.env.DEV) Object.assign(window, { bookEngine: instance }); // para depurar desde la consola
+    if (import.meta.env.DEV) {
+      // Para depurar desde la consola y para los scripts de punta a punta (motion/scripts).
+      Object.assign(window, { bookEngine: instance });
+      void import('./promo/lab').then((lab) => Object.assign(window, { promoLab: lab }));
+    }
     return () => {
       instance.dispose();
       setEngine(null);
@@ -210,66 +220,89 @@ export function App() {
   const showPlanIssue = mode === 'booklet' && !editorOpen && diagnostics && planIssues > 0;
   const editorVisible = editorOpen && mode === 'booklet' && pdf && plan && diagnostics;
   const studioVisible = studioOpen && !!book && !!engine && !!pdf;
+  const videoVisible = studioVisible && studioTab === 'video';
+  const topbarHidden = topbarIsHidden(topbarPrefs, studioVisible, studioTab);
+  const setTopbarHidden = (hidden: boolean) => {
+    const next = updateTopbarPrefs(topbarPrefs, studioVisible, studioTab, hidden, {
+      setItem: (key, value) => localStorage.setItem(key, value),
+    });
+    setTopbarPrefs(next);
+  };
+  useEffect(() => {
+    document.documentElement.dataset.topbarHidden = String(topbarHidden);
+    window.dispatchEvent(new Event('pdf-book-view.topbar'));
+  }, [topbarHidden]);
 
   return (
     <div
-      className={`app${dragOver ? ' is-dragover' : ''}${editorVisible || studioVisible ? ' is-editing' : ''}${studioVisible ? ' is-studio' : ''}`}
+      className={`app${dragOver ? ' is-dragover' : ''}${editorVisible || studioVisible ? ' is-editing' : ''}${studioVisible ? ' is-studio' : ''}${videoVisible ? ' is-video' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={(e) => e.currentTarget === e.target && setDragOver(false)}
       onDrop={onDrop}
     >
-      <div ref={viewportRef} className="viewport" />
 
-      <header className="topbar panel">
+      {topbarHidden && <button className="btn panel show-topbar" onClick={() => setTopbarHidden(false)} aria-label="Mostrar barra superior">Mostrar barra <span aria-hidden="true">&#9662;</span></button>}
+      <header className="topbar panel" style={topbarHidden ? { display: 'none' } : undefined}>
         <div className="brand">
           <IconBook width={20} height={20} />
           <span>PDF Book View</span>
         </div>
-        <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()} disabled={opening}>
-          <IconUpload />
-          {opening ? 'Abriendo…' : 'Cargar PDF'}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/pdf,.pdf"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void openFile(file);
-            e.target.value = '';
-          }}
-        />
-        <ModeSelector value={mode} onChange={changeMode} />
-        {pdf && mode === 'booklet' && (
-          <button
-            className={`btn${editorOpen ? ' is-on' : ''}`}
-            onClick={() => setEditorOpen((open) => !open)}
-            aria-pressed={editorOpen}
-            title="Editar qué página del PDF va en cada hoja física"
-          >
-            <IconSheets />
-            Hojas
-            {planIssues > 0 && <span className="badge">{planIssues}</span>}
+        <div className="topbar-group topbar-file" role="group" aria-label="Archivo">
+          <button aria-label="Cargar PDF" className="btn btn-primary" onClick={() => fileInputRef.current?.click()} disabled={opening}>
+            <IconUpload />
+            {opening ? 'Abriendo…' : 'Cargar PDF'}
           </button>
-        )}
-        {book && (
-          <button
-            className={`btn${studioOpen ? ' is-on' : ''}`}
-            onClick={() => setStudioOpen((open) => !open)}
-            aria-pressed={studioOpen}
-            title="Fotos de producto y video promocional"
-          >
-            <IconCamera />
-            Estudio
-          </button>
-        )}
-        {pdf && (
-          <span className="file-name" title={pdf.name}>
-            {pdf.name}
-          </span>
-        )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void openFile(file);
+              e.target.value = '';
+            }}
+          />
+          {pdf && (
+            <span className="file-name" title={pdf.name}>
+              {pdf.name}
+            </span>
+          )}
+        </div>
+        <div className="topbar-group topbar-reading" role="group" aria-label="Lectura">
+          <ModeSelector value={mode} onChange={changeMode} />
+          {pdf && mode === 'booklet' && (
+            <button
+              className={`btn${editorOpen ? ' is-on' : ''}`}
+              onClick={() => setEditorOpen((open) => !open)}
+              aria-pressed={editorOpen}
+              aria-label="Hojas"
+              title="Hojas: editar qué página del PDF va en cada hoja física"
+            >
+              <IconSheets />
+              <span className="topbar-label">Hojas</span>
+              {planIssues > 0 && <span className="badge">{planIssues}</span>}
+            </button>
+          )}
+        </div>
+        <div className="topbar-group topbar-studio" role="group" aria-label="Estudio">
+          {book && (
+            <button
+              className={`btn${studioOpen ? ' is-on' : ''}`}
+              onClick={() => setStudioOpen((open) => !open)}
+              aria-pressed={studioOpen}
+              aria-label="Estudio"
+              title="Estudio: fotos de producto y video promocional"
+            >
+              <IconCamera />
+              <span className="topbar-label">Estudio</span>
+            </button>
+          )}
+          <button className="btn" onClick={() => setTopbarHidden(true)} aria-label="Ocultar barra superior" title="Ocultar barra superior"><span aria-hidden="true">&#9652;</span> Ocultar barra</button>
+        </div>
       </header>
+
+      <div ref={viewportRef} className="viewport" tabIndex={0} role="region" aria-label="Visor del libro" />
 
       <div className="camera-controls panel" role="toolbar" aria-label="Cámara">
         <button className="icon-btn" onClick={() => engine?.zoom(0.8)} title="Acercar (+)" aria-label="Acercar">
@@ -286,7 +319,7 @@ export function App() {
       {(notices.length > 0 || loading || showPlanIssue) && (
         <div className="notices">
           {loading && (
-            <div className="notice notice-progress panel">
+            <div className="notice notice-progress panel" role="status" aria-live="polite">
               <span>
                 Preparando páginas {progress.ready}/{progress.total}
               </span>
@@ -385,9 +418,21 @@ export function App() {
         </>
       )}
 
+
       {studioVisible && (
-        <StudioPanel engine={engine} fileName={pdf.name} spread={spread} onClose={() => setStudioOpen(false)} />
+        <AlbumContext.Provider value={pdf && book ? { pdf, layout: book.layout } : null}>
+        <StudioPanel
+          engine={engine}
+          fileName={pdf.name}
+          spread={spread}
+          dock={dock}
+          onTabChange={setStudioTab}
+          onClose={() => setStudioOpen(false)}
+        />
+        </AlbumContext.Provider>
       )}
+
+      {videoVisible && <div ref={setDock} className="studio-dock" />}
 
       {editorVisible && (
         <SheetEditor pdf={pdf} plan={plan} diagnostics={diagnostics} onChange={updatePlan} onClose={closeEditor} />

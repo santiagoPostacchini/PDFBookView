@@ -1,6 +1,9 @@
-# Motion graphics de álbumes (Remotion)
+# Motion graphics y scripts de punta a punta
 
-Proyecto aparte de la app: arma piezas de 10 s para redes a partir del video promocional que exporta el **Estudio** de la app y de la temática de cada álbum.
+Proyecto aparte de la app. Tiene dos usos:
+
+- **Motion graphics de 10 s (Remotion)** a partir de un video exportado por el editor de la app y de la temática de cada álbum.
+- **Scripts headless (Playwright + el Chrome de Remotion)** que manejan la app real: pruebas de punta a punta, muestras de video, el álbum de ejemplo y las miniaturas de las plantillas.
 
 ```bash
 npm install
@@ -12,7 +15,7 @@ npx remotion still  src/index.ts Vertical out/f120.png --frame=120 --props=album
 
 ## Por álbum
 
-1. Copiar el video del Estudio a `public/<album>/promo-9x16.mp4` (o `promo-1x1.mp4`).
+1. Copiar el video exportado a `public/<album>/promo-9x16.mp4` (o `promo-1x1.mp4`).
 2. Crear `albums/<album>.json` a partir de `albums/ejemplo.json`: textos, paleta, tipografías (`src/fonts.ts`), motivo (`hearts`, `paws`, `stars`, `sparkles`, `flowers`, `balloons`, `confetti`) y el tramo del video (`videoStart`, `videoSpeed`).
 3. Renderizar la composición `Vertical` (1080×1920) o `Cuadrado` (1080×1080).
 
@@ -20,14 +23,29 @@ Estructura de los 10 s: título letra por letra con motivos → video en una tar
 
 Los videos (`public/*/`) y los temas de clientes (`albums/*.json`) no se versionan: el repositorio es público.
 
-## Video promocional sin abrir el navegador
-
-`scripts/studio-e2e.mjs` maneja la app real en Chrome headless (el que descarga Remotion): carga el PDF, abre el Estudio, saca una foto y exporta el video. Sirve como prueba de punta a punta y para generar el video de un álbum desde la consola.
+## Scripts (con la app corriendo: `npm run dev` en la raíz)
 
 ```bash
-# con la app corriendo (npm run dev en la raíz)
-node scripts/studio-e2e.mjs ruta/al/album.pdf --out out/e2e --style elegante --format 9:16 --duration 15 --backdrop rosa --lighting suave
+# Álbum de ejemplo (sin datos de clientes): out/demo/album-demo.pdf
+node scripts/demo-album.mjs
+
+# Punta a punta: carga el PDF, saca una foto y arma y exporta un video con el editor
+node scripts/studio-e2e.mjs out/demo/album-demo.pdf --mode simple --template ritmo --formats 9:16,1:1 --drag --out out/e2e
+
+# Foto: superficies, persistencia, cambio Foto/Video y alfa real de los PNG
+node scripts/photo-e2e.mjs out/demo/album-demo.pdf
+
+# Muestras sin interfaz: cuadros por escena, hoja de contacto y (con --video) el MP4
+node scripts/promo-sample.mjs out/demo/album-demo.pdf --template clasica --format 9:16 --video
+
+# Miniaturas de las plantillas del editor (public/promo/plantilla-<id>.jpg)
+node scripts/template-previews.mjs
+
+# Hoja de contacto de cualquier lista de imágenes
+node scripts/contact-sheet.mjs out/hoja.png "Antes=a.png" "Ahora=b.png" --title "Comparación"
 ```
+
+`promo-sample.mjs --block "fonts.g*"` corta los pedidos a Google Fonts: sirve para comprobar que los textos del video usan las tipografías autoalojadas.
 
 ## Licencia de Remotion
 

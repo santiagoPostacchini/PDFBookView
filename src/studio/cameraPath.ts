@@ -15,13 +15,15 @@ export interface PathKey {
 
 type Vec = number[];
 
-const channels = (k: PathKey): Vec => [k.pose.azimuth, k.pose.elevation, Math.log(k.pose.distance), ...k.pose.target, k.aperture];
+// Interpolamos el recorrido físico de la cámara, como un carro sobre rieles.
+// Interpolar ángulos y zoom a la vez producía órbitas que parecían paneos digitales.
+const channels = (k: PathKey): Vec => [...posePosition(k.pose), ...k.pose.target, k.aperture];
 
 const toPose = (v: Vec): { pose: CamPose; aperture: number } => ({
   pose: {
-    azimuth: v[0],
-    elevation: Math.max(5, Math.min(86, v[1])),
-    distance: Math.exp(v[2]),
+    azimuth: Math.atan2(v[0] - v[3], v[2] - v[5]) * 180 / Math.PI,
+    elevation: Math.max(5, Math.min(86, Math.atan2(v[1] - Math.max(0, v[4]), Math.hypot(v[0] - v[3], v[2] - v[5])) * 180 / Math.PI)),
+    distance: Math.max(0.01, Math.hypot(v[0] - v[3], v[1] - Math.max(0, v[4]), v[2] - v[5])),
     target: [v[3], Math.max(0, v[4]), v[5]],
   },
   aperture: Math.max(0, v[6]),

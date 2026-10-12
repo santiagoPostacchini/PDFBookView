@@ -3,19 +3,23 @@ import {
   NeutralToneMapping,
   PCFShadowMap,
   PerspectiveCamera,
+  PMREMGenerator,
   Scene,
   SRGBColorSpace,
   Timer,
   Vector3,
   WebGLRenderer,
+  type Texture,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { fitDistance, posePosition, type CamPose } from '../studio/framing';
 import { Book, type BookOptions } from './Book';
 import { PageInteraction } from './PageInteraction';
-import { PageTextureManager } from './PageTextureManager';
+import { PageTextureManager, type PageDecoration } from './PageTextureManager';
 import { NEUTRAL_LOOK, PostFX, type LookSettings } from './PostFX';
 import { Stage, type Backdrop } from './Stage';
+import type { StageSetSpec } from './StageSet';
 import type { PageImage, PageImageProvider, SpreadInfo } from './types';
 
 export interface BookEngineEvents {
@@ -58,6 +62,16 @@ interface ViewSnapshot {
   look: LookSettings;
 }
 
+/** Espacio (px) que deja el cuadro de foto/video alrededor: barra superior, abajo y costados. */
+export interface FrameMargins {
+  top: number;
+  bottom: number;
+  side: number;
+}
+
+/** Barra superior arriba, paginador abajo y flechas a los costados. */
+export const DEFAULT_FRAME_MARGINS: FrameMargins = { top: 96, bottom: 84, side: 110 };
+
 /** Elevación de la vista por defecto (grados sobre la mesa). */
 const VIEW_ELEVATION = 58;
 const DEFAULT_FOV = 32;
@@ -89,11 +103,17 @@ export class BookEngine {
   private cameraTween: { fromPos: Vector3; toPos: Vector3; fromTarget: Vector3; toTarget: Vector3; t: number } | null = null;
 
   private post: PostFX | null = null;
+  private environment: Texture | null = null;
   private studio = false;
   private frameAspect: number | null = null;
+  private frameMargins: FrameMargins = DEFAULT_FRAME_MARGINS;
   private director: { director: Director; onEnd: () => void; snapshot: ViewSnapshot } | null = null;
   private offline = false;
   private clock = 0;
+  /** false = la cámara y las hojas no responden al mouse (p. ej. editando un video). */
+  private interactive = true;
+  /** Capa 2D encima del lienzo (textos del video en la vista previa). */
+  private overlay: { canvas: HTMLCanvasElement; draw: (ctx: CanvasRenderingContext2D) => void } | null = null;
 
   constructor(private readonly container: HTMLElement) {
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
@@ -124,7 +144,7 @@ export class BookEngine {
       this.renderer.domElement,
       this.camera,
       this.controls,
-      () => (this.director || this.offline ? null : this.book),
+      () => (this.director || this.offline || !this.interactive ? null : this.book),
       this.invalidate,
     );
 
@@ -189,32 +209,42 @@ export class BookEngine {
     return this.textures?.getThumbnail(pageIndex);
   }
 
+  /** Reemplaza lo pegado sobre una página; null restaura la imagen original. */
+  setPageDecorations(pageIndex: number, painters: readonly PageDecoration[] | null): void {
+    this.textures?.setDecorations(pageIndex, painters);
+  }
+
+  clearPageDecorations(): void {
+    this.textures?.clearDecorations();
+  }
+
   next(): void {
-    if (this.director) return;
+    if (this.director || !this.interactive) return;
     this.book?.next();
     this.invalidate();
   }
 
   prev(): void {
-    if (this.director) return;
+    if (this.director || !this.interactive) return;
     this.book?.prev();
     this.invalidate();
   }
 
   goToPage(pageIndex: number): void {
-    if (this.director) return;
+    if (this.director || !this.interactive) return;
     this.book?.goToPage(pageIndex);
     this.invalidate();
   }
 
   goToSpread(index: number): void {
-    if (this.director) return;
+    if (this.director || !this.interactive) return;
     this.book?.goToSpread(index);
     this.invalidate();
   }
 
   /** factor < 1 acerca, > 1 aleja. */
   zoom(factor: number): void {
+    if (!this.interactive) return;
     const offset = this.camera.position.clone().sub(this.controls.target);
     const distance = MathUtils.clamp(offset.length() * factor, this.controls.minDistance, this.controls.maxDistance);
     this.cameraTouched = true;
@@ -222,6 +252,7 @@ export class BookEngine {
   }
 
   resetView(): void {
+    if (!this.interactive) return;
     this.placeCamera(true);
   }
 
@@ -247,6 +278,7 @@ export class BookEngine {
     this.stopDirector();
     this.studio = false;
     this.frameAspect = null;
+    this.setSet(null);
     this.stage.setBackdrop(this.scene, null);
     this.stage.setLighting('estudio');
     this.post?.set(NEUTRAL_LOOK);
@@ -266,14 +298,37 @@ export class BookEngine {
     this.invalidate();
   }
 
+  /** Escenario 3D (superficie + horizonte + foco); null vuelve al fondo plano. */
+  setSet(spec: StageSetSpec | null): void {
+    this.stage.setSet(this.scene, spec);
+    // Luz de entorno (un cuarto neutro): relleno y reflejos suaves como en un estudio real.
+    if (spec && !this.environment) {
+      const pmrem = new PMREMGenerator(this.renderer);
+      this.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      pmrem.dispose();
+    }
+    this.scene.environment = spec ? this.environment : null;
+    this.scene.environmentIntensity = 0.5;
+    this.invalidate();
+  }
+
+  get stageSet(): StageSetSpec | null {
+    return this.stage.set.spec;
+  }
+
+  get lightingId(): string {
+    return this.stage.lighting.id;
+  }
+
   setLook(look: Partial<LookSettings>): void {
     this.post?.set(look);
     this.invalidate();
   }
 
   /** Relación ancho/alto del cuadro de foto/video (null = toda la pantalla). */
-  setFrameAspect(aspect: number | null): void {
+  setFrameAspect(aspect: number | null, margins: FrameMargins = DEFAULT_FRAME_MARGINS): void {
     this.frameAspect = aspect;
+    this.frameMargins = margins;
     this.resize();
   }
 
@@ -327,9 +382,45 @@ export class BookEngine {
 
   /** Coloca la cámara en una pose de fotógrafo (sin animación). */
   applyPose(pose: CamPose): void {
+    this.cameraTouched = true; // que un cambio de tamaño no la reencuadre sola
+    this.cameraTween = null;
     this.camera.position.set(...posePosition(pose));
     this.controls.target.set(...pose.target);
     this.camera.lookAt(this.controls.target);
+    this.invalidate();
+  }
+
+  /** Campo vertical de la cámara (grados). */
+  setFov(fov: number): void {
+    this.camera.fov = fov;
+    this.camera.updateProjectionMatrix();
+    this.invalidate();
+  }
+
+  /** Con false, ni la cámara ni las hojas responden al mouse (la vista la maneja un guion). */
+  setInteractive(enabled: boolean): void {
+    this.interactive = enabled;
+    this.controls.enabled = enabled && !this.director;
+  }
+
+  /**
+   * Capa 2D sobre el lienzo, del mismo tamaño y posición, redibujada después de
+   * cada cuadro (no se usa al exportar: ahí se compone aparte). null la quita.
+   */
+  setOverlay(draw: ((ctx: CanvasRenderingContext2D) => void) | null): void {
+    if (draw && !this.overlay) {
+      const canvas = document.createElement('canvas');
+      canvas.className = 'book-canvas book-overlay';
+      canvas.setAttribute('aria-hidden', 'true');
+      this.container.appendChild(canvas);
+      this.overlay = { canvas, draw };
+      this.syncOverlaySize();
+    } else if (draw && this.overlay) {
+      this.overlay.draw = draw;
+    } else if (!draw && this.overlay) {
+      this.overlay.canvas.remove();
+      this.overlay = null;
+    }
     this.invalidate();
   }
 
@@ -347,13 +438,18 @@ export class BookEngine {
   async capturePhoto({ longSide, type, transparent = false }: PhotoOptions): Promise<Blob> {
     const { width, height } = this.exportSize(longSide);
     const background = this.scene.background;
-    if (transparent) this.scene.background = null;
+    const stageSet = this.stageSet;
+    if (transparent) {
+      this.setSet(null);
+      this.scene.background = null;
+    }
     try {
       return await this.renderSession(width, height, null, async (draw) => {
         draw(this.clock, !transparent);
         return canvasToBlob(this.renderer.domElement, type, 0.95);
       });
     } finally {
+      if (transparent) this.setSet(stageSet);
       this.scene.background = background;
       this.invalidate();
     }
@@ -408,7 +504,7 @@ export class BookEngine {
     const active = this.director;
     if (!active) return;
     this.director = null;
-    this.controls.enabled = true;
+    this.controls.enabled = this.interactive;
     this.restore(active.snapshot);
     active.onEnd();
   }
@@ -424,12 +520,15 @@ export class BookEngine {
   dispose(): void {
     cancelAnimationFrame(this.frameHandle);
     this.director = null;
+    this.overlay?.canvas.remove();
+    this.overlay = null;
     this.resizeObserver.disconnect();
     this.interaction.dispose();
     this.controls.dispose();
     this.textures?.dispose();
     this.book?.dispose();
     this.post?.dispose();
+    this.environment?.dispose();
     this.stage.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -446,11 +545,28 @@ export class BookEngine {
   }
 
   private draw(time: number, effects = true): void {
+    if (this.stage.set.active) this.stage.set.update(this.book);
     if (this.studio && this.post && effects) {
       this.post.render(this.camera.position.distanceTo(this.controls.target), time);
     } else {
       this.renderer.render(this.scene, this.camera);
     }
+    if (this.overlay && !this.offline) {
+      const { canvas, draw } = this.overlay;
+      const ctx = canvas.getContext('2d')!;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      draw(ctx);
+    }
+  }
+
+  private syncOverlaySize(): void {
+    if (!this.overlay) return;
+    const gl = this.renderer.domElement;
+    const { canvas } = this.overlay;
+    canvas.style.width = gl.style.width;
+    canvas.style.height = gl.style.height;
+    canvas.width = gl.width;
+    canvas.height = gl.height;
   }
 
   private snapshot(): ViewSnapshot {
@@ -514,10 +630,11 @@ export class BookEngine {
     // En estudio el lienzo toma la proporción del cuadro elegido (lo que se ve es lo que se exporta).
     let width = w;
     let height = h;
+    const { top, bottom, side } = this.frameMargins;
     if (this.frameAspect) {
-      // Márgenes para no quedar debajo de la barra superior ni del paginador.
-      const availW = Math.max(1, w - 2 * 110);
-      const availH = Math.max(1, h - 96 - 84);
+      // Márgenes para no quedar debajo de la barra superior ni de lo que haya abajo (paginador, guion).
+      const availW = Math.max(1, w - 2 * side);
+      const availH = Math.max(1, h - top - bottom);
       if (availW / availH > this.frameAspect) {
         height = availH;
         width = Math.round(availH * this.frameAspect);
@@ -527,6 +644,13 @@ export class BookEngine {
       }
     }
     this.renderer.setSize(width, height, true);
+    // El lienzo queda centrado entre los márgenes (con `margin: auto` del CSS).
+    for (const canvas of [this.renderer.domElement, this.overlay?.canvas]) {
+      if (!canvas) continue;
+      canvas.style.top = this.frameAspect ? `${top}px` : '';
+      canvas.style.bottom = this.frameAspect ? `${bottom}px` : '';
+    }
+    this.syncOverlaySize();
     this.post?.setSize(Math.round(width * this.pixelRatio), Math.round(height * this.pixelRatio));
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();

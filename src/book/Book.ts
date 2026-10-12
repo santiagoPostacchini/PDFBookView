@@ -1,4 +1,4 @@
-import { Group, MeshStandardMaterial, Vector2, type Texture, type Vector3 } from 'three';
+import { Group, MeshStandardMaterial, Vector2, Vector3, type Texture } from 'three';
 import { DEFAULT_FLIP, easeInOutCubic, easeOutCubic, flipArc, FlipTween, type FlipTuning } from './flipAnimation';
 import { Leaf, type Face } from './Leaf';
 import { FLAT_RIGHT, flexPose, projectedReach, rowShape, type LeafPose } from './paperDeformer';
@@ -147,6 +147,22 @@ export class Book {
   setPageTexture(pageIndex: number, texture: Texture | null): void {
     const { leaf, face } = pageToLeafFace(pageIndex);
     this.leaves[leaf]?.setFaceTexture(face, texture);
+  }
+
+  /** Centro en mundo de la página apoyada en su pila (índice 0-based, aun durante un giro). */
+  pageCenter(pageIndex: number): Vector3 {
+    if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= this.pageCount) {
+      throw new RangeError('Índice de página fuera del libro');
+    }
+    const { leaf, face } = pageToLeafFace(pageIndex);
+    const { restZRight, restZLeft, thickness } = this.leaves[leaf].spec;
+    const right = face === 'front';
+    this.content.updateWorldMatrix(true, false);
+    return this.content.localToWorld(new Vector3(
+      (right ? 1 : -1) * this.pageWidth / 2,
+      0,
+      (right ? restZRight : restZLeft) + thickness / 2,
+    ));
   }
 
   // ── Navegación ────────────────────────────────────────────────────────────

@@ -42,6 +42,7 @@ export default defineConfig({
   plugins: [react(), pdfjsAssets()],
   build: { target: 'es2022', chunkSizeWarningLimit: 1500 },
   // motion/ es un proyecto aparte (Remotion) con renders pesados: fuera del watcher y de los tests.
-  server: { watch: { ignored: ['**/motion/**'] } },
+  // Puerto asignado por el entorno (PORT) o 5173 por defecto.
+  server: { port: Number(process.env.PORT) || 5173, watch: { ignored: ['**/motion/**'] } },
   test: { environment: 'node', include: ['src/**/*.test.ts'] },
 });

@@ -1,28 +1,31 @@
-import { HalfFloatType, WebGLRenderTarget, type PerspectiveCamera, type Scene, type WebGLRenderer } from 'three';
-import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { Color, HalfFloatType, LinearSRGBColorSpace, WebGLRenderTarget, type PerspectiveCamera, type Scene, type WebGLRenderer } from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+import { DofPass } from './DofPass';
 
 /** Ajustes de "look" fotográfico. Todos 0..1 salvo que se indique. */
 export interface LookSettings {
+  ambientOcclusion?: number;
   /** Profundidad de campo (desenfoque fuera del plano de foco). 0 = apagada. */
   aperture: number;
   vignette: number;
   grain: number;
-  /** Fundido a negro. */
+  /** Fundido hacia `fadeColor`. */
   fade: number;
-  /** Destello a blanco (cortes). */
-  flash: number;
-  /** Barrido de luz diagonal: posición (0 → 1 cruza el cuadro) e intensidad. */
-  sweep: number;
-  sweepStrength: number;
+  /** Color del fundido (hex). */
+  fadeColor: string;
 }
 
-export const NEUTRAL_LOOK: LookSettings = { aperture: 0, vignette: 0, grain: 0, fade: 0, flash: 0, sweep: 0, sweepStrength: 0 };
+export const NEUTRAL_LOOK: LookSettings = { ambientOcclusion: 0, aperture: 0, vignette: 0, grain: 0, fade: 0, fadeColor: '#000000' };
 
-/** Viñeta, grano, barrido de luz y fundidos, sobre la imagen ya en sRGB. */
+/**
+ * Viñeta, grano y fundido, sobre la imagen ya en sRGB. A propósito no hay
+ * destellos ni barridos de luz pintados encima: el brillo lo dan las luces reales.
+ */
 const LookShader = {
   uniforms: {
     tDiffuse: { value: null },
@@ -30,9 +33,7 @@ const LookShader = {
     uVignette: { value: 0 },
     uGrain: { value: 0 },
     uFade: { value: 0 },
-    uFlash: { value: 0 },
-    uSweep: { value: 0 },
-    uSweepStrength: { value: 0 },
+    uFadeColor: { value: new Color(0, 0, 0) },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -42,7 +43,8 @@ const LookShader = {
     }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
-    uniform float uTime, uVignette, uGrain, uFade, uFlash, uSweep, uSweepStrength;
+    uniform float uTime, uVignette, uGrain, uFade;
+    uniform vec3 uFadeColor;
     varying vec2 vUv;
     float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main() {
@@ -50,41 +52,56 @@ const LookShader = {
       // Viñeta elíptica que sigue el cuadro (esquinas a distancia √2).
       float edge = smoothstep(0.55, 1.45, length((vUv - 0.5) * 2.0));
       color.rgb *= 1.0 - uVignette * 0.85 * edge;
-      float band = (vUv.x * 0.8 + vUv.y) * 0.62 - (uSweep * 1.6 - 0.3);
-      color.rgb += uSweepStrength * exp(-band * band * 90.0) * vec3(1.0, 0.93, 0.82) * 0.55;
       color.rgb += (hash(vUv * vec2(1733.0, 911.0) + fract(uTime)) - 0.5) * uGrain * 0.11;
-      color.rgb = mix(color.rgb, vec3(1.0), uFlash);
-      color.rgb = mix(color.rgb, vec3(0.0), uFade);
+      color.rgb = mix(color.rgb, uFadeColor, uFade);
       gl_FragColor = color;
     }`,
 };
 
 /**
- * Cadena de post-proceso para fotos y videos: render con MSAA → profundidad
- * de campo → tone mapping/sRGB → look. En la navegación normal no se usa
+ * Cadena de post-proceso para fotos y videos: render con MSAA → oclusión → profundidad
+ * de campo → tone mapping/sRGB → antialiasing FXAA → look. En la navegación normal no se usa
  * (render directo, más liviano).
  */
 export class PostFX {
   readonly composer: EffectComposer;
-  private readonly bokeh: BokehPass;
+  private readonly dof: DofPass;
   private readonly look: ShaderPass;
+  private readonly antialias: ShaderPass;
+  private readonly output: OutputPass;
+  private readonly occlusion: SSAOPass;
   private settings: LookSettings = { ...NEUTRAL_LOOK };
+  private shortSide = 1;
 
   constructor(renderer: WebGLRenderer, scene: Scene, camera: PerspectiveCamera) {
     const target = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4 });
     this.composer = new EffectComposer(renderer, target);
     this.composer.addPass(new RenderPass(scene, camera));
-    this.bokeh = new BokehPass(scene, camera, { focus: 8, aperture: 0, maxblur: 0.012 });
-    this.composer.addPass(this.bokeh);
-    this.composer.addPass(new OutputPass());
+    this.occlusion = new SSAOPass(scene, camera, 1, 1, 16);
+    this.occlusion.kernelRadius = 0.22;
+    this.occlusion.minDistance = 0.00001;
+    this.occlusion.maxDistance = 0.015;
+    // La mezcla multiplicativa parte de blanco: 0 desactiva el oscurecimiento.
+    this.occlusion.copyMaterial.fragmentShader = this.occlusion.copyMaterial.fragmentShader.replace('gl_FragColor = opacity * texel;', 'gl_FragColor = vec4(mix(vec3(1.0), texel.rgb, opacity), 1.0);');
+    this.composer.addPass(this.occlusion);
+    this.dof = new DofPass(scene, camera);
+    this.composer.addPass(this.dof);
+    this.output = new OutputPass();
+    this.composer.addPass(this.output);
+    // Suaviza también los bordes que aparecen después del desenfoque. El grano
+    // se aplica después para que conserve su detalle.
+    this.antialias = new ShaderPass(FXAAShader);
+    this.composer.addPass(this.antialias);
     this.look = new ShaderPass(LookShader);
     this.composer.addPass(this.look);
   }
 
   /** Tamaño en píxeles reales del destino. */
   setSize(width: number, height: number): void {
+    this.shortSide = Math.max(1, Math.min(width, height));
     this.composer.setPixelRatio(1);
     this.composer.setSize(width, height);
+    this.antialias.uniforms.resolution.value.set(1 / Math.max(1, width), 1 / Math.max(1, height));
   }
 
   set(settings: Partial<LookSettings>): void {
@@ -98,24 +115,33 @@ export class PostFX {
   /** @param focusDistance distancia de la cámara al plano de foco (unidades de escena). */
   render(focusDistance: number, time: number): void {
     const s = this.settings;
-    this.bokeh.enabled = s.aperture > 0.001;
-    const bokeh = this.bokeh.uniforms as Record<'focus' | 'aperture', { value: number }>;
-    bokeh.focus.value = focusDistance;
-    // Desenfoque proporcional a la distancia relativa al foco: igual en planos cortos y largos.
-    bokeh.aperture.value = (0.032 * s.aperture) / Math.max(0.5, focusDistance);
+    this.occlusion.enabled = (s.ambientOcclusion ?? 0) > 0;
+    this.occlusion.copyMaterial.uniforms.opacity.value = s.ambientOcclusion ?? 0;
+    // La cámara cambia su proyección al entrar y salir de una exportación.
+    this.occlusion.ssaoMaterial.uniforms.cameraProjectionMatrix.value.copy(this.occlusion.camera.projectionMatrix);
+    this.occlusion.ssaoMaterial.uniforms.cameraInverseProjectionMatrix.value.copy(this.occlusion.camera.projectionMatrixInverse);
+    // El desenfoque máximo escala con la resolución: la misma foto en 2K y 4K se ve igual.
+    this.dof.enabled = s.aperture > 0.001;
+    this.dof.focus = focusDistance;
+    this.dof.maxBlur = s.aperture * 0.02 * this.shortSide;
     const u = this.look.uniforms;
     u.uTime.value = time;
     u.uVignette.value = s.vignette;
     u.uGrain.value = s.grain;
     u.uFade.value = s.fade;
-    u.uFlash.value = s.flash;
-    u.uSweep.value = s.sweep;
-    u.uSweepStrength.value = s.sweepStrength;
+    // El shader trabaja sobre la imagen ya en sRGB: el color va sin convertir.
+    (u.uFadeColor.value as Color).setStyle(s.fadeColor, LinearSRGBColorSpace);
     this.composer.render();
   }
 
   dispose(): void {
     this.composer.dispose();
-    this.bokeh.dispose();
+    this.dof.dispose();
+    this.output.dispose();
+    this.antialias.dispose();
+    this.look.dispose();
+    this.occlusion.dispose();
+    this.occlusion.ssaoMaterial.dispose();
+    this.occlusion.noiseTexture.dispose();
   }
 }

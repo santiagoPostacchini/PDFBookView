@@ -2,6 +2,12 @@ import { CanvasTexture, SRGBColorSpace, Texture, type WebGLRenderer } from 'thre
 import type { Book } from './Book';
 import type { PageImage, PageImageProvider, PageQuality } from './types';
 
+/**
+ * Algo que se pinta encima de una página ya rasterizada (p. ej. una figurita
+ * pegada). Trabaja en el tamaño del lienzo recibido: las medidas van en píxeles.
+ */
+export type PageDecoration = (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
+
 export interface TextureManagerOptions {
   /** Dobles páginas a cada lado de la actual que se cargan en alta. */
   fullRadius: number;
@@ -35,6 +41,9 @@ export class PageTextureManager {
   private focusSpread = 0;
   /** Páginas que no se liberan (p. ej. mientras se graba un video). */
   private readonly pinned = new Set<number>();
+  /** Lo pegado sobre cada página; las texturas guardan la imagen original para poder quitarlo. */
+  private readonly decorations = new Map<number, PageDecoration[]>();
+  private readonly originals = new WeakMap<Texture, PageImage>();
 
   constructor(
     private readonly provider: PageImageProvider,
@@ -98,8 +107,31 @@ export class PageTextureManager {
     this.evictFar();
   }
 
+  /** La miniatura original de la página (sin lo pegado encima). */
   getThumbnail(pageIndex: number): PageImage | undefined {
-    return this.thumbs.get(pageIndex)?.image as PageImage | undefined;
+    const texture = this.thumbs.get(pageIndex);
+    return texture ? (this.originals.get(texture) ?? (texture.image as PageImage)) : undefined;
+  }
+
+  /** Pega `list` sobre la página (reemplaza lo anterior); null o vacío la deja como era. */
+  setDecorations(pageIndex: number, list: readonly PageDecoration[] | null): void {
+    if (this.disposed) return;
+    if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= this.provider.pageCount) {
+      throw new RangeError('Índice de página fuera del libro');
+    }
+    if (list && list.length) this.decorations.set(pageIndex, [...list]);
+    else if (!this.decorations.delete(pageIndex)) return;
+    for (const store of [this.thumbs, this.fulls]) {
+      const texture = store.get(pageIndex);
+      if (!texture) continue;
+      texture.image = this.compose(pageIndex, this.originals.get(texture) ?? (texture.image as PageImage));
+      texture.needsUpdate = true;
+    }
+    this.invalidate();
+  }
+
+  clearDecorations(): void {
+    for (const page of [...this.decorations.keys()]) this.setDecorations(page, null);
   }
 
   dispose(): void {
@@ -108,6 +140,7 @@ export class PageTextureManager {
     for (const texture of [...this.thumbs.values(), ...this.fulls.values()]) texture.dispose();
     this.thumbs.clear();
     this.fulls.clear();
+    this.decorations.clear();
   }
 
   private async pump(): Promise<void> {
@@ -141,7 +174,8 @@ export class PageTextureManager {
   private store(page: number, quality: PageQuality, image: PageImage): void {
     // La cola y preload() pueden terminar la misma página: se queda la primera.
     if ((quality === 'full' ? this.fulls : this.thumbs).has(page)) return;
-    const texture = new CanvasTexture(image);
+    const texture = new CanvasTexture(this.compose(page, image));
+    this.originals.set(texture, image);
     texture.colorSpace = SRGBColorSpace;
     texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
     this.renderer.initTexture(texture); // sube a GPU ahora, no en el primer cuadro que se vea
@@ -157,6 +191,19 @@ export class PageTextureManager {
       this.onProgress?.(this.thumbs.size, this.provider.pageCount);
     }
     this.invalidate();
+  }
+
+  /** La imagen de la página con sus figuritas pegadas (la misma imagen si no tiene ninguna). */
+  private compose(page: number, image: PageImage): PageImage {
+    const list = this.decorations.get(page);
+    if (!list) return image;
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(image, 0, 0);
+    for (const decorate of list) decorate(ctx, canvas.width, canvas.height);
+    return canvas;
   }
 
   private evictFar(): void {

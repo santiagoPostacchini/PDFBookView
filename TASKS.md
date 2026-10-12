@@ -205,7 +205,7 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 
 ### U-1: Componentes comunes
 - Responsable: codex
-- Estado: hecho (pendiente de revisi?n visual del usuario)
+- Estado: hecho (pendiente de revisión visual del usuario)
 - Rama: codex/ui-componentes
 - Aceptación: interruptor (reemplaza las casillas nativas), botón de archivo en castellano ("Elegir archivo" + nombre o "Ningún archivo"), muestra de color con nombre visible, bloque plegable "Más ajustes" accesible, y espaciados/tamaños/radios en variables de CSS; usados en los controles actuales sin reorganizar nada ni cambiar comportamiento; sin dependencias nuevas.
 - Hallazgos: Toggle conserva checked/onChange, etiquetas y rol checkbox para las pruebas existentes; FileButton mantiene input real, accept/multiple/disabled y nombre elegido aunque el consumidor reinicie el input. Swatch se usa en Foto y Video; admite nombre visible opcional. Disclosure disponible para U-2 sin plegar ni mover controles actuales. Variables CSS de espaciado, radio y tama?o; sin dependencias ni cambios de l?gica.
@@ -277,6 +277,8 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 
 ### U-7: Cierre del repaso
 - Responsable: claude
-- Estado: pendiente
-- Rama: feature/figuritas
+- Estado: hecho (listo para decidir el merge)
+- Rama: integracion/figuritas-ui
 - Aceptación: revisión visual antes/después de cada paso (hoja de contacto), README y docs al día, pruebas de punta a punta actualizadas.
+- Hallazgos: la pila de ramas `codex/ui-*` es lineal (cada una sale de la anterior), así que `integracion/figuritas-ui` = `codex/ui-movil` + dos commits (indicador de paquete propio y documentación). Se detectó y corrigió una regresión de U-4 (a 390 px "Estudio" quedaba fuera de pantalla) en U-6 y una hoja inferior inusable en U-6b. Suite verificada sobre la rama de integración: 560 pruebas, typecheck y build; `photo`, `figuritas`, `entorno`, `manteles`, `ventana`, `camera-motion`, `studio` y `ui-a11y` (390/768/1440) en verde. Muestras (no versionadas, tu álbum y tus figuritas): `motion/out/muestra-final/` con dos MP4 de 20 s (9:16 y 16:9) y hojas de contacto del video y de la interfaz.
+- Pendiente conocido (no bloquea): el plano de la escena Figuritas es amplio (el álbum ocupa poco del cuadro en 9:16); el texto del cierre usa los de ejemplo (`@tu.marca`) hasta que se cargue la marca en Textos y marca.

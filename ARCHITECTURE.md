@@ -6,7 +6,7 @@
 - **PDF** (`src/pdf/`): `PdfSource` rasteriza con caché; `imposition` resuelve planes de hojas físicas (cuadernillo anidado o pliegos sueltos) a páginas lógicas; `PdfPageProvider` alimenta al motor por la interfaz `PageImageProvider`.
 - **Orquestador de videos** (`src/promo/`): proyecto (escenas + textos + formato) → `compileProject` → línea de tiempo pura (cámara, giros de hojas, textos) → `TimelinePlayer` sobre el motor → `recordTimeline` compone 3D + textos y codifica MP4. `VideoPreview` usa el visor como vista previa (capa 2D del motor para los textos) y `projectStorage` guarda el video de cada álbum y "Mi marca".
 - **Figuritas** (`src/promo/figuritas/`, `src/pdf/slots.ts`): `slots` ubica los casilleros numerados del álbum; `sheet`/`packArt`/`library` leen la hoja de figuritas y el diseño del paquete y los guardan por álbum; `targets` resuelve el destino de cada figurita; `choreography` es la coreografía pura (paquete, aleta, vuelos) y `Rig` la dibuja en 3D y pega lo aterrizado en la textura de la página (D-008, D-009).
-- **Editor de video** (`src/ui/video/`): pasos Estilo → Historia → Textos y marca → Exportar en el panel del estudio y el guion de escenas debajo del visor (portal en `.studio-dock`). Cámara por escena en `src/promo/sceneCamera.ts` (D-010).
+- **Editor de video** (`src/ui/video/`): pasos Estilo → Historia → Textos y marca → Ambiente → Exportar en el panel del estudio y el guion de escenas debajo del visor (portal en `.studio-dock`). Cámara por escena en `src/promo/sceneCamera.ts` (D-010).
 - **Motion graphics** (`motion/`): proyecto Remotion aparte; también aloja los scripts headless (Playwright) de muestras y pruebas de punta a punta.
 
 ## Decisiones
@@ -105,4 +105,12 @@ Una entrada por decisión. No se borran: si una cambia, se marca como reemplazad
 - Decisión: las figuritas y el diseño del paquete se cargan desde la interfaz y se guardan por nombre de álbum en el navegador (IndexedDB, con respaldo en memoria si está bloqueado). Los scripts de prueba reciben las rutas de los PDF por argumento y escriben sólo en `motion/out/` (ignorado por Git). `public/` sólo contiene recursos genéricos.
 - Razón: no filtrar trabajo de clientes y que cada álbum recuerde sus figuritas.
 - Pendiente de decisión del usuario: incluir el diseño de paquete de ejemplo como recurso por defecto (hoy sólo hay un paquete básico genérico).
+- Estado: vigente
+
+### D-013: Interfaz del Estudio: cinco pasos, catálogo único y hoja inferior (2026-10-12)
+
+- Contexto: con tantas funciones nuevas (manteles, ventana, figuritas, movimiento por toma) la pantalla había quedado desordenada: "Textos y marca" mezclaba textos con escenario y luz, Foto y Video tenían catálogos de escenarios distintos, la barra superior ocupaba dos filas y tapaba el visor, y en el celular el Estudio no se podía abrir.
+- Decisión (del usuario): el editor de video tiene cinco pasos (Estilo, Historia, Textos y marca, Ambiente, Exportar); Foto y Video eligen escenario del mismo catálogo (`src/book/scenarios.ts` + `ScenarioPicker`) y los ajustes de Foto anteriores se migran sin cambiar su aspecto; la barra superior va en una fila, con botón "Ocultar barra", y arranca oculta en Video (preferencia propia, aparte de la general); en 768 px o menos el Estudio es una hoja inferior (60 % / 88 %) que deja ver el visor. Componentes comunes (`Toggle`, `FileButton`, `Swatch`, `Disclosure`) y variables de CSS reemplazan los controles nativos. La biblioteca de figuritas recuerda si el paquete es propio (`PackAsset.custom`).
+- Razón: cada paso responde una pregunta (qué estilo, qué historia, qué textos, qué ambiente, cómo exportar) y todo se alcanza con teclado, en celular y en escritorio; una prueba automática (`ui-a11y-e2e.mjs`) vigila desbordes, nombres accesibles y foco a 390, 768 y 1440 px, y otra (`contrast.test.ts`) el contraste del texto.
+- Alternativas consideradas: cuatro pasos con el ambiente dentro de Estilo (el usuario prefirió cinco por simpleza visual).
 - Estado: vigente

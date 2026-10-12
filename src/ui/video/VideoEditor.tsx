@@ -11,7 +11,7 @@ import { downloadBlob, fileSlug } from '../download';
 import { IconAlert } from '../icons';
 import { Storyboard } from './Storyboard';
 import './video.css';
-import { AddSceneStep, ExportStep, SceneStep, StyleStep, TextsStep, type ExportResult, type RecordingStatus } from './VideoSteps';
+import { AddSceneStep, EnvironmentStep, ExportStep, SceneStep, StyleStep, TextsStep, type ExportResult, type RecordingStatus } from './VideoSteps';
 import { AlbumContext } from './AlbumContext';
 import { FiguritasStep } from './FiguritasStep';
 import { findNumberedSlots, type SlotSite } from '../../pdf/slots';
@@ -19,12 +19,13 @@ import { loadLibrary, saveLibrary } from '../../promo/figuritas/library';
 import { libraryImages, type FiguritasImages, type FiguritasLibrary } from '../../promo/figuritas/assets';
 import { extractCoverColor } from '../../promo/coverColor';
 
-type Step = 'estilo' | 'historia' | 'textos' | 'exportar';
+type Step = 'estilo' | 'historia' | 'textos' | 'ambiente' | 'exportar';
 
 const STEPS: { id: Step; label: string }[] = [
   { id: 'estilo', label: 'Estilo' },
   { id: 'historia', label: 'Historia' },
   { id: 'textos', label: 'Textos y marca' },
+  { id: 'ambiente', label: 'Ambiente' },
   { id: 'exportar', label: 'Exportar' },
 ];
 
@@ -41,8 +42,8 @@ interface Props {
 }
 
 /**
- * Editor de video para personas no técnicas, en 4 pasos (estilo, historia,
- * textos y marca, exportar). El visor 3D es la vista previa: muestra la escena
+ * Editor de video para personas no técnicas, en 5 pasos (estilo, historia,
+ * textos y marca, ambiente, exportar). El visor 3D es la vista previa: muestra la escena
  * elegida con sus textos o reproduce el video tal como se va a exportar.
  */
 export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
@@ -240,7 +241,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
         ))}
       </nav>
 
-      <div className="editor-scroll studio-scroll">
+      <div className={`editor-scroll studio-scroll${step === 'historia' && !adding ? ' scene-panel' : ''}`}>
         {error && (
           <p className="diag diag-warn">
             <IconAlert width={16} height={16} />
@@ -250,12 +251,6 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
 
         {step === 'estilo' && <>
           <StyleStep project={project} onPick={(id) => setProject(applyTemplate(project, id), 0)} onNext={() => setStep('historia')} />
-          <button className="btn btn-block" onClick={() => {
-            const index = project.scenes.findIndex((s) => s.kind === 'figuritas');
-            if (index >= 0) setSelected(index);
-            else apply(addScene(project, 'figuritas', Math.max(0, project.scenes.length - 2)));
-            setStep('historia');
-          }}>Agregar figuritas al video</button>
         </>}
 
         {step === 'historia' &&
@@ -304,6 +299,8 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
             }}
           />
         )}
+
+        {step === 'ambiente' && <EnvironmentStep project={project} onChange={(patch) => setProject({ ...project, ...patch })} />}
 
         {step === 'exportar' && (
           <ExportStep

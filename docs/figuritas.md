@@ -17,7 +17,7 @@ Para darle movimiento a una toma, elegila en **Historia → Movimiento de esta t
 
 El título de **Al empezar** aparece en la primera toma utilizable, aunque hayas movido **Portada** al final o la hayas quitado. No vuelve a aparecer al mostrar la tapa más adelante. Después del último pegado, el paquetito se desplaza hacia la derecha del álbum y se acuesta junto a otros dos sobres, formando un abanico de tres con el frente hacia arriba. El mazo permanece durante las tomas siguientes; los planos generales y el cierre lo incluyen completo. Buscar hacia atrás recupera su entrada. Si agregás otra escena de figuritas, el nuevo conjunto ocupa ese lugar sin superponerse al anterior.
 
-En **Textos y marca → Escenario**, **Automático · color de la tapa** toma un tono de la portada para el escenario. Si no encuentra un tono útil, usa Arena. El botón **Luz de ventana** permite elegir lino cálido con sombras suaves del marco para cualquier plantilla, sin cambiar el guion.
+En **Ambiente → Escenario**, **Automático · color de la tapa** toma un tono de la portada para el escenario. Si no encuentra un tono útil, usa Arena. El botón **Luz de ventana** permite elegir lino cálido con sombras suaves del marco para cualquier plantilla, sin cambiar el guion.
 
 En **Manteles**, elegí cuadros rosa, cuadros azul o rayas salvia. En **Luz**, **Sombra de ventana** ajusta cuánto se ve el marco sobre cualquier superficie o mantel; 0% lo apaga. **Sombras de contacto** regula la oclusión ambiental y **Mostrar mesa con bordes y patas** permite alternar entre una mesa finita y la superficie extendida. Estos ajustes quedan guardados con el video. El antialiasing se aplica automáticamente.
 

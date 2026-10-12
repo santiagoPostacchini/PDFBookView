@@ -206,7 +206,7 @@
 /* Pasos */
 .video-steps {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   margin: 0 14px 6px;
 }
@@ -273,8 +273,8 @@
 
 .template-card img {
   flex: none;
-  width: 60px;
-  height: 107px;
+  width: 36px;
+  height: 64px;
   object-fit: cover;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.3);
@@ -508,3 +508,12 @@
 }
 .tablecloth-sample.vichy-azul { --cloth-ink: rgb(66 115 174 / 34%); }
 .tablecloth-sample.rayas-salvia { background-image: repeating-linear-gradient(90deg, transparent 0 10px, rgb(87 137 85 / 45%) 10px 20px); }
+
+.video-steps button { min-width: 0; overflow-wrap: anywhere; }
+.editor-scroll.scene-panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding-bottom: 0; }
+.scene-editor { flex: 1; display: flex; flex-direction: column; min-height: 0; width: 100%; }
+.scene-content { overflow-y: auto; min-height: 0; flex: 1; scrollbar-width: thin; padding-bottom: 12px; }
+.scene-footer { flex: none; position: sticky; bottom: 0; background: #181614; padding-bottom: 12px; border-top: 1px solid var(--panel-border); }
+@media (max-width: 480px) {
+  .video-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

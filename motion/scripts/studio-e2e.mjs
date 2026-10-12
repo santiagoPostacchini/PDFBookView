@@ -1,6 +1,6 @@
 // Recorre el Estudio de la app de punta a punta en Chrome headless (el de Remotion):
 // carga un PDF por el input real, abre el Estudio, toma una foto y arma y exporta un
-// video con el editor (estilo → historia → textos → exportar), como lo haría una persona.
+// video con el editor (estilo → historia → textos → ambiente → exportar), como lo haría una persona.
 // Sirve como prueba y para generar los videos de un álbum sin intervención.
 //
 //   node scripts/studio-e2e.mjs <pdf> [--mode booklet|simple] [--out out/e2e]
@@ -115,7 +115,11 @@ if (!has('no-video')) {
   if (flag('handle')) await page.fill('.field:has-text("Usuario") input', flag('handle'));
   await shot('ui-video-3-textos.png');
 
-  // 4. Exportar: formatos y duración.
+  await page.click('.video-steps button:has-text("Ambiente")');
+  await page.getByRole('button', { name: 'Escenario Arena', exact: true }).click();
+  await shot('ui-video-4-ambiente.png');
+
+  // 5. Exportar: formatos y duración.
   await page.click('.video-steps button:has-text("Exportar")');
   const formats = flag('formats', '9:16').split(',');
   for (const f of ['9:16', '4:5', '1:1', '16:9']) {
@@ -124,7 +128,7 @@ if (!has('no-video')) {
     if (on !== formats.includes(f)) await button.click();
   }
   if (flag('duration')) await page.click(`.studio-section:has(h3:text("Duración total")) .chip:text-is("${flag('duration')} s")`);
-  await shot('ui-video-4-exportar.png');
+  await shot('ui-video-5-exportar.png');
 
   const files = [];
   page.on('download', async (download) => {

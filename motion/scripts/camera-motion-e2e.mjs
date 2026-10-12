@@ -19,6 +19,8 @@ try {
     await page.locator('.storyboard .scene-card').first().click();
   };
   await load();
+  assert.equal(await page.locator('.scene-content details').getAttribute('open'), null);
+  await page.getByText('Movimiento (opcional)', { exact: true }).click();
   const zoom = page.getByRole('checkbox', { name: 'Activar zoom suave', exact: true });
   const lateral = page.getByRole('checkbox', { name: 'Activar movimiento lateral', exact: true });
   assert.equal(await zoom.isChecked(), false); assert.equal(await lateral.isChecked(), false);
@@ -44,6 +46,7 @@ try {
   await page.getByRole('button', { name: 'Reproducir desde el principio', exact: true }).waitFor({ timeout: 15000 });
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf'))?.project.scenes[0].camera?.zoom.to === 0.08);
   await load();
+  assert.notEqual(await page.locator('.scene-content details').getAttribute('open'), null, 'Los ajustes guardados abren Movimiento.');
   assert.equal(await framing.inputValue(), '0.5');
   assert.equal(await zoom.isChecked(), true); assert.equal(await lateral.isChecked(), true);
   assert.equal(await orbit.isChecked(), true);
@@ -56,6 +59,8 @@ try {
   for (const field of ['position', 'target']) fixedFirst[field].forEach((v, i) => assert.ok(Math.abs(v - fixedLast[field][i]) < 1e-6));
   await zoom.check(); assert.equal(await slider('Zoom final').inputValue(), '0.08');
   await page.locator('.storyboard .scene-card').nth(1).click();
+  assert.equal(await page.locator('.scene-content details').getAttribute('open'), null, 'Otra toma sin ajustes queda plegada.');
+  await page.getByText('Movimiento (opcional)', { exact: true }).click();
   assert.equal(await zoom.isChecked(), false); assert.equal(await lateral.isChecked(), false);
   await page.getByRole('button', { name: 'Cerrar estudio', exact: true }).click();
   const bytes = await page.evaluate(async () => {

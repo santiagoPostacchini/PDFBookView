@@ -17,7 +17,7 @@ try {
     await page.waitForFunction(() => window.promoLab && window.bookEngine?.currentBook);
     await page.getByRole('button', { name: 'Estudio', exact: true }).click();
     await page.getByRole('tab', { name: 'Video promocional' }).click();
-    await page.getByRole('button', { name: 'Textos y marca', exact: false }).first().click();
+    await page.getByRole('button', { name: 'Ambiente', exact: false }).first().click();
   };
   await load();
   for (const [label, pattern] of [['cuadros rosa', 'vichy-rosa'], ['cuadros azul', 'vichy-azul'], ['rayas salvia', 'rayas-salvia']]) {

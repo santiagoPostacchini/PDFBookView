@@ -15,15 +15,15 @@ try {
   await page.waitForFunction(() => window.promoLab && window.bookEngine?.currentBook);
   await page.getByRole('button', { name: 'Estudio', exact: true }).click();
   await page.getByRole('tab', { name: 'Video promocional' }).click();
-  await page.getByRole('button', { name: 'Textos y marca', exact: false }).first().click();
-  await page.getByRole('button', { name: 'Luz de ventana', exact: true }).click();
+  await page.getByRole('button', { name: 'Ambiente', exact: false }).first().click();
+  await page.getByRole('button', { name: 'Escenario Luz de ventana', exact: true }).click();
   await page.waitForFunction(() => window.bookEngine.stageSet?.windowShadow === true);
-  assert.equal(await page.getByRole('button', { name: 'Luz de ventana', exact: true }).getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.getByRole('button', { name: 'Escenario Luz de ventana', exact: true }).getAttribute('aria-pressed'), 'true');
   await page.getByRole('button', { name: 'Escenario Arena', exact: true }).click();
   await page.getByRole('slider', { name: /^Sombra de ventana/ }).focus();
   await page.getByRole('slider', { name: /^Sombra de ventana/ }).press('Home');
   await page.waitForFunction(() => !window.bookEngine.stageSet?.windowShadow);
-  assert.equal(await page.getByRole('button', { name: 'Luz de ventana', exact: true }).getAttribute('aria-pressed'), 'false');
+  assert.equal(await page.getByRole('button', { name: 'Escenario Luz de ventana', exact: true }).getAttribute('aria-pressed'), 'false');
   await page.getByRole('button', { name: 'Cerrar estudio', exact: true }).click();
   const result = await page.evaluate(async () => {
     const { bookEngine: engine, promoLab: lab } = window;

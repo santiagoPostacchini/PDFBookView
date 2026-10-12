@@ -41,6 +41,9 @@ try {
     await page.setInputFiles('input[type=file]', album);
     await page.waitForSelector('.pager-label', { timeout: 60_000 });
     await page.waitForTimeout(1500);
+    if (await page.getByRole('button', { name: 'Cerrar editor', exact: true }).isVisible()) {
+      await page.getByRole('button', { name: 'Cerrar editor', exact: true }).click();
+    }
     await shot('0-visor');
     await page.getByRole('button', { name: 'Estudio', exact: true }).click();
     await page.waitForSelector('.studio-panel');
@@ -48,8 +51,21 @@ try {
     await page.getByText('Video promocional').first().click();
     await page.waitForSelector('.video-steps');
     const steps = await page.locator('.video-steps button').allInnerTexts();
+    assert.equal(steps.length, 5, 'El editor tiene cinco pasos.');
     for (const [i, label] of steps.entries()) {
       await page.locator('.video-steps button').nth(i).click();
+      if (i === 1) {
+        const disclosure = page.locator('.scene-content details');
+        assert.equal(await disclosure.getAttribute('open'), null, 'Movimiento cerrado en una toma sin ajustes.');
+        await disclosure.locator('summary').click();
+        await page.locator('.scene-content').evaluate((el) => { el.scrollTop = el.scrollHeight; });
+        for (const name of ['Antes', 'Despu\u00e9s', 'Duplicar', 'Quitar', 'Agregar una escena']) {
+          const box = await page.locator('.scene-footer').getByRole('button', { name, exact: true }).boundingBox();
+          assert.ok(box && box.y >= 0 && box.y + box.height <= viewport.height, `Acci\u00f3n visible: ${name}`);
+        }
+        await disclosure.locator('summary').click();
+        await page.locator('.scene-content').evaluate((el) => { el.scrollTop = 0; });
+      }
       await shot(`2-${i + 1}-${label.replace(/^\d\s*/, '').replace(/\W+/g, '')}`);
     }
     await page.close();

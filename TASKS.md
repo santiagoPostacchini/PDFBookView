@@ -214,9 +214,13 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 
 ### U-2: Cinco pasos del editor de video
 - Responsable: codex
-- Estado: pendiente
+- Estado: hecho (pendiente de revisión visual del usuario)
 - Rama: codex/ui-pasos
 - Aceptación: Estilo = plantillas (tarjetas compactas); Historia = lo esencial de la escena arriba (páginas, frase, duración), "Movimiento de esta toma" plegado y acciones de la escena (Antes, Después, Duplicar, Quitar, Agregar) siempre visibles; Textos y marca = sólo título, línea chica, llamado a la acción, usuario y tipografía; **Ambiente** (paso nuevo) = escenario, manteles, luz, luz de ventana (un solo control, 0 % la apaga), mesa y sombras de contacto; Exportar sin cambios. El proyecto guardado sigue cargando igual.
+- Hallazgos: cinco pasos; Ambiente separado sin cambios en model.ts, projectStorage ni Foto. Plantillas compactas; Movimiento plegable y acciones fijas en Historia; colores con nombre, ventana con un slider, mesa/AO en Más ajustes.
+- Validación: 546 tests, typecheck y build en verde; photo, figuritas (dos MP4), ventana, manteles, entorno, camera-motion (MP4) y studio (9:16/4:5 con arrastre) en verde en puerto 5174.
+- Capturas: motion/out/ui-shots/u2, escritorio y móvil revisados; cinco pasos sin recortes y acciones visibles incluso con Movimiento abierto (verificación automática). README/docs y scripts actualizados.
+- Entorno/pendientes: TEMP/TMP local por permisos; ui-shots cierra el editor de hojas antes del Estudio. Revisión del usuario; refinamientos móviles en U-6. Sin dependencias nuevas ni commits.
 
 ### U-3: Catálogo único de escenarios (Foto y Video)
 - Responsable: codex

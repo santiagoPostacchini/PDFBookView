@@ -7,7 +7,7 @@ export interface Flight { target: StickerTarget; exit: number; fly: number; lowe
 export interface StickerShow {
   start: number; end: number; open: number; opened: number; leave: number;
   width: number; height: number; packWidth: number; packHeight: number;
-  packPosition: Vector3; packRotation: Quaternion;
+  packPosition: Vector3; packRotation: Quaternion; belowBook: boolean;
   flights: Flight[]; turns: { at: number; spread: number }[];
 }
 export interface Pose { position: Vector3; rotation: Quaternion; visible: boolean }
@@ -16,22 +16,24 @@ const ease = (t: number) => t * t * (3 - 2 * t);
 const progress = (t: number, a: number, b: number) => Math.max(0, Math.min(1, (t - a) / (b - a)));
 const rx = (angle: number) => new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), angle);
 
-/** Tres sobres boca arriba, separados en abanico a la derecha del álbum. */
+/** Tres sobres boca arriba: debajo del álbum en vertical/cuadrado, al costado en apaisado. */
 export function restingPacks(show: StickerShow): Pose[] {
   const halfWidth = show.packWidth / 2 * Math.cos(14 * Math.PI / 180) + show.packHeight / 2 * Math.sin(14 * Math.PI / 180);
   const depth = show.packWidth * 0.08;
   return [0, 1, 2].map((i) => ({
-    position: new Vector3(show.width + 0.2 + halfWidth + i * show.packWidth * 0.16,
-      depth / 2 + 0.008 + i * (depth + 0.008), (i - 1) * show.packHeight * 0.18),
+    position: new Vector3(show.belowBook ? (i - 1) * show.packWidth * 0.16 : show.width + 0.2 + halfWidth + i * show.packWidth * 0.16,
+      depth / 2 + 0.008 + i * (depth + 0.008), show.belowBook ? show.height / 2 + 0.2 + show.packHeight / 2 : (i - 1) * show.packHeight * 0.18),
     rotation: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), (i - 1) * 14 * Math.PI / 180).multiply(rx(-Math.PI / 2)),
     visible: true,
   }));
 }
 
 /** Huella que debe entrar en la toma final y en la mesa. */
-export function packTableBounds(show: StickerShow) {
+export function packTableBounds(show: StickerShow, includeOpenPack = false) {
   let minX = -show.width, maxX = show.width, minZ = -show.height / 2, maxZ = show.height / 2;
-  for (const pack of restingPacks(show)) for (const x of [-1, 1]) for (const y of [-1, 1]) {
+  const packs = restingPacks(show);
+  if (includeOpenPack) packs.push({ position: show.packPosition, rotation: show.packRotation, visible: true });
+  for (const pack of packs) for (const x of [-1, 1]) for (const y of [-1, 1]) {
     const corner = new Vector3(x * show.packWidth / 2, y * show.packHeight / 2, 0).applyQuaternion(pack.rotation).add(pack.position);
     minX = Math.min(minX, corner.x); maxX = Math.max(maxX, corner.x);
     minZ = Math.min(minZ, corner.z); maxZ = Math.max(maxZ, corner.z);
@@ -52,12 +54,13 @@ export function createShow(targets: StickerTarget[], book: BookShape, kit: Figur
   const f = Math.max(0.75, Math.min(1.5, duration / showDuration(targets)));
   const packWidth = book.pageWidth * kit.pack.widthPt / book.pagePt!.width;
   const packHeight = book.pageHeight * kit.pack.heightPt / book.pagePt!.height;
-  const yaw = (aspect > 1.3 ? 38 : -8) * Math.PI / 180;
-  const packRotation = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), yaw).multiply(rx(-28 * Math.PI / 180));
-  const footprint = packHeight * Math.sin(28 * Math.PI / 180) / 2;
+  const tilt = aspect > 1.3 ? 85 : 65;
+  const yaw = (aspect > 1.3 ? 0 : -8) * Math.PI / 180;
+  const packRotation = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), yaw).multiply(rx(-tilt * Math.PI / 180));
+  const footprint = packHeight * Math.sin(tilt * Math.PI / 180) / 2;
   const packPosition = new Vector3(aspect > 1.3 ? book.pageWidth + 0.3 + packWidth / 2 : 0,
-    packHeight * Math.cos(28 * Math.PI / 180) / 2 + 0.02,
-    aspect > 1.3 ? 0 : book.pageHeight / 2 + 0.25 + footprint);
+    packHeight * Math.cos(tilt * Math.PI / 180) / 2 + 0.02,
+    aspect > 1.3 ? -book.pageHeight : -book.pageHeight / 2 - 0.25 - footprint);
   const open = start + 0.9 * f, opened = open + 0.45 * f;
   let t = opened, spread = targets[0]?.spread;
   const turns: StickerShow['turns'] = [], flights: Flight[] = [];
@@ -69,7 +72,7 @@ export function createShow(targets: StickerTarget[], book: BookShape, kit: Figur
     t = stick + 0.65 * f;
   }
   return { start, end: start + duration, open, opened, leave: t, width: book.pageWidth, height: book.pageHeight,
-    packWidth, packHeight, packPosition, packRotation, flights, turns };
+    packWidth, packHeight, packPosition, packRotation, belowBook: aspect <= 1.3, flights, turns };
 }
 
 /** Poses sin estado: el aterrizaje se mide en vivo sobre la pila de la página. */

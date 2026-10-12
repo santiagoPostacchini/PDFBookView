@@ -1,3 +1,4 @@
+import { figuritasFraming } from './figuritas/framing';
 import { CameraPath, type PathKey } from '../studio/cameraPath';
 import { fitDistance, lerpPose, type CamPose, type Region } from '../studio/framing';
 import { FORMATS, type BookShape, type PromoProject, type SceneKind, type SceneLength, type SceneSpec, type TypographyId } from './model';
@@ -315,15 +316,8 @@ function makeFraming(W: number, H: number, fov: number, aspect: number) {
 
   return {
     figuritas: (show: StickerShow): Shot => {
-      const x = show.packPosition.x, z = show.packPosition.z;
-      const bounds = packTableBounds(show);
-      const minX = Math.min(bounds.minX, x - show.packWidth / 2), maxX = Math.max(bounds.maxX, x + show.packWidth / 2);
-      const minZ = bounds.minZ, maxZ = Math.max(bounds.maxZ, z + show.packHeight / 2);
-      const region = { width: maxX - minX, depth: maxZ - minZ + (landscape ? show.packHeight * 1.5 : 0) };
-      const target: [number, number, number] = [(minX + maxX) / 2, show.packHeight * 0.25, (minZ + maxZ) / 2];
-      // En apaisado el vuelo ocupa más altura que el libro apoyado: dejar aire
-      // arriba evita cortar la figurita cuando sale erguida por la boca.
-      return { from: pose(region, -10, 58, target, 1.2), to: pose(region, 8, 62, target, 1.14), aperture: 0.15 };
+      const camera = figuritasFraming(show, fov, aspect);
+      return { from: camera, to: camera, aperture: 0.15 };
     },
     portada: (): Shot => ({
       from: hero(-28, 32, 1.24),

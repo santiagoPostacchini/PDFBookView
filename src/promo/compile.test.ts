@@ -36,6 +36,19 @@ describe('spreadPlan', () => {
 });
 
 describe('compileProject', () => {
+  it.each(Object.keys(FORMATS) as FormatId[])('Figuritas %s mantiene el encuadre fijo y admite el movimiento opcional existente', (format) => {
+    const book = { ...shape(6), pagePt: { width: 200, height: 300 } };
+    const kit = { stickers: [{ id: 'a', number: 1, widthPt: 100, heightPt: 140 }], pack: { widthPt: 150, heightPt: 220 } };
+    const scene = { kind: 'figuritas' as const, stickers: [{ id: 'a', page: 2 }] };
+    const project = projectFromTemplate('figuritas', { format, scenes: [scene] });
+    const fixed = compileProject(project, book, kit);
+    const first = sampleCamera(fixed, 0);
+    for (const t of [fixed.duration / 2, fixed.duration, 0.1, 0]) expect(sampleCamera(fixed, t)).toEqual(first);
+    const animated = compileProject({ ...project, scenes: [{ ...scene, camera: { zoom: { enabled: true, from: 0, to: 0.06 } } }] }, book, kit);
+    expect(sampleCamera(animated, animated.duration).pose.distance).toBeCloseTo(first.pose.distance / 1.06);
+    expect(sampleCamera(animated, 0).pose.distance).toBeCloseTo(first.pose.distance);
+  });
+
   it.each(cases)('$template $format $duration s, $leafCount hojas: escenas contiguas, acciones y textos válidos', (c) => {
     const tl = compileProject(projectFromTemplate(c.template, { format: c.format, duration: c.duration }), shape(c.leafCount));
     expect(tl.duration).toBeCloseTo(c.duration);

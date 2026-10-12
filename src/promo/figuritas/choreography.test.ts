@@ -4,6 +4,7 @@ import { createShow, evaluateShow, restingPacks, showDuration } from './choreogr
 import { resolveTargets } from './targets';
 import { compileProject, sampleCamera } from '../compile';
 import { posePosition } from '../../studio/framing';
+import { showPoints } from './framing';
 import { projectFromTemplate } from '../templates';
 import { sanitizeProject } from '../projectStorage';
 import { duplicateScene, updateScene } from '../editing';
@@ -13,6 +14,31 @@ const book = { leafCount: 5, pageWidth: 2, pageHeight: 3, pagePt: { width: 200, 
 const kit = { stickers: [{ id: 'a', number: 13, widthPt: 100, heightPt: 140 }, { id: 'b', number: 14, widthPt: 120, heightPt: 80 }], pack: { widthPt: 150, heightPt: 220 } };
 
 describe('figuritas y coreografía', () => {
+  it.each((['9:16', '4:5', '1:1', '16:9'] as const).flatMap((format) => [1, 3, 6].map((count) => ({ format, count }))))(
+    '$format, $count figuritas: álbum grande y margen de 2% durante toda la escena', ({ format, count }) => {
+      const stickers = Array.from({ length: count }, (_, i) => ({ ...kit.stickers[i % 2], id: `s${i}` }));
+      const timeline = compileProject(projectFromTemplate('figuritas', { format,
+        scenes: [{ kind: 'figuritas', stickers: stickers.map((s) => ({ id: s.id })) }] }), book, { ...kit, stickers });
+      const show = timeline.shows![0], pose = sampleCamera(timeline, show.start).pose;
+      const camera = new PerspectiveCamera(timeline.fov, timeline.aspect, 0.01, 100);
+      camera.position.set(...posePosition(pose)); camera.lookAt(...pose.target); camera.updateMatrixWorld();
+      const corners = [-1, 1].flatMap((x) => [-1, 1].map((z) => new Vector3(x * show.width, 0.1, z * show.height / 2).project(camera)));
+      const width = (Math.max(...corners.map((p) => p.x)) - Math.min(...corners.map((p) => p.x))) / 2;
+      expect(width, `${format}, ${count}`).toBeGreaterThanOrEqual(format === '9:16' ? 0.8 : format === '16:9' ? 0.55 : 0.7);
+      let margin = 1;
+      const times = [show.start, show.open, show.opened, show.leave, show.end,
+        ...show.flights.flatMap((f) => [f.exit, f.fly, f.lower, f.stick])];
+      for (let t = show.start; t < show.end; t += 1 / 120) times.push(t);
+      for (const t of times) {
+        expect(sampleCamera(timeline, Math.min(t, show.end - 1e-8)).pose).toEqual(pose);
+        for (const point of showPoints(show, t)) {
+          point.project(camera);
+          margin = Math.min(margin, (1 - Math.abs(point.x)) / 2, (1 - Math.abs(point.y)) / 2);
+        }
+      }
+      console.log(`${format}, ${count}: álbum ${(width * 100).toFixed(2)}%, margen ${(margin * 100).toFixed(2)}%`);
+      expect(margin).toBeGreaterThanOrEqual(0.02);
+  }, 15000);
   it('deja el paquete en la mesa después del pegado y al buscar atrás recupera la entrada', () => {
     const show = createShow(resolveTargets({ kind: 'figuritas' }, book, kit), book, kit, 9 / 16, 3);
     const landing = () => new Vector3(0, 0.1, 0);
@@ -23,7 +49,7 @@ describe('figuritas y coreografía', () => {
       expect(pose.pack.rotation.angleTo(resting[2].rotation)).toBeLessThan(1e-7); expect(pose.stickers.every((s) => s.pasted && !s.visible)).toBe(true);
       expect(pose.companions).toHaveLength(2); expect(pose.companions.every((p) => p.visible)).toBe(true);
       for (const p of [...pose.companions, pose.pack]) {
-        expect(p.position.x).toBeGreaterThan(show.width);
+        expect(p.position.z).toBeGreaterThan(show.height / 2);
         expect(new Vector3(0, 0, 1).applyQuaternion(p.rotation).y).toBeCloseTo(1, 8);
       }
     }

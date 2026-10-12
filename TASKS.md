@@ -282,3 +282,14 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 - Aceptación: revisión visual antes/después de cada paso (hoja de contacto), README y docs al día, pruebas de punta a punta actualizadas.
 - Hallazgos: la pila de ramas `codex/ui-*` es lineal (cada una sale de la anterior), así que `integracion/figuritas-ui` = `codex/ui-movil` + dos commits (indicador de paquete propio y documentación). Se detectó y corrigió una regresión de U-4 (a 390 px "Estudio" quedaba fuera de pantalla) en U-6 y una hoja inferior inusable en U-6b. Suite verificada sobre la rama de integración: 560 pruebas, typecheck y build; `photo`, `figuritas`, `entorno`, `manteles`, `ventana`, `camera-motion`, `studio` y `ui-a11y` (390/768/1440) en verde. Muestras (no versionadas, tu álbum y tus figuritas): `motion/out/muestra-final/` con dos MP4 de 20 s (9:16 y 16:9) y hojas de contacto del video y de la interfaz.
 - Pendiente conocido (no bloquea): el plano de la escena Figuritas es amplio (el álbum ocupa poco del cuadro en 9:16); el texto del cierre usa los de ejemplo (`@tu.marca`) hasta que se cargue la marca en Textos y marca.
+
+### U-8: Acercar el plano fijo de Figuritas
+- Responsable: codex; rama: codex/ui-plano-figuritas.
+- Estado: hecho (pendiente de revisión visual del usuario).
+- Cambios: encuadre en perspectiva de entrada, aleta, figuritas curvas y mazo; paquete al fondo inclinado, mazo debajo en vertical/cuadrado y al costado en apaisado; mesa ajustada a ambas huellas. Tiempos, pegado, textos y recetas de las otras escenas intactos.
+- Ancho antes → después mínimo (PDFs originales, 1/3/6 figuritas): 9:16 54,83% → 82,48%; 4:5 54,99% → 72,17%; 1:1 55,12% → 72,28%; 16:9 40,47% → 57,47%.
+- Margen mínimo antes → después (entrada incluida): 9:16 −10,55% → 2,48%; 4:5 −40,92% → 2,48%; 1:1 −69,14% → 2,49%; 16:9 −70,42% → 2,46%. Muestreo a 120 Hz; datos en motion/out/u8-metricas.json, sin rutas de clientes versionadas.
+- Pruebas: cuatro formatos × 1/3/6 figuritas, malla curva y aleta completas, extremos de fases y cámara fija; regresiones previas conservadas, movimiento opcional comprobado en compile.test.ts.
+- Validación: npm test (577 pruebas), typecheck y build; figuritas (dos MP4), photo, entorno, camera-motion (MP4), manteles, ventana y ui-a11y (390/768/1440) en verde; servidor 5173 confirmado con curl.
+- Comparación: motion/out/u8-antes/ y u8-despues/, cuadros 10/12,5/15 s extraídos con -ss y hoja motion/out/u8-comparacion.png revisada: álbum mayor, figuritas legibles y vuelo completo; a 15 s aparece Detalle, conservado.
+- Pendientes: revisión del usuario. Sin dependencias, cambios de arquitectura, commits ni cambios de rama; TEMP/TMP local por permisos.

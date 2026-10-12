@@ -1,4 +1,38 @@
-import { useRef, type CSSProperties, type ReactNode } from 'react';
+import { useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
+
+/** Conserva el input y su evento para etiquetas, teclado y automatización. */
+export function Toggle(props: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  return <input {...props} type="checkbox" className={`toggle ${props.className ?? ''}`} />;
+}
+
+/** El input real cubre el botón; no se oculta del teclado ni de Playwright. */
+export function FileButton({ onChange, className, ...props }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'defaultValue'>) {
+  const [names, setNames] = useState('');
+  return <span className={`file-control ${className ?? ''}`}>
+    <span className="file-button">
+      <span aria-hidden="true">Elegir archivo</span>
+      <input {...props} type="file" onChange={(event) => {
+        setNames(Array.from(event.currentTarget.files ?? []).map((file) => file.name).join(', '));
+        onChange?.(event);
+      }} />
+    </span>
+    <span className="file-control-name" title={names || undefined} aria-live="polite">{names || 'Ningún archivo'}</span>
+  </span>;
+}
+
+export function Swatch({ color, name, selected, className, style, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
+  color?: string; name?: string; selected: boolean;
+}) {
+  return <button {...props} type="button" aria-pressed={selected} className={`swatch${selected ? ' is-active' : ''}${name ? ' swatch-named' : ''} ${className ?? ''}`} style={style}>
+    <span className="swatch-color" style={{ background: color }} aria-hidden="true" />
+    {name && <span>{name}</span>}
+  </button>;
+}
+
+/** Disponible para los ajustes secundarios, sin alterar la distribución actual. */
+export function Disclosure({ children, title = 'Más ajustes', open }: { children: ReactNode; title?: string; open?: boolean }) {
+  return <details className="disclosure" open={open}><summary>{title}</summary><div>{children}</div></details>;
+}
 
 /** Bloque titulado de un panel lateral (estudio, editor de video). */
 export function Section({ title, hint, children }: { title: string; hint?: ReactNode; children: ReactNode }) {

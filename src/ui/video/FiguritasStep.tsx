@@ -4,7 +4,7 @@ import type { FiguritasLibrary, StickerAsset } from '../../promo/figuritas/asset
 import { readStickerSheet } from '../../promo/figuritas/sheet';
 import { basicPack, readPackArt } from '../../promo/figuritas/packArt';
 import { resolveTargets } from '../../promo/figuritas/targets';
-import { Section } from '../controls';
+import { FileButton, Section, Toggle } from '../controls';
 
 function BlobThumb({ blob }: { blob: Blob }) {
   const [url, setUrl] = useState('');
@@ -36,7 +36,7 @@ export function FiguritasStep({ scene, shape, library, onLibrary, onChange }: {
   return <>
     <Section title="Tus figuritas" hint="Cargá una hoja PDF sobre blanco o imágenes individuales. Elegí hasta 6; las horizontales conservan su orientación.">
       <label className="field"><span>Cargar figuritas (PDF o imágenes)</span>
-        <input aria-label="Cargar figuritas" type="file" accept=".pdf,image/*" multiple disabled={busy} onChange={(e) => { void load(e.target.files); e.target.value = ''; }} />
+        <FileButton aria-label="Cargar figuritas" accept=".pdf,image/*" multiple disabled={busy} onChange={(e) => { void load(e.target.files); e.target.value = ''; }} />
       </label>
       {busy && <p role="status">Preparando imágenes…</p>}
       {error && <p role="alert" className="diag diag-warn">{error}</p>}
@@ -46,7 +46,7 @@ export function FiguritasStep({ scene, shape, library, onLibrary, onChange }: {
         const target = resolveTargets({ kind: 'figuritas', stickers: [ref ?? { id: s.id }] }, shape, library)[0];
         const valid = !!target;
         return <div className="sticker-row" key={s.id}>
-          <label className="check"><input type="checkbox" aria-label={`Elegir figurita ${s.number}`} checked={!!ref} disabled={!ref && selected.length >= 6}
+          <label className="check"><Toggle aria-label={`Elegir figurita ${s.number}`} checked={!!ref} disabled={!ref && selected.length >= 6}
             onChange={(e) => onChange({ stickers: e.target.checked ? [...selected, { id: s.id }] : selected.filter((r) => r.id !== s.id) })} />
             <BlobThumb blob={s.image} /><span>Figurita {s.number || 'sin número'}</span></label>
           <label className="field"><span>Número</span><input className="text-input" type="number" min={1} max={999} value={s.number || ''} aria-label={`Número de figurita ${s.number}`}
@@ -69,7 +69,7 @@ export function FiguritasStep({ scene, shape, library, onLibrary, onChange }: {
       {!library?.stickers.length && <p>Cargá tus figuritas para que esta escena aparezca en el video.</p>}
     </Section>
     <Section title="Diseño del paquete" hint="Un PDF de troquel usa frente y dorso; una imagen se usa como frente.">
-      <label className="field"><span>Usar mi diseño (PDF o imagen)</span><input aria-label="Diseño del paquete" type="file" accept=".pdf,image/*" disabled={busy}
+      <label className="field"><span>Usar mi diseño (PDF o imagen)</span><FileButton aria-label="Diseño del paquete" accept=".pdf,image/*" disabled={busy}
         onChange={(e) => { void load(e.target.files, true); e.target.value = ''; }} /></label>
       <button className="btn" disabled={busy} onClick={() => { setBusy(true); void basicPack().then((pack) => onLibrary({ stickers: library?.stickers ?? [], pack })).finally(() => setBusy(false)); }}>Usar paquete básico</button>
       {library && <div className="pack-thumbs"><BlobThumb blob={library.pack.front} /><BlobThumb blob={library.pack.back} /></div>}

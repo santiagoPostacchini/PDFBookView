@@ -3,7 +3,7 @@ import { VIEW_PRESETS, type BookEngine } from '../book/BookEngine';
 import { BACKDROP_PRESETS, LIGHTING_PRESETS } from '../book/Stage';
 import type { StageSetSpec, Surface } from '../book/StageSet';
 import type { SpreadInfo } from '../book/types';
-import { Chips, Section, Slider } from './controls';
+import { Chips, Section, Slider, Swatch } from './controls';
 import { downloadBlob, fileSlug } from './download';
 import { IconAlert, IconClose } from './icons';
 import { VideoEditor } from './video/VideoEditor';
@@ -190,10 +190,7 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
           <Section title="Escenario" hint="La superficie recibe las sombras del libro. Transparente exporta un PNG sin escenario.">
             <div className="swatches">
               {BACKDROP_PRESETS.map((b) => (
-                <button
-                  key={b.id}
-                  className={`swatch${s.backdrop === b.id ? ' is-active' : ''}`}
-                  style={{ background: b.inner }}
+                <Swatch key={b.id} selected={s.backdrop === b.id} color={b.inner}
                   onClick={() => update({ backdrop: b.id })}
                   title={b.label}
                   aria-label={`Fondo ${b.label}`}
@@ -207,8 +204,7 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
                   aria-label="Color de fondo a elección"
                 />
               </label>
-              <button
-                className={`swatch swatch-transparent${s.backdrop === 'transparent' ? ' is-active' : ''}`}
+              <Swatch selected={s.backdrop === 'transparent'} className="swatch-transparent"
                 onClick={() => update({ backdrop: 'transparent', photoType: 'image/png' })}
                 title="Transparente (PNG)"
                 aria-label="Fondo transparente"

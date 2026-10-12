@@ -205,9 +205,12 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 
 ### U-1: Componentes comunes
 - Responsable: codex
-- Estado: pendiente
+- Estado: hecho (pendiente de revisi?n visual del usuario)
 - Rama: codex/ui-componentes
 - Aceptación: interruptor (reemplaza las casillas nativas), botón de archivo en castellano ("Elegir archivo" + nombre o "Ningún archivo"), muestra de color con nombre visible, bloque plegable "Más ajustes" accesible, y espaciados/tamaños/radios en variables de CSS; usados en los controles actuales sin reorganizar nada ni cambiar comportamiento; sin dependencias nuevas.
+- Hallazgos: Toggle conserva checked/onChange, etiquetas y rol checkbox para las pruebas existentes; FileButton mantiene input real, accept/multiple/disabled y nombre elegido aunque el consumidor reinicie el input. Swatch se usa en Foto y Video; admite nombre visible opcional. Disclosure disponible para U-2 sin plegar ni mover controles actuales. Variables CSS de espaciado, radio y tama?o; sin dependencias ni cambios de l?gica.
+- Validaci?n: 546 tests, typecheck, build, photo-e2e y figuritas-e2e en verde (dos MP4). Capturas de escritorio y panel completo en motion/out/ui-shots/u1 revisadas, sin controles nativos en ingl?s ni desbordes en los controles modificados.
+- Entorno: Playwright requiri? TEMP/TMP dentro del proyecto por permisos del sandbox; PDFs originales usados directamente, sin copiarlos ni registrar sus rutas.
 
 ### U-2: Cinco pasos del editor de video
 - Responsable: codex

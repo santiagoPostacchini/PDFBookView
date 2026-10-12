@@ -6,7 +6,7 @@ import { spreadLabel } from '../../promo/editing';
 import { FORMATS, type FormatId, type PromoProject, type PromoTexts, type SceneKind, type SceneLength, type SceneSpec, type TypographyId } from '../../promo/model';
 import { SCENES, TEMPLATES, TYPOGRAPHY } from '../../promo/templates';
 import { CanvasThumb } from '../CanvasThumb';
-import { Chips, Section, Slider } from '../controls';
+import { Chips, Section, Slider, Swatch, Toggle } from '../controls';
 import { IconAlert, IconArrowLeft, IconArrowRight, IconCopy, IconDownload, IconPlay, IconPlus, IconStop, IconTrash } from '../icons';
 import { usePageThumbs } from '../usePageThumbs';
 import { seconds } from './Storyboard';
@@ -139,15 +139,15 @@ export function SceneStep({ engine, project, timeline, index, onChange, onMove, 
 
       <Section title="Movimiento de esta toma" hint="Sólo afecta a esta escena. Podés combinar ambos movimientos o apagarlos para volver al plano fijo.">
         <Slider label="Acercamiento de esta toma" min={0} max={1} step={0.01} value={scene.camera?.framingZoom ?? 0} onChange={(framingZoom) => onChange({ camera: { ...scene.camera, framingZoom } })} hint="Elegí tu encuadre: hasta el doble de acercamiento. Se mantiene fijo aunque el zoom suave esté apagado; podés dejar objetos fuera del cuadro." />
-        <label className="check"><input type="checkbox" checked={zoom.enabled} onChange={(e) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, enabled: e.target.checked } } })} /><span>Activar zoom suave</span></label>
+        <label className="check"><Toggle checked={zoom.enabled} onChange={(e) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, enabled: e.target.checked } } })} /><span>Activar zoom suave</span></label>
         {zoom.enabled && <>
           <Slider label="Zoom inicial" min={0} max={0.1} step={0.01} value={zoom.from} onChange={(from) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, from } } })} />
           <Slider label="Zoom final" min={0} max={0.1} step={0.01} value={zoom.to} onChange={(to) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, to } } })} />
           <p className="editor-formula">0% es el encuadre original; 10% es un acercamiento leve. Para alejarte, poné el inicio mayor que el final.</p>
         </>}
-        <label className="check"><input type="checkbox" checked={lateral.enabled} onChange={(e) => onChange({ camera: { ...scene.camera, lateral: { ...lateral, enabled: e.target.checked } } })} /><span>Activar movimiento lateral</span></label>
+        <label className="check"><Toggle checked={lateral.enabled} onChange={(e) => onChange({ camera: { ...scene.camera, lateral: { ...lateral, enabled: e.target.checked } } })} /><span>Activar movimiento lateral</span></label>
         {lateral.enabled && <>
-          <label className="check"><input type="checkbox" checked={lateral.orbit ?? false} onChange={(e) => onChange({ camera: { ...scene.camera, lateral: { ...lateral, orbit: e.target.checked } } })} /><span>Girar alrededor del centro del álbum</span></label>
+          <label className="check"><Toggle checked={lateral.orbit ?? false} onChange={(e) => onChange({ camera: { ...scene.camera, lateral: { ...lateral, orbit: e.target.checked } } })} /><span>Girar alrededor del centro del álbum</span></label>
           <Slider label="Recorrido lateral" min={0} max={0.15} step={0.01} value={lateral.amount} onChange={(amount) => onChange({ camera: { ...scene.camera, lateral: { ...lateral, amount } } })} />
           {lateral.orbit && <p className="editor-formula">El recorrido regula un giro suave de hasta 9°, manteniendo el centro del álbum en foco.</p>}
           <Chips items={[{ id: 'izquierda', label: 'Cámara hacia izquierda' }, { id: 'derecha', label: 'Cámara hacia derecha' }]} value={lateral.direction} onChange={(direction) => onChange({ camera: { ...scene.camera, lateral: { ...lateral, direction } } })} />
@@ -246,10 +246,7 @@ export function TextsStep({ project, onTexts, onChange, onShow }: TextsStepProps
         <button className={`btn${project.set === 'automatico' ? ' is-active' : ''}`} aria-pressed={project.set === 'automatico'} onClick={() => onChange({ set: 'automatico' })}>Automático · color de la tapa</button>
         <div className="swatches">
           {SET_PRESETS.filter((s) => s.id !== 'ventana' && !s.tablecloth).map((s) => (
-            <button
-              key={s.id}
-              className={`swatch${project.set === s.id ? ' is-active' : ''}`}
-              style={{ background: s.color }}
+            <Swatch key={s.id} selected={project.set === s.id} color={s.color}
               title={s.label}
               aria-label={`Escenario ${s.label}`}
               aria-pressed={project.set === s.id}
@@ -280,7 +277,7 @@ export function TextsStep({ project, onTexts, onChange, onShow }: TextsStepProps
       <Section title="Luz">
         <Chips items={LIGHTING_PRESETS.map((p) => ({ id: p.id, label: p.label }))} value={project.lighting} onChange={(lighting) => onChange({ lighting })} />
         <Slider label="Sombra de ventana" min={0} max={1} step={0.05} value={project.windowShadow ?? (project.set === 'ventana' ? 0.45 : 0)} onChange={(windowShadow) => onChange({ windowShadow })} hint="Se combina con cualquier mantel o superficie. En 0% se apaga." />
-        <label className="check"><input type="checkbox" checked={project.table ?? true} onChange={(e) => onChange({ table: e.target.checked })} /><span>Mostrar mesa con bordes y patas</span></label>
+        <label className="check"><Toggle checked={project.table ?? true} onChange={(e) => onChange({ table: e.target.checked })} /><span>Mostrar mesa con bordes y patas</span></label>
         <Slider label="Sombras de contacto" min={0} max={1} step={0.05} value={project.ambientOcclusion ?? 0.35} onChange={(ambientOcclusion) => onChange({ ambientOcclusion })} hint="Refuerza el apoyo del álbum, el lomo y los bordes de la mesa." />
       </Section>
     </>
@@ -371,7 +368,7 @@ export function ExportStep(p: ExportStepProps) {
 
       <Section title="Revisar">
         <label className="check">
-          <input type="checkbox" checked={p.safeZones} onChange={(e) => p.onSafeZones(e.target.checked)} disabled={p.project.format !== '9:16'} />
+          <Toggle checked={p.safeZones} onChange={(e) => p.onSafeZones(e.target.checked)} disabled={p.project.format !== '9:16'} />
           <span>Mostrar lo que tapa la interfaz de Instagram y TikTok (9:16)</span>
         </label>
         <button className="btn btn-block" onClick={p.onPlayAll} disabled={!!p.recording}>

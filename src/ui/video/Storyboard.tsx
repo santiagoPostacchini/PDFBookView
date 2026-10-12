@@ -80,6 +80,12 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
               <button
                 className={classes.filter(Boolean).join(' ')}
                 data-scene={i}
+                onKeyDown={(event) => {
+                  if (!disabled && event.altKey && ['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+                    event.preventDefault();
+                    onPlace(i, Math.max(0, Math.min(project.scenes.length - 1, i + (event.key === 'ArrowRight' ? 1 : -1))));
+                  }
+                }}
                 onPointerDown={(e) => {
                   if (disabled || e.button !== 0 || e.pointerType === 'touch') return;
                   drag.current = { from: i, x: e.clientX, y: e.clientY, pointerId: e.pointerId, active: false };

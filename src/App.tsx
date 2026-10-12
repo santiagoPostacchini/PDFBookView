@@ -240,7 +240,6 @@ export function App() {
       onDragLeave={(e) => e.currentTarget === e.target && setDragOver(false)}
       onDrop={onDrop}
     >
-      <div ref={viewportRef} className="viewport" />
 
       {topbarHidden && <button className="btn panel show-topbar" onClick={() => setTopbarHidden(false)} aria-label="Mostrar barra superior">Mostrar barra <span aria-hidden="true">&#9662;</span></button>}
       <header className="topbar panel" style={topbarHidden ? { display: 'none' } : undefined}>
@@ -303,6 +302,8 @@ export function App() {
         </div>
       </header>
 
+      <div ref={viewportRef} className="viewport" tabIndex={0} role="region" aria-label="Visor del libro" />
+
       <div className="camera-controls panel" role="toolbar" aria-label="Cámara">
         <button className="icon-btn" onClick={() => engine?.zoom(0.8)} title="Acercar (+)" aria-label="Acercar">
           <IconZoomIn />
@@ -318,7 +319,7 @@ export function App() {
       {(notices.length > 0 || loading || showPlanIssue) && (
         <div className="notices">
           {loading && (
-            <div className="notice notice-progress panel">
+            <div className="notice notice-progress panel" role="status" aria-live="polite">
               <span>
                 Preparando páginas {progress.ready}/{progress.total}
               </span>
@@ -417,7 +418,6 @@ export function App() {
         </>
       )}
 
-      {videoVisible && <div ref={setDock} className="studio-dock" />}
 
       {studioVisible && (
         <AlbumContext.Provider value={pdf && book ? { pdf, layout: book.layout } : null}>
@@ -431,6 +431,8 @@ export function App() {
         />
         </AlbumContext.Provider>
       )}
+
+      {videoVisible && <div ref={setDock} className="studio-dock" />}
 
       {editorVisible && (
         <SheetEditor pdf={pdf} plan={plan} diagnostics={diagnostics} onChange={updatePlan} onClose={closeEditor} />

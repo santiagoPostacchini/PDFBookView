@@ -379,7 +379,7 @@ export function ExportStep(p: ExportStepProps) {
           <IconDownload /> {count === 1 ? 'Exportar el video' : `Exportar ${count} videos`}
         </button>
         {p.recording && (
-          <div className="record-progress">
+          <div className="record-progress" role="status" aria-live="polite">
             <span>
               {p.recording.total > 1 ? `${p.recording.format} (${p.recording.index + 1} de ${p.recording.total}) · ` : ''}
               {p.recording.phase === 'preparando'

@@ -23,7 +23,7 @@ export function FileButton({ onChange, className, buttonLabel = 'Elegir archivo'
 export function Swatch({ color, name, selected, className, style, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
   color?: string; name?: string; selected: boolean;
 }) {
-  return <button {...props} type="button" aria-pressed={selected} className={`swatch${selected ? ' is-active' : ''}${name ? ' swatch-named' : ''} ${className ?? ''}`} style={style}>
+  return <button aria-label={props['aria-label'] ?? name ?? props.title ?? 'Color'} {...props} type="button" aria-pressed={selected} className={`swatch${selected ? ' is-active' : ''}${name ? ' swatch-named' : ''} ${className ?? ''}`} style={style}>
     <span className="swatch-color" style={{ background: color }} aria-hidden="true" />
     {name && <span>{name}</span>}
   </button>;

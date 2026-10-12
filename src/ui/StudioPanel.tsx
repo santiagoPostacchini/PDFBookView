@@ -83,8 +83,16 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [hold, setHold] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(true);
   const [videoBusy, setVideoBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !videoBusy && !busy) onClose();
+    };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [videoBusy, busy, onClose]);
   const update = (patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch }));
   const s = settings;
   const photo = s.tab === 'foto';
@@ -150,10 +158,11 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
   };
 
   return (
-    <aside className="studio-panel panel" aria-label="Estudio de fotos y video">
+    <aside className={`studio-panel panel${expanded ? '' : ' is-collapsed'}`} aria-label="Estudio de fotos y video">
+      <button className="sheet-handle" aria-label={expanded ? 'Colapsar estudio' : 'Expandir estudio'} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}><span aria-hidden="true" /></button>
       <header className="editor-head">
         <h2>Estudio</h2>
-        <button className="icon-btn" onClick={onClose} aria-label="Cerrar estudio" title="Cerrar" disabled={videoBusy}>
+        <button className="icon-btn" onClick={onClose} aria-label="Cerrar estudio" title="Cerrar" disabled={videoBusy || !!busy}>
           <IconClose />
         </button>
       </header>
@@ -163,6 +172,13 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
           <button
             key={tab}
             role="tab"
+            onKeyDown={(event) => {
+              if (videoBusy || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+              event.preventDefault();
+              update({ tab: tab === 'foto' ? 'video' : 'foto' });
+              const buttons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button');
+              buttons?.[tab === 'foto' ? 1 : 0].focus();
+            }}
             aria-selected={s.tab === tab}
             className={s.tab === tab ? 'is-active' : undefined}
             onClick={() => update({ tab })}
@@ -250,6 +266,7 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
             />
           </Section>
 
+          {busy && <p role="status" aria-live="polite">{busy}</p>}
           <Section title="Exportar">
             <div className="editor-row">
               <Chips

@@ -223,12 +223,20 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
 
   return (
     <>
-      <nav className="video-steps" aria-label="Pasos del video">
+      <nav role="tablist" className="video-steps" aria-label="Pasos del video">
         {STEPS.map((s, i) => (
           <button
             key={s.id}
             className={step === s.id ? 'is-active' : undefined}
-            aria-current={step === s.id ? 'step' : undefined}
+            role="tab"
+            aria-selected={step === s.id}
+            onKeyDown={(event) => {
+              if (busy || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+              event.preventDefault();
+              const next = event.key === 'Home' ? 0 : event.key === 'End' ? STEPS.length - 1 : (i + (event.key === 'ArrowRight' ? 1 : -1) + STEPS.length) % STEPS.length;
+              setStep(STEPS[next].id); setAdding(false);
+              event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button')[next].focus();
+            }}
             onClick={() => {
               setStep(s.id);
               setAdding(false);

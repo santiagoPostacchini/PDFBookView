@@ -171,12 +171,12 @@ try {
   assert.equal(result.destinations.length, 14);
   await page.getByRole('button', { name: 'Estudio', exact: true }).click();
   await page.getByRole('tab', { name: 'Video promocional' }).click();
-  await page.getByRole('button', { name: 'Ambiente', exact: false }).first().click();
+  await page.getByRole('tab', { name: 'Ambiente', exact: false }).first().click();
   await page.getByRole('button', { name: 'Automático · color de la tapa' }).click();
   await page.waitForFunction(() => window.bookEngine.stageSet?.color && !window.bookEngine.stageSet.id);
   const autoColor = await page.evaluate(() => window.bookEngine.stageSet.color);
   assert.notEqual(autoColor, '#dcc6a8');
-  await page.getByRole('button', { name: 'Exportar', exact: false }).first().click();
+  await page.getByRole('tab', { name: 'Exportar', exact: false }).first().click();
   await page.locator('.format-option').filter({ has: page.locator('b', { hasText: /^16:9$/ }) }).click();
   const downloads = [];
   page.on('download', (download) => downloads.push(download));

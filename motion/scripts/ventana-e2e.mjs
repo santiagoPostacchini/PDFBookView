@@ -15,7 +15,7 @@ try {
   await page.waitForFunction(() => window.promoLab && window.bookEngine?.currentBook);
   await page.getByRole('button', { name: 'Estudio', exact: true }).click();
   await page.getByRole('tab', { name: 'Video promocional' }).click();
-  await page.getByRole('button', { name: 'Ambiente', exact: false }).first().click();
+  await page.getByRole('tab', { name: 'Ambiente', exact: false }).first().click();
   await page.getByRole('button', { name: 'Escenario Luz de ventana', exact: true }).click();
   await page.waitForFunction(() => window.bookEngine.stageSet?.windowShadow === true);
   assert.equal(await page.getByRole('button', { name: 'Escenario Luz de ventana', exact: true }).getAttribute('aria-pressed'), 'true');

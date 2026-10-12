@@ -30,7 +30,7 @@ try {
   await page.getByRole('button', { name: 'Reproducir desde el principio', exact: true }).click();
   await page.waitForFunction(() => window.__titleCalls.join(' ').includes('Álbum personalizado'));
   await page.locator('.storyboard-play').click();
-  await page.getByRole('button', { name: 'Estilo', exact: false }).first().click();
+  await page.getByRole('tab', { name: 'Estilo', exact: false }).first().click();
   const slider = (label) => page.getByRole('slider', { name: new RegExp(`^${label}`) });
   const setSlider = async (label, steps) => {
     const input = slider(label); await input.focus(); await input.press('Home');
@@ -41,7 +41,7 @@ try {
   await page.locator('.style-card').filter({ hasText: 'Figuritas' }).click();
   await page.getByLabel('Cargar figuritas', { exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Ver cómo se pegan', exact: true }).isDisabled(), true);
-  await page.getByRole('button', { name: 'Ambiente', exact: false }).first().click();
+  await page.getByRole('tab', { name: 'Ambiente', exact: false }).first().click();
   await page.getByRole('button', { name: 'Mantel · cuadros azul', exact: false }).click();
   await setSlider('Sombra de ventana', 15);
   await page.getByText('Más ajustes', { exact: true }).click();
@@ -49,7 +49,7 @@ try {
   await page.waitForFunction(() => window.bookEngine.stageSet?.tablecloth === 'vichy-azul' && window.bookEngine.stageSet?.windowStrength === 0.75);
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf'))?.project.ambientOcclusion === 0.6);
   await load();
-  await page.getByRole('button', { name: 'Ambiente', exact: false }).first().click();
+  await page.getByRole('tab', { name: 'Ambiente', exact: false }).first().click();
   assert.equal(await slider('Sombra de ventana').inputValue(), '0.75');
   await page.getByText('Más ajustes', { exact: true }).click();
   assert.equal(await slider('Sombras de contacto').inputValue(), '0.6');

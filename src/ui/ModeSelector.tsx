@@ -16,13 +16,14 @@ export function ModeSelector({ value, onChange }: Props) {
         return (
           <label key={id} className={value === id ? 'is-active' : undefined} title={mode.description}>
             <input
+              aria-label={mode.label}
               type="radio"
               name="reading-mode"
               value={id}
               checked={value === id}
               onChange={() => onChange(id)}
             />
-            <span>{mode.label}</span>
+            <span>{id === 'booklet' ? 'Revista' : 'Páginas simples'}</span>
           </label>
         );
       })}

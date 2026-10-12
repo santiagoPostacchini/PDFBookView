@@ -1,6 +1,6 @@
 // Capturas del Estudio para revisar la interfaz (antes/después de un cambio).
 // Con npm run dev en la raíz, desde motion/:
-//   node scripts/ui-shots.mjs <álbum.pdf> <carpeta-salida> [--mobile] [--url http://localhost:5173/]
+//   node scripts/ui-shots.mjs <álbum.pdf> <carpeta-salida> [--mobile|--tablet] [--url http://localhost:5173/]
 //     [--figuritas <hoja.pdf>] [--paquete <troquel.pdf>]
 // Saca el visor, la pestaña Foto y cada paso del editor de video (normal y panel completo).
 import assert from 'node:assert/strict';
@@ -13,21 +13,25 @@ const flag = (name) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? args.splice(i, args[i + 1]?.startsWith('--') || i + 1 >= args.length ? 1 : 2)[1] ?? true : null;
 };
-const mobile = !!flag('mobile');
+const mobile = args.includes('--mobile');
+if (mobile) args.splice(args.indexOf('--mobile'), 1);
+const tablet = args.includes('--tablet');
+if (tablet) args.splice(args.indexOf('--tablet'), 1);
+const compact = mobile || tablet;
 const url = flag('url') || 'http://localhost:5173/';
 const figuritas = flag('figuritas');
 const paquete = flag('paquete');
 assert.ok(!figuritas || typeof figuritas === 'string', '--figuritas requiere un PDF');
 assert.ok(!paquete || typeof paquete === 'string', '--paquete requiere un PDF');
 const [album, outArg] = args;
-assert.ok(album && outArg, 'Uso: ui-shots.mjs <álbum.pdf> <carpeta-salida> [--mobile] [--url …]');
+assert.ok(album && outArg, 'Uso: ui-shots.mjs <álbum.pdf> <carpeta-salida> [--mobile|--tablet] [--url …]');
 const out = resolve(outArg);
 mkdirSync(out, { recursive: true });
 const entry = readdirSync('node_modules/.remotion/chrome-headless-shell', { recursive: true, withFileTypes: true })
   .find((e) => e.isFile() && /^chrome-headless-shell(\.exe)?$/.test(e.name));
 assert.ok(entry, 'Falta el Chrome headless de Remotion.');
 const browser = await chromium.launch({ executablePath: join(entry.parentPath ?? entry.path, entry.name), args: ['--use-angle=d3d11', '--ignore-gpu-blocklist'] });
-const sizes = mobile
+const sizes = tablet ? [['tablet', { width: 768, height: 1024 }]] : mobile
   ? [['m', { width: 390, height: 844 }], ['mt', { width: 390, height: 2600 }]]
   : [['n', { width: 1440, height: 900 }], ['t', { width: 1440, height: 2600 }]];
 try {
@@ -36,7 +40,7 @@ try {
     const shot = async (name) => {
       await page.waitForTimeout(600);
       const notice = await page.locator('.notices').isVisible() ? await page.locator('.notices').boundingBox() : null;
-      if (notice && !mobile) {
+      if (notice && !compact) {
         const controls = await page.locator('.topbar:visible, .show-topbar:visible, .camera-controls:visible, .bottombar:visible').all();
         for (const control of controls) {
           const box = await control.boundingBox();
@@ -44,7 +48,7 @@ try {
             notice.y + notice.height <= box.y || box.y + box.height <= notice.y, 'Avisos separados de los controles');
         }
       }
-      if (!mobile && await page.locator('.app.is-video').count()) {
+      if (!compact && await page.locator('.app.is-video').count()) {
         const frame = await page.locator('.viewport canvas').first().boundingBox();
         const bar = await page.locator('.topbar').isVisible()
           ? await page.locator('.topbar').boundingBox() : await page.locator('.show-topbar').boundingBox();
@@ -74,7 +78,7 @@ try {
     await page.getByRole('button', { name: 'Estudio', exact: true }).click();
     await page.waitForSelector('.studio-panel');
     assert.equal(await page.locator('.topbar').isVisible(), true);
-    if (!mobile) {
+    if (!compact) {
       const boxes = await page.locator('.topbar-group').evaluateAll((groups) => groups.map((group) => {
         const r = group.getBoundingClientRect(); return { top: r.top, right: r.right };
       }));
@@ -115,7 +119,7 @@ try {
       }
       await shot(`2-${i + 1}-${label.replace(/^\d\s*/, '').replace(/\W+/g, '')}`);
     }
-    if ((figuritas || paquete) && !mobile) {
+    if (figuritas || paquete) {
       await page.locator('.video-steps button').first().click();
       await page.locator('.template-card').filter({ has: page.locator('b', { hasText: /^Figuritas$/ }) }).click();
       await page.locator('.storyboard .scene-card').nth(3).click();

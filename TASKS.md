@@ -257,9 +257,14 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 
 ### U-6: Móvil, teclado y contraste
 - Responsable: codex
-- Estado: pendiente
+- Estado: hecho (pendiente de revisión visual del usuario)
 - Rama: codex/ui-accesibilidad
 - Aceptación: sin recortes ni desbordes a 390 y 768 px de ancho (capturas), orden de tabulación lógico, foco visible, etiquetas accesibles en todos los controles, contraste suficiente del texto secundario.
+- Hallazgos: barra en dos filas hasta 768 px, controles táctiles de 40 px y etiquetas conservadas desde 1100 px; Estudio como hoja inferior de 55% con asa, visor de 45%, guion desplazable y Hojas a pantalla completa. Cámara, pager y flechas separados en Foto.
+- Accesibilidad: orden barra/visor/panel/guion, foco visible general, pasos con rol tab y flechas, escenas con Enter/Espacio y Antes/Después o Alt+flechas; Escape respeta exportaciones. Nombres existentes conservados, estados anunciados y texto secundario con contraste comprobado.
+- Validación: 559 tests (incluidos seis de contraste), typecheck y build en verde; ui-a11y-e2e a 390/768/1440, photo, figuritas (dos MP4), studio (arrastre y MP4 9:16/4:5), entorno, manteles, ventana y camera-motion en verde, puerto 5173 confirmado con curl.
+- Capturas: motion/out/ui-shots/u6, u6-mobile y u6-tablet con recursos del usuario; revisadas sin desbordes, barra alcanzable, visor libre y hoja inferior utilizable. ui-shots admite --tablet y figuritas en móvil; README actualizado.
+- Pendientes: revisión visual del usuario. Sin dependencias, cambios de motor/compilador/catálogo/figuritas, cambios de rama ni commits; TEMP/TMP local y PDFs originales fuera de archivos versionados.
 
 ### U-7: Cierre del repaso
 - Responsable: claude

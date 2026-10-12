@@ -30,6 +30,21 @@ try {
     const page = await browser.newPage({ viewport });
     const shot = async (name) => {
       await page.waitForTimeout(600);
+      const notice = await page.locator('.notices').isVisible() ? await page.locator('.notices').boundingBox() : null;
+      if (notice && !mobile) {
+        const controls = await page.locator('.topbar:visible, .show-topbar:visible, .camera-controls:visible, .bottombar:visible').all();
+        for (const control of controls) {
+          const box = await control.boundingBox();
+          assert.ok(!box || notice.x + notice.width <= box.x || box.x + box.width <= notice.x ||
+            notice.y + notice.height <= box.y || box.y + box.height <= notice.y, 'Avisos separados de los controles');
+        }
+      }
+      if (!mobile && await page.locator('.app.is-video').count()) {
+        const frame = await page.locator('.viewport canvas').first().boundingBox();
+        const bar = await page.locator('.topbar').isVisible()
+          ? await page.locator('.topbar').boundingBox() : await page.locator('.show-topbar').boundingBox();
+        assert.ok(frame && bar && (bar.y + bar.height <= frame.y || bar.x + bar.width <= frame.x), 'Barra fuera del cuadro del video');
+      }
       await page.screenshot({ path: join(out, `${tag}-${name}.png`) });
     };
     await page.goto(url);
@@ -47,9 +62,30 @@ try {
     await shot('0-visor');
     await page.getByRole('button', { name: 'Estudio', exact: true }).click();
     await page.waitForSelector('.studio-panel');
+    assert.equal(await page.locator('.topbar').isVisible(), true);
+    if (!mobile) {
+      const boxes = await page.locator('.topbar-group').evaluateAll((groups) => groups.map((group) => {
+        const r = group.getBoundingClientRect(); return { top: r.top, right: r.right };
+      }));
+      assert.ok(boxes.every((b) => Math.abs(b.top - boxes[0].top) < 2), 'Tres grupos en una fila');
+      const bar = await page.locator('.topbar').boundingBox();
+      assert.ok(boxes.every((b) => b.right <= bar.x + bar.width), 'Grupos dentro de la barra');
+      assert.ok((await page.getByRole('button', { name: 'Ocultar barra superior' }).innerText()).includes('Ocultar barra'));
+    }
     await shot('1-foto');
     await page.getByText('Video promocional').first().click();
     await page.waitForSelector('.video-steps');
+    assert.equal(await page.locator('.topbar').isVisible(), false);
+    await page.waitForFunction(() => window.bookEngine.frameMargins.top === 24);
+    await shot('2-video-oculta');
+    await page.getByRole('button', { name: 'Mostrar barra superior' }).click();
+    await page.waitForFunction(() => window.bookEngine.frameMargins.top === 108);
+    await shot('2-video-visible');
+    await page.getByRole('tab', { name: 'Foto', exact: true }).click();
+    assert.equal(await page.locator('.topbar').isVisible(), true);
+    await page.getByRole('tab', { name: 'Video promocional' }).click();
+    assert.equal(await page.locator('.topbar').isVisible(), true, 'Video recuerda su preferencia');
+    await page.getByRole('button', { name: 'Ocultar barra superior' }).click();
     const steps = await page.locator('.video-steps button').allInnerTexts();
     assert.equal(steps.length, 5, 'El editor tiene cinco pasos.');
     for (const [i, label] of steps.entries()) {
@@ -68,6 +104,8 @@ try {
       }
       await shot(`2-${i + 1}-${label.replace(/^\d\s*/, '').replace(/\W+/g, '')}`);
     }
+    await page.getByRole('button', { name: 'Cerrar estudio', exact: true }).click();
+    assert.equal(await page.locator('.topbar').isVisible(), true, 'Cerrar el Estudio recupera la preferencia general');
     await page.close();
   }
 } finally {

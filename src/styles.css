@@ -83,9 +83,9 @@ button {
   max-width: calc(100% - 178px);
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 8px 10px 8px 14px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 8px 10px;
 }
 
 .brand {
@@ -240,7 +240,7 @@ button {
 /* Avisos */
 .notices {
   position: absolute;
-  top: 76px;
+  bottom: 76px;
   left: 14px;
   display: flex;
   flex-direction: column;
@@ -1278,7 +1278,16 @@ input.toggle:disabled { opacity: 0.55; cursor: default; }
     display: none;
   }
 }
-.show-topbar { position: absolute; top: 12px; left: 12px; z-index: 20; }
+.show-topbar {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 20;
+  padding: 3px 8px;
+  min-height: 0;
+  height: 24px;
+  font-size: 11px;
+}
 
 .scenario-picker { display: grid; gap: var(--space-3); }
 .scenario-custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
@@ -1289,3 +1298,34 @@ input.toggle:disabled { opacity: 0.55; cursor: default; }
 .scenario-cloth:focus-visible, .scenario-custom:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .scenario-cloth .tablecloth-sample { flex: 0 0 30px; width: 30px; height: 30px; }
 .scenario-cloth.is-active { border-color: var(--accent); }
+
+/* Barra en tres grupos; se compacta según el espacio restante del visor. */
+.topbar-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.topbar-group + .topbar-group { border-left: 1px solid var(--panel-border); padding-left: 8px; }
+.topbar-file { flex: 0 1 360px; }
+.topbar-file .file-name { min-width: 0; }
+.topbar .btn, .topbar .brand, .topbar-reading, .topbar-studio { flex-shrink: 0; white-space: nowrap; }
+.app { container-type: inline-size; }
+@container (max-width: 1550px) {
+  .app.is-editing .brand span { display: none; }
+}
+@container (max-width: 1460px) {
+  .app.is-editing .file-name { max-width: 110px; }
+  .app.is-editing .topbar { gap: 6px; }
+  .app.is-editing .topbar .btn { padding-inline: 8px; }
+  .app.is-editing .topbar .segmented label { padding-inline: 8px; font-size: 11px; }
+  .app.is-editing .topbar .btn { font-size: 12px; gap: 6px; }
+}
+@container (max-width: 1440px) {
+  .app.is-editing .topbar-label { display: none; }
+  .app.is-editing .file-name { max-width: 64px; }
+}
+.app.is-editing .notices { max-width: min(420px, calc(100% - var(--editor-space) - 28px)); }
+.app:has(.filmstrip) .notices { bottom: 230px; }
+.app.is-studio .notices { bottom: 76px; }
+.app.is-video .notices { bottom: 174px; }
+@container (max-width: 1100px) {
+  .brand span { display: none; }
+  .file-name { max-width: 64px; }
+  .topbar-label { display: none; }
+}

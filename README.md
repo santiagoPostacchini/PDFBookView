@@ -70,7 +70,7 @@ Botón **Estudio** (con un libro cargado):
 
   **Figuritas:** la escena Figuritas muestra un paquete que se abre, deja salir tus figuritas y las pega en su lugar del álbum. Se cargan desde **Historia → Figuritas** (la hoja de figuritas en PDF o imágenes sueltas, y opcionalmente el diseño del paquete). El número de cada figurita es el **casillero** numerado del álbum, que se lee del texto del PDF; se puede cambiar por otro casillero o por una página, hasta seis por escena. Las horizontales se respetan. Lo que cargues queda guardado en tu navegador, por álbum, y nunca se sube al repositorio. Detalles en [docs/figuritas.md](docs/figuritas.md).
 
-  La barra superior se puede ocultar con el botón de la propia barra (**Mostrar barra** la recupera); el cuadro del video aprovecha el espacio.
+  La barra superior agrupa Archivo, Lectura y Estudio en una fila. **Ocultar barra** y **Mostrar barra** recuerdan tu elección por separado para Video (oculta por defecto) y Foto/lectura (visible por defecto). Al volver a Foto o cerrar el Estudio se recupera la preferencia general; el cuadro del video aprovecha el espacio liberado.
 
   El visor es la vista previa: muestra la escena elegida con sus textos o reproduce el video tal cual se exporta. El video de cada álbum se guarda por nombre de archivo. La grabación es cuadro a cuadro (WebCodecs + mediabunny) a MP4 H.264 de 30 fps, sin cuadros perdidos.
 

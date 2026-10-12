@@ -44,6 +44,10 @@ try {
   console.log('Figuritas:', loaded);
   assert.deepEqual(loaded.map((s) => s.number).sort((a, b) => a - b), [13, 14, 16, 17, 19, 20, 21]);
   for (const s of loaded) assert.ok([19, 20, 21].includes(s.number) ? s.widthPt > s.heightPt : s.heightPt > s.widthPt);
+  assert.equal(await page.locator('.topbar').isVisible(), false);
+  await page.waitForFunction(() => window.bookEngine.frameMargins.top === 24);
+  await page.getByRole('button', { name: 'Mostrar barra superior' }).click();
+  await page.waitForFunction(() => window.bookEngine.frameMargins.top === 108);
   await page.getByRole('button', { name: 'Ocultar barra superior' }).click();
   assert.equal(await page.locator('.topbar').isVisible(), false);
   await page.waitForFunction(() => window.bookEngine.frameMargins.top === 24);
@@ -51,10 +55,9 @@ try {
   await page.screenshot({ path: join(out, 'interfaz.png') });
   // Persistencia y números: volver a abrir el documento recupera las 7 figuritas.
   await page.getByRole('button', { name: 'Ocultar barra superior' }).click();
-  await page.waitForFunction(() => localStorage.getItem('pdf-book-view.topbar-hidden') === 'true');
+  await page.waitForFunction(() => localStorage.getItem('pdf-book-view.video-topbar-hidden') === 'true');
   await page.reload();
-  assert.equal(await page.locator('.topbar').isVisible(), false);
-  await page.getByRole('button', { name: 'Mostrar barra superior' }).click();
+  assert.equal(await page.locator('.topbar').isVisible(), true);
   await page.setInputFiles('.topbar input[type=file]', album);
   await page.waitForSelector('.pager-label', { timeout: 120000 });
   if (await page.$('.sheet-editor')) await page.getByRole('button', { name: 'Cerrar editor', exact: true }).click();

@@ -235,9 +235,14 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 
 ### U-4: Barra superior
 - Responsable: codex
-- Estado: pendiente
+- Estado: hecho (pendiente de revisión visual del usuario)
 - Rama: codex/ui-barra
 - Aceptación: una sola fila (Archivo, Lectura, Estudio); botón de ocultar con texto; el aviso "Preparando páginas" no se superpone; oculta por defecto al abrir Video y visible al volver a Foto o cerrar el Estudio, recordando lo que la persona elija; el cuadro del video aprovecha el espacio.
+- Hallazgos: tres grupos en una fila a 1440×900, marca y acciones compactadas en orden, nombre truncado con title; Ocultar/Mostrar barra con texto. Avisos apilados abajo-izquierda y separados de tira, pager y guion.
+- Preferencias: lectura/Foto conservan la clave general; Video tiene clave propia, oculta por defecto. Funciones puras con tests de transiciones, persistencia y almacenamiento bloqueado; dataset/evento y margen 24/108 intactos.
+- Validación: 553 tests, typecheck y build en verde; photo, figuritas (dos MP4), studio (arrastre y MP4 9:16/4:5), entorno, manteles, ventana y camera-motion en verde, puerto 5173. Entorno/figuritas repetidas sin recargas de desarrollo tras timeouts iniciales.
+- Capturas: motion/out/ui-shots/u4 revisadas; comprobaciones de fila única, avisos sin cruces, cuadro libre con barra visible/oculta y preferencia restaurada al cerrar. README/docs actualizados; sin dependencias nuevas ni commits.
+- Pendientes: revisión visual del usuario; móvil sigue en U-6. TEMP/TMP local para tests y navegador por permisos del sandbox; PDFs originales sin copiar ni registrar rutas en archivos versionados.
 
 ### U-5: Panel de Figuritas
 - Responsable: codex

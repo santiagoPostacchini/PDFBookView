@@ -9,7 +9,7 @@
 5. Cargá el diseño del paquete como PDF de troquel o imagen, o elegí **Usar paquete básico**. El recorte del PDF reconoce el troquel de referencia (A4 apaisado, panel de frente a la derecha del panel del dorso); otros troqueles deben prepararse como imagen de frente.
 6. Usá **Ver cómo se pegan** para reproducir la animación desde esa escena. El botón principal del guion reproduce desde el principio. En **Exportar**, elegí uno o varios formatos; se descargan los MP4 con un solo clic.
 
-El botón de la barra superior permite ocultarla; **Mostrar barra** la recupera. El video aprovecha el espacio liberado y la preferencia se recuerda.
+**Ocultar barra** y **Mostrar barra** recuerdan la preferencia por separado para Video (oculta por defecto) y Foto/lectura (visible por defecto). Al volver a Foto o cerrar el Estudio se recupera la preferencia general. El cuadro del video aprovecha el espacio liberado.
 
 Todas las plantillas empiezan con **planos fijos con cortes**. El guion alterna tapa, apertura, doble página, detalle y vista cenital. En **Historia → Movimiento de esta toma → Acercamiento de esta toma** podés elegir el zoom fijo, entre el encuadre original y el doble de acercamiento, sin activar ningún movimiento. Podés dejar elementos fuera del cuadro según tu preferencia; el valor se guarda por toma.
 

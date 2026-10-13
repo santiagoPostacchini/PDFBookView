@@ -3,7 +3,7 @@ import { LIGHTING_PRESETS } from '../../book/Stage';
 import { customScenarioColor } from '../../book/scenarios';
 import { ScenarioPicker } from '../ScenarioPicker';
 import type { Timeline } from '../../promo/compile';
-import { updateText, spreadLabel } from '../../promo/editing';
+import { spreadLabel } from '../../promo/editing';
 import { FORMATS, type FormatId, type PromoProject, type SceneKind, type SceneLength, type SceneSpec } from '../../promo/model';
 import { SCENES, TEMPLATES } from '../../promo/templates';
 import { CanvasThumb } from '../CanvasThumb';
@@ -176,26 +176,9 @@ export function AddSceneStep({ onPick, onCancel }: { onPick: (kind: SceneKind) =
   );
 }
 
-// ── 3. Textos y marca ────────────────────────────────────────────────────────
+// ── 3. Textos ────────────────────────────────────────────────────────
 
-function Field({ label, value, placeholder, onChange, onFocus }: { label: string; value: string; placeholder: string; onChange: (value: string) => void; onFocus?: () => void }) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <input type="text" className="text-input" aria-label={label} value={value} maxLength={120} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} onFocus={onFocus} />
-    </label>
-  );
-}
-
-export function TextsStep({ project, onChange }: { project: PromoProject; onChange: (patch: Partial<PromoProject>) => void }) {
-  return <Section title="Textos independientes" hint="Cada texto tiene su propio inicio y duración en segundos.">
-    {project.textItems.map((item, i) => <div key={item.id}>
-      <Field label={`Texto ${i + 1}`} value={item.text} placeholder="Texto" onChange={text => onChange(updateText(project, item.id, { text }))} />
-      <label>Inicio {i + 1}<input className="text-input" aria-label={`Inicio ${i + 1}`} type="number" min={0} step={0.1} value={Number(item.start.toFixed(1))} onChange={e => onChange(updateText(project, item.id, { start: Number(e.target.value) }))} /></label>
-      <label>Duración {i + 1}<input className="text-input" aria-label={`Duración ${i + 1}`} type="number" min={0.5} step={0.1} value={Number(item.duration.toFixed(1))} onChange={e => onChange(updateText(project, item.id, { duration: Number(e.target.value) }))} /></label>
-    </div>)}
-  </Section>;
-}
+export { TextsStep } from './TextsStep';
 
 export function EnvironmentStep({ project, onChange }: { project: PromoProject; onChange: (patch: Partial<PromoProject>) => void }) {
   return (

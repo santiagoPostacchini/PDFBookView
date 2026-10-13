@@ -77,10 +77,10 @@ try {
       await reachable(step); await step.click(); await audit();
       if (i === 1) for (const name of ['Antes', 'Después']) await reachable(page.getByRole('button', { name, exact: true }));
       if (i === 2) {
-        await reachable(page.getByLabel('Texto 1', { exact: true }));
-        await reachable(page.getByLabel('Inicio 1', { exact: true }));
-        await reachable(page.getByLabel('Duraci\u00f3n 1', { exact: true }));
-        assert.equal(await page.locator('input[aria-label^="Texto "]').count(), 4);
+        await reachable(page.getByLabel('Texto', { exact: true }));
+        await reachable(page.getByLabel('Inicio', { exact: true }));
+        await reachable(page.getByLabel('Duraci\u00f3n', { exact: true }));
+        assert.equal(await page.locator('.text-item-row').count(), 4);
       }
       if (i === 3) {
         await reachable(page.getByRole('button', { name: 'Fondo Arena', exact: true }));

@@ -341,4 +341,9 @@ Plan completo: textos independientes, cámara libre y mesa/mantel/fondo separado
 
 ### F-3c: Textos, interfaz y manipulación en la vista previa
 - Responsable: codex; rama: codex/fix-textos-ui.
-- Estado: pendiente (depende de F-3b).
+- Estado: hecho (pendiente de revisión visual del usuario).
+- Hallazgos: paso Textos con lista seleccionable, agregar/duplicar/borrar y orden de apilado, máximo 30 y estado vacío; editor independiente de contenido, fuentes integradas/propias, color, tamaño, negrita, alineación, animación, posición y tiempos. Subida con errores visibles y aviso de licencia; Guardar como mi marca explícito para cta/handle, sin guardado automático de marca.
+- Vista previa: selección DOM sobre el cuadro real del video con medición tipográfica y desplazamiento de animación; arrastre, escala por esquina y flechas 1 % / Mayús 5 %. El texto seleccionado fuera de tiempo se dibuja tenue por un canal exclusivo de preview. El resto fuera de rango no participa del hit-test; cámara fuera de las cajas conservada. Orden de foco visor/panel y hoja inferior existentes respetados.
+- Validación: npm test (609 pruebas), npm run typecheck, npm run build y diff --check en verde. text-items-e2e crea tres textos con fuentes subidas distintas, mueve, escala, usa teclado, cambia color/duración, recarga y decodifica MP4 real sin guías azules (67.499 bytes). ui-a11y a 390/768/1440, text-fonts (dos MP4), camera-motion (MP4 341.888 bytes) y studio (arrastre, Foto y MP4 9:16/4:5 de 10 s) en verde con npm run dev en 5173.
+- Documentación: README y docs/fuentes-textos.md actualizados; captura de Textos revisada en motion/out/f3c-studio. TEMP/TMP dentro de .tmp para resolver EPERM del temporal de Windows en tests/navegador. Sin dependencias, cambios de arquitectura, cámara, mesa/mantel/fondo, commits ni cambio de rama.
+- Pendientes: revisión visual del usuario. La franja opcional de barras por texto bajo el guion no se agregó.

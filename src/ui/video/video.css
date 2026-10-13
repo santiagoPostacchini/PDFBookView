@@ -557,3 +557,15 @@
 @media (max-width: 480px) {
   .video-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+.text-items-list { display: grid; gap: 6px; margin-bottom: 10px; }
+.text-item-row { display: flex; gap: 4px; min-width: 0; }
+.text-item-select { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.text-item-select span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-item-select.is-active { outline: 2px solid var(--accent, #b66a37); }
+.text-position-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 190px; }
+.text-interaction-layer { position: fixed; pointer-events: none; z-index: 15; overflow: hidden; }
+.text-selection { position: absolute; cursor: move; touch-action: none; box-sizing: border-box; }
+.text-selection.is-selected { border: 2px solid #2876dc; }
+.text-selection.is-inactive { border-style: dashed; }
+.text-selection:focus-visible { outline: 3px solid #fff; box-shadow: 0 0 0 5px #2876dc; }
+.text-scale-handle { position: absolute; right: -7px; bottom: -7px; width: 16px; height: 16px; background: white; border: 2px solid #2876dc; cursor: nwse-resize; }

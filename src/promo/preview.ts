@@ -1,3 +1,4 @@
+import type { TextItem } from './model';
 import type { CamPose } from '../studio/framing';
 import type { BookEngine, Director } from '../book/BookEngine';
 import { timelineSet } from './timelineSet';
@@ -24,6 +25,9 @@ export class VideoPreview {
   playing = false;
   /** Guías de lo que tapa la interfaz de Reels/TikTok (sólo en la vista previa). */
   safeZones = false;
+  /** Texto tenue solo para edición; recordTimeline nunca usa este canal. */
+  editingText: TextItem | null = null;
+  private ghost: HTMLCanvasElement | null = null;
   onTick?: (time: number) => void;
   onStop?: () => void;
   onCameraEdit?: (sceneId: number, pose: CamPose) => void;
@@ -156,6 +160,13 @@ export class VideoPreview {
     const timeline = this.timeline;
     if (!timeline) return;
     if (this.fontsReady === timeline) drawOverlay(ctx, timeline, this.time, this.theme);
+    const item = this.editingText;
+    if (this.fontsReady === timeline && !this.playing && item && (this.time < item.start || this.time > Math.min(timeline.duration, item.start + item.duration))) {
+      this.ghost ??= document.createElement('canvas');
+      this.ghost.width = ctx.canvas.width; this.ghost.height = ctx.canvas.height;
+      drawOverlay(this.ghost.getContext('2d')!, { ...timeline, cues: [{ ...item, start: 0, end: timeline.duration, animation: 'ninguna' }] }, this.time, this.theme);
+      ctx.save(); ctx.globalAlpha = 0.3; ctx.drawImage(this.ghost, 0, 0); ctx.restore();
+    }
     if (this.safeZones && timeline.aspect < 0.7) drawSafeZones(ctx);
   }
 }

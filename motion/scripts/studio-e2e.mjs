@@ -120,12 +120,16 @@ if (!has('no-video')) {
   }
   await shot('ui-video-2-historia.png');
 
-  // 3. Textos y marca
+  // 3. Textos independientes
   await page.click('.video-steps button:has-text("Textos")');
-  if (flag('handle')) await page.fill('input[aria-label="Texto 4"]', flag('handle'));
-  if (flag('text')) await page.getByLabel('Texto 2', { exact: true }).fill(flag('text'));
-  await page.getByLabel('Inicio 2', { exact: true }).fill('0.2');
-  await page.getByLabel('Duraci\u00f3n 2', { exact: true }).fill('2.5');
+  if (flag('handle')) {
+    await page.locator('.text-item-select').nth(3).click();
+    await page.getByLabel('Texto', { exact: true }).fill(flag('handle'));
+  }
+  await page.locator('.text-item-select').nth(1).click();
+  if (flag('text')) await page.getByLabel('Texto', { exact: true }).fill(flag('text'));
+  await page.getByLabel('Inicio', { exact: true }).fill('0.2');
+  await page.getByLabel('Duraci\u00f3n', { exact: true }).fill('2.5');
   await shot('ui-video-3-textos.png');
 
   await page.click('.video-steps button:has-text("Ambiente")');

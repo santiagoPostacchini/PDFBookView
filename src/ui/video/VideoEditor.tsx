@@ -1,3 +1,5 @@
+import { TextInteraction } from './TextInteraction';
+import { updateText } from '../../promo/editing';
 import { sceneCameraBase } from '../../promo/sceneCamera';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -25,7 +27,7 @@ type Step = 'estilo' | 'historia' | 'textos' | 'ambiente' | 'exportar';
 const STEPS: { id: Step; label: string }[] = [
   { id: 'estilo', label: 'Estilo' },
   { id: 'historia', label: 'Historia' },
-  { id: 'textos', label: 'Textos y marca' },
+  { id: 'textos', label: 'Textos' },
   { id: 'ambiente', label: 'Ambiente' },
   { id: 'exportar', label: 'Exportar' },
 ];
@@ -44,7 +46,7 @@ interface Props {
 
 /**
  * Editor de video para personas no técnicas, en 5 pasos (estilo, historia,
- * textos y marca, ambiente, exportar). El visor 3D es la vista previa: muestra la escena
+ * textos, ambiente, exportar). El visor 3D es la vista previa: muestra la escena
  * elegida con sus textos o reproduce el video tal como se va a exportar.
  */
 export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
@@ -90,6 +92,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
   const [draft, setDraft] = useState<VideoDraft>(() => loadDraft(fileName, undefined, shape) ?? newDraft(loadBrand()));
   const [step, setStep] = useState<Step>('estilo');
   const [selected, setSelected] = useState(0);
+  const [selectedText, setSelectedText] = useState<string | null>(draft.project.textItems[0]?.id ?? null);
   const [adding, setAdding] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [clock, setClock] = useState(0);
@@ -146,7 +149,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
   useEffect(() => {
     const p = preview.current;
     if (!p || playing || recording) return;
-    const t = sceneFocusTime(timeline, selected);
+    const t = step === 'textos' ? p.time : sceneFocusTime(timeline, selected);
     if (shown.current !== timeline) {
       p.setTimeline(timeline, t);
       shown.current = timeline;
@@ -154,7 +157,13 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
       p.seek(t);
     }
     setClock(t);
-  }, [timeline, selected, playing, recording, images]);
+  }, [timeline, selected, playing, recording, images, step]);
+
+  useEffect(() => {
+    const p = preview.current; if (!p) return;
+    p.editingText = step === 'textos' && !playing && !recording ? project.textItems.find(t => t.id === selectedText) ?? null : null;
+    engine.invalidate();
+  }, [step, selectedText, project.textItems, playing, recording, engine, images]);
 
   useEffect(() => preview.current?.setSafeZones(safeZones && project.format === '9:16'), [safeZones, project.format]);
   useEffect(() => onBusyChange?.(!!recording), [recording, onBusyChange]);
@@ -229,6 +238,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
 
   return (
     <>
+      {step === 'textos' && !playing && !recording && <TextInteraction engine={engine} timeline={timeline} items={project.textItems} selected={selectedText} time={clock} onSelect={setSelectedText} onChange={(id, patch) => setDraft(d => ({ ...d, project: updateText(d.project, id, patch) }))} />}
       <nav role="tablist" className="video-steps" aria-label="Pasos del video">
         {STEPS.map((s, i) => (
           <button
@@ -304,7 +314,9 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
         {step === 'textos' && (
           <TextsStep
             project={project}
-            onChange={(patch) => setProject({ ...project, ...patch })}
+            onChange={setProject}
+            selected={selectedText} onSelect={setSelectedText} time={clock}
+            onTime={t => { preview.current?.seek(t); setClock(t); }}
           />
         )}
 

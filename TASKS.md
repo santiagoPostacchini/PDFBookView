@@ -294,3 +294,66 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 - Comparación: motion/out/u8-antes/ y u8-despues/, cuadros 10/12,5/15 s extraídos con -ss y hoja motion/out/u8-comparacion.png revisada: álbum mayor, figuritas legibles y vuelo completo; a 15 s aparece Detalle, conservado.
 - Pendientes: revisión del usuario. Sin dependencias, cambios de arquitectura, commits ni cambios de rama; TEMP/TMP local por permisos.
 - Decisión (2026-10-12): se integra la variante B del encuadre (elevación máxima 55° y azimuts ±16° en apaisado) en lugar de la A (80° y ±40°); sin costo en las metas medidas y mejor 16:9. Rama de trabajo: experimento/plano-b, integrada en integracion/figuritas-ui.
+
+## Fixes del editor (2026-10-12)
+
+Plan completo: textos independientes, cámara libre y mesa/mantel/fondo separados. Rama de integración: `integracion/fixes-editor`. Decisiones D-014, D-015 y D-016 en ARCHITECTURE.md.
+
+### F-1: Mesa, mantel y fondo separados (D-016)
+- Responsable: codex; rama: codex/fix-mesa-mantel-fondo.
+- Estado: hecho (pendiente de revisión del usuario).
+- Aceptación: en Foto y Video se puede usar o no la mesa; mantel y fondo se eligen por separado, cada uno con presets y color a elección; sin mesa se ve solo el fondo; proyectos y ajustes viejos migran sin romperse; tests y e2e actualizados.
+
+- Hallazgos: SCENARIOS contiene fondos y CLOTHS los manteles; Foto y Video guardan fondo, mesa y mantel independientes, incluidos colores propios. El render usa fondo exacto en background/niebla; sin mesa retira textura, con mesa aplica mantel. Vista previa reacciona a cloth; overlay y contacto leen fondo.
+- Compatibilidad: mantel-* migra al fondo predeterminado + mantel + mesa; Video conserva VERSION 1, Foto sube catalogVersion a 2 y conserva la migración foto:*. Al apagar la mesa se recuerda el mantel. Sin dependencias, cambios de arquitectura, cámara/textos, commits ni cambio de rama.
+- Validación: npm test (582 pruebas), npm run typecheck y npm run build en verde; git diff --check sin errores. TEMP/TMP local por permisos de Windows.
+- Navegador: photo, manteles, ventana, entorno y ui-a11y (390/768/1440) en verde; studio captura Foto y exporta MP4 9:16 de 10 s con mantel azul + fondo propio. Captura de Ambiente revisada en motion/out/f1-video; scripts y README/docs actualizados.
+- Pendientes: revisión visual del usuario y ejecutar figuritas-e2e completo con hoja/troquel de prueba (no proporcionados); script actualizado y sintaxis validada.
+
+### F-2: Cámara libre y rueda como zoom (D-015)
+- Responsable: codex; rama: codex/fix-camara-libre.
+- Estado: hecho (pendiente de revisión del usuario).
+- Aceptación: click derecho mira, W/A/S/D/Q/E mueven, rueda hace zoom, sin botones de zoom en la interfaz; en Video la pose se guarda en la toma y el MP4 coincide con la vista previa.
+- Hallazgos: FlyLook mira desde la posición de cámara y desplaza cámara/objetivo; respeta foco editable, modificadores y límites. OrbitControls conserva izquierdo/medio/rueda y PageInteraction sigue atendiendo hojas en Foto. Video permite cámara en pausa, bloquea hojas y controles durante reproducción/exportación.
+- Persistencia: SceneCamera.free validada reemplaza el encuadre calculado, incluido Figuritas; framingZoom sigue como compatibilidad. Se deshace el movimiento en el instante editado antes de guardar la base para evitar saltos; zoom suave, lateral y órbita se aplican encima. Objetivos elevados o negativos se conservan en el recorrido.
+- Interfaz/documentación: se retiran Acercar/Alejar y el slider por toma; Vista inicial/0 y +/− siguen disponibles. Ayuda y Restablecer encuadre actualizados; README y docs/figuritas.md al día.
+- Validación: npm test (592 pruebas), npm run typecheck y npm run build en verde; camera-motion-e2e con rueda/look/teclado, recarga, bloqueo durante play, restablecimiento y MP4 real (332247 bytes); ui-a11y-e2e a 390/768/1440; studio-e2e con arrastre de guion, Foto y MP4 9:16 de 10 s. Servidor npm run dev en 5173, TEMP/TMP dentro del proyecto por permisos de Windows.
+- Pendientes: revisión visual del usuario. Sin dependencias nuevas, cambios de arquitectura, textos del video ni mesa/mantel/fondo; sin commits ni cambios de rama.
+
+### F-3a: Textos como ítems, modelo y compilación (D-014)
+- Responsable: codex; rama: codex/fix-textos-modelo.
+- Estado: hecho (pendiente de revisión del usuario).
+- Aceptación: `textItems` con migración de proyectos v1 sin pérdida; compilación a cues por ítem con inicio y duración propios; tests actualizados.
+- Hallazgos: TextItem reemplaza campos fijos, tipografía global y frases por escena; saneo compartido, ids únicos, máximo 30 y funciones puras de edición. Plantillas siembran cuatro ítems; cambiar plantilla conserva los existentes. Cues recortados a la duración total, independientes del guion; adaptación mínima de canvas, carga de fuentes, preview, MP4 y lista de texto/inicio/duración.
+- Persistencia: VERSION 2; migración pura con pesos y mínimos de v1, incluyendo las frases guardadas y fuentes integradas. Con medidas del libro omite escenas que no pueden abrirse. Mi marca sólo siembra videos nuevos y no se sobrescribe al editar.
+- Validación: npm test (597 pruebas), typecheck, build y diff --check; studio-e2e con arrastre y MP4 9:16 de 10 s (8.503.291 bytes); camera-motion-e2e con MP4 real; entorno y ui-a11y a 390/768/1440 en verde. Apertura real de un borrador v1, guardado v2, cinco textos dibujados y marca intacta comprobados en navegador; captura de Textos revisada en motion/out/f3a-studio.
+- Limitación: el borrador v1 no contiene los assets de Figuritas cargados por separado; su intervalo de migración usa el peso base y puede diferir si el pegado extendía el video. Elección liviana documentada en projectStorage.ts y docs/figuritas.md.
+- Pendientes: revisión del usuario; render avanzado/fuentes user en F-3b e interfaz final en F-3c. Figuritas-e2e actualizado y sintaxis validada, sin ejecución completa por falta de hoja/troquel de prueba. Sin dependencias nuevas, cambios de arquitectura, commits ni cambio de rama; TEMP/TMP dentro del proyecto.
+
+### F-3b: Textos, render y fuentes subidas
+- Responsable: codex; rama: codex/fix-textos-render.
+- Estado: hecho (pendiente de revisión del usuario).
+- Hallazgos: layoutCue puro con ajuste al 84 %, saltos manuales, palabras largas, interlineado 1,1 y caja en px; measureCueBox y cueMotion exportados para F-3c. Alineación respecto de x, halo por luminancia y animaciones cúbicas con apertura visible y cierre sin salida. Timeline conserva la fuente de la plantilla para el fallback.
+- Fuentes: API global en fonts.ts, IndexedDB con respaldo en memoria, Blob sin localStorage; TTF/OTF/WOFF/WOFF2, máximo 5 MB y 20 fuentes, nombres legibles e ids únicos compatibles. La persona es responsable de la licencia de las fuentes que sube. Preview espera todas las fuentes y se actualiza al borrar; MP4 usa el mismo render y fallback.
+- Validación: npm test (606 pruebas), typecheck y build en verde; text-fonts-e2e comprueba fuente propia en el canvas real de preview y MP4 (37.009 bytes), eliminación y fallback Fraunces con otro MP4 (39.537 bytes), sin errores. camera-motion-e2e (MP4 316.997 bytes) y studio-e2e (arrastre y MP4 9:16 de 10 s) en verde. Primer intento de studio con 3 s descartado porque la interfaz no ofrece esa duración; repetido con 10 s.
+- Documentación: README y docs/fuentes-textos.md; prueba reproducible con la WOFF2 autoalojada. Sin dependencias, interfaz de textos, cambios de cámara/ambiente, commits ni cambio de rama; TEMP/TMP local.
+- Pendientes: revisión visual del usuario y F-3c; figuritas-e2e completo requiere hoja/troquel de prueba, no proporcionados. No necesitó ajustes por este render.
+
+### F-3c: Textos, interfaz y manipulación en la vista previa
+- Responsable: codex; rama: codex/fix-textos-ui.
+- Estado: hecho (pendiente de revisión visual del usuario).
+- Hallazgos: paso Textos con lista seleccionable, agregar/duplicar/borrar y orden de apilado, máximo 30 y estado vacío; editor independiente de contenido, fuentes integradas/propias, color, tamaño, negrita, alineación, animación, posición y tiempos. Subida con errores visibles y aviso de licencia; Guardar como mi marca explícito para cta/handle, sin guardado automático de marca.
+- Vista previa: selección DOM sobre el cuadro real del video con medición tipográfica y desplazamiento de animación; arrastre, escala por esquina y flechas 1 % / Mayús 5 %. El texto seleccionado fuera de tiempo se dibuja tenue por un canal exclusivo de preview. El resto fuera de rango no participa del hit-test; cámara fuera de las cajas conservada. Orden de foco visor/panel y hoja inferior existentes respetados.
+- Validación: npm test (609 pruebas), npm run typecheck, npm run build y diff --check en verde. text-items-e2e crea tres textos con fuentes subidas distintas, mueve, escala, usa teclado, cambia color/duración, recarga y decodifica MP4 real sin guías azules (67.499 bytes). ui-a11y a 390/768/1440, text-fonts (dos MP4), camera-motion (MP4 341.888 bytes) y studio (arrastre, Foto y MP4 9:16/4:5 de 10 s) en verde con npm run dev en 5173.
+- Documentación: README y docs/fuentes-textos.md actualizados; captura de Textos revisada en motion/out/f3c-studio. TEMP/TMP dentro de .tmp para resolver EPERM del temporal de Windows en tests/navegador. Sin dependencias, cambios de arquitectura, cámara, mesa/mantel/fondo, commits ni cambio de rama.
+- Pendientes: revisión visual del usuario. La franja opcional de barras por texto bajo el guion no se agregó.
+
+### F-4: Barra de tiempo precisa e intervalos de textos
+- Responsable: codex; rama: codex/fix-barra-tiempo (base integracion/fixes-editor).
+- Estado: hecho (pendiente de revisión visual del usuario).
+- Hallazgos: TimelineBar arriba del guion en todos los pasos, cabezal con clic/arrastre limitado por requestAnimationFrame, slider accesible, campo con Enter, lectura de dos decimales, cuadros anterior/siguiente y reproducción reubicada. Flechas avanzan 1/30 s, Mayús 1 s e Inicio/Fin recorren los extremos.
+- Textos: pista seleccionable con bordes y cuerpo arrastrables, tiempos en cuadros, límites del video y mínimo de 0,5 s. Agregar texto aquí abre Textos, selecciona el ítem y conserva el inicio exacto; duración 3 s o tiempo restante. Se deshabilita si queda menos de medio segundo. Slider anterior retirado; controles de inicio/final usan el mismo reloj.
+- Determinismo: lógica pura en timelineBar.ts con cinco pruebas; seek evita acumulación decimal y preview.time es exactamente 4,5 al buscar 4,50. Cambiar de paso o editar textos conserva el cuadro; elegir una escena sigue buscando su instante de referencia. Reproducción desde cero y exportación conservadas.
+- Validación: npm test (615 pruebas), npm run typecheck y npm run build en verde; text-items (seek, inicio persistido, borde y MP4 sin guías), text-fonts (dos MP4), camera-motion (MP4 real), studio (Foto, arrastre y MP4 9:16/4:5 de 10 s) y ui-a11y a 390/768/1440 en verde con http://localhost:5173/ y álbum genérico.
+- Interfaz: hoja de Video de 76% en móvil para conservar más de 220 px de contenido desplazable junto a la barra; márgenes del canvas adaptados a móvil para evitar estirar un render diminuto. Capturas motion/out/timeline-a11y-*.png y motion/out/f4-studio revisadas; README y docs/fuentes-textos.md actualizados.
+- Pendientes: revisión visual del usuario. Sin dependencias, cambios de arquitectura, cámara, ambiente ni dibujo de textos; sin commits ni cambio de rama. TEMP/TMP local en .tmp por permisos de Windows.

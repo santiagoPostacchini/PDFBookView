@@ -1,5 +1,7 @@
+import { FlyLook } from './FlyLook';
 import {
   MathUtils,
+  MOUSE,
   NeutralToneMapping,
   PCFShadowMap,
   PerspectiveCamera,
@@ -13,7 +15,7 @@ import {
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { fitDistance, posePosition, type CamPose } from '../studio/framing';
+import { fitDistance, poseFromPosition, posePosition, type CamPose } from '../studio/framing';
 import { Book, type BookOptions } from './Book';
 import { PageInteraction } from './PageInteraction';
 import { PageTextureManager, type PageDecoration } from './PageTextureManager';
@@ -110,8 +112,18 @@ export class BookEngine {
   private director: { director: Director; onEnd: () => void; snapshot: ViewSnapshot } | null = null;
   private offline = false;
   private clock = 0;
-  /** false = la cámara y las hojas no responden al mouse (p. ej. editando un video). */
+  /** false = las hojas quedan bajo el control del guion. */
   private interactive = true;
+  private cameraControls = true;
+  private readonly fly: FlyLook;
+  private cameraEditTimer = 0;
+  onCameraEdit?: (pose: CamPose) => void;
+  private cameraEdited = () => {
+    window.clearTimeout(this.cameraEditTimer);
+    this.cameraEditTimer = window.setTimeout(() => {
+      if (this.cameraControls && !this.director && !this.offline) this.onCameraEdit?.(this.getPose());
+    }, 250);
+  };
   /** Capa 2D encima del lienzo (textos del video en la vista previa). */
   private overlay: { canvas: HTMLCanvasElement; draw: (ctx: CanvasRenderingContext2D) => void } | null = null;
 
@@ -129,9 +141,11 @@ export class BookEngine {
     this.scene.add(this.stage.group);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
+    this.controls.enableDamping = false;
+    this.controls.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: null };
+    this.controls.minPolarAngle = MathUtils.degToRad(4);
     this.controls.dampingFactor = 0.08;
-    this.controls.maxPolarAngle = MathUtils.degToRad(84); // no pasar por debajo de la mesa
+    this.controls.maxPolarAngle = MathUtils.degToRad(90); // no pasar por debajo de la mesa
     this.controls.minDistance = 1.5;
     this.controls.maxDistance = 60;
     this.controls.addEventListener('change', this.invalidate);
@@ -139,6 +153,11 @@ export class BookEngine {
       this.cameraTouched = true;
       this.cameraTween = null;
     });
+
+    this.controls.addEventListener('end', this.cameraEdited);
+    this.fly = new FlyLook(this.renderer.domElement, this.camera, this.controls,
+      () => this.cameraControls && this.controls.enabled && !this.director && !this.offline,
+      () => { this.cameraTouched = true; this.cameraTween = null; this.invalidate(); }, this.cameraEdited);
 
     this.interaction = new PageInteraction(
       this.renderer.domElement,
@@ -244,16 +263,17 @@ export class BookEngine {
 
   /** factor < 1 acerca, > 1 aleja. */
   zoom(factor: number): void {
-    if (!this.interactive) return;
+    if (!this.cameraControls || this.director || this.offline) return;
     const offset = this.camera.position.clone().sub(this.controls.target);
     const distance = MathUtils.clamp(offset.length() * factor, this.controls.minDistance, this.controls.maxDistance);
     this.cameraTouched = true;
-    this.animateCamera(this.controls.target.clone().add(offset.setLength(distance)), this.controls.target.clone());
+    this.camera.position.copy(this.controls.target).add(offset.setLength(distance));
+    this.controls.update(); this.invalidate(); this.cameraEdited();
   }
 
   resetView(): void {
-    if (!this.interactive) return;
-    this.placeCamera(true);
+    if (!this.cameraControls || this.director || this.offline) return;
+    this.placeCamera(false); this.cameraEdited();
   }
 
   invalidate = (): void => {
@@ -400,7 +420,17 @@ export class BookEngine {
   /** Con false, ni la cámara ni las hojas responden al mouse (la vista la maneja un guion). */
   setInteractive(enabled: boolean): void {
     this.interactive = enabled;
-    this.controls.enabled = enabled && !this.director;
+    this.setCameraControls(enabled);
+  }
+
+  setCameraControls(enabled: boolean): void {
+    this.cameraControls = enabled;
+    this.controls.enabled = enabled && !this.director && !this.offline;
+    if (!enabled) window.clearTimeout(this.cameraEditTimer);
+  }
+
+  getPose(): CamPose {
+    return poseFromPosition(this.camera.position.toArray(), this.controls.target.toArray());
   }
 
   /**
@@ -470,6 +500,8 @@ export class BookEngine {
     const snapshot = this.snapshot();
     this.stopDirector();
     this.offline = true;
+    this.controls.enabled = false;
+    window.clearTimeout(this.cameraEditTimer);
     cancelAnimationFrame(this.frameHandle);
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(width, height, false);
@@ -481,6 +513,7 @@ export class BookEngine {
       return await work((time, effects = true) => this.draw(time, effects), this.renderer.domElement);
     } finally {
       this.offline = false;
+      this.controls.enabled = this.cameraControls;
       this.restore(snapshot);
       this.renderer.setPixelRatio(this.pixelRatio);
       this.resize();
@@ -504,7 +537,7 @@ export class BookEngine {
     const active = this.director;
     if (!active) return;
     this.director = null;
-    this.controls.enabled = this.interactive;
+    this.controls.enabled = this.cameraControls;
     this.restore(active.snapshot);
     active.onEnd();
   }
@@ -523,6 +556,8 @@ export class BookEngine {
     this.overlay?.canvas.remove();
     this.overlay = null;
     this.resizeObserver.disconnect();
+    window.clearTimeout(this.cameraEditTimer);
+    this.fly.dispose();
     this.interaction.dispose();
     this.controls.dispose();
     this.textures?.dispose();
@@ -612,6 +647,7 @@ export class BookEngine {
       if (tween.t >= 1) this.cameraTween = null;
       this.needsRender = true;
     }
+    this.fly.update(dt);
     if (this.controls.update(dt)) this.needsRender = true;
     if (this.book?.update(dt)) this.needsRender = true;
     // El grano de película cambia cada cuadro.

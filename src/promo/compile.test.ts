@@ -19,13 +19,10 @@ describe('sceneDurations', () => {
     expect(tight.reduce((a, b) => a + b, 0)).toBeCloseTo(6);
   });
 
-  it('el cierre dura lo suficiente para leer el llamado a la acción', () => {
-    const tl = compileProject(projectFromTemplate('ritmo', { duration: 10 }), shape(6));
-    const cierre = tl.scenes.at(-1)!;
-    expect(cierre.end - cierre.start).toBeGreaterThanOrEqual(2.6 - 1e-9);
-    expect(tl.duration - tl.cues.at(-1)!.start).toBeGreaterThanOrEqual(1.9);
-  });
-});
+  it('los textos no condicionan los tiempos de las escenas', () => {
+    const project = projectFromTemplate('ritmo');
+    expect(compileProject(project, shape(6)).scenes).toEqual(compileProject({ ...project, textItems: [] }, shape(6)).scenes);
+  });});
 
 describe('spreadPlan', () => {
   it('reparte dobles páginas interiores en orden', () => {
@@ -79,11 +76,11 @@ describe('compileProject', () => {
     const tl = compileProject(project, shape(6));
     expect(compileProject(project, shape(6))).toEqual(tl);
     // Gancho: el título aparece en el primer medio segundo (sin fundido desde negro).
-    expect(tl.cues[0].kind).toBe('titulo');
+    expect(tl.cues[0].id).toBe('subtitle');
     expect(tl.cues[0].start).toBeLessThan(0.5);
     expect(tl.startSpread).toBe(0);
     expect(tl.actions.at(-1)!.spread).toBe(0);
-    expect(tl.cues.at(-1)).toMatchObject({ kind: 'cierre', lines: ['Pedí el tuyo', '@tu.marca'] });
+    expect(tl.cues.at(-1)).toMatchObject({ id: 'handle', text: '@tu.marca' });
   });
 
   it('recorre el libro hacia adelante y reparte las escenas en dobles páginas distintas', () => {
@@ -138,4 +135,37 @@ describe('compileProject', () => {
     const pages = pagesToPreload(tl, 12);
     for (const s of tl.spreads) expect(pages).toEqual(expect.arrayContaining([2 * s - 1, 2 * s].filter((p) => p >= 0 && p < 12)));
   });
+});
+
+it('el encuadre libre reemplaza los planos calculados de todas las escenas', () => {
+  const free = { azimuth: -18, elevation: 0, distance: 7, target: [2, -3, 1] as const };
+  const project = projectFromTemplate('clasica');
+  project.scenes = project.scenes.map((scene) => ({ ...scene, camera: { free, framingZoom: 1 } }));
+  const timeline = compileProject(project, shape(6));
+  for (const scene of timeline.scenes) {
+    for (const fraction of [0.1, 0.5, 0.9]) {
+      const pose = sampleCamera(timeline, scene.start + (scene.end - scene.start) * fraction).pose;
+      expect(pose).toEqual(free);
+    }
+  }
+});
+
+it('la pose libre prevalece sobre figuritasFraming', () => {
+  const free = { azimuth: 15, elevation: 38, distance: 4, target: [1, 0.5, -1] as const };
+  const book = { ...shape(6), pagePt: { width: 200, height: 300 } };
+  const kit = { stickers: [{ id: 'a', number: 1, widthPt: 100, heightPt: 140 }], pack: { widthPt: 150, heightPt: 220 } };
+  const project = projectFromTemplate('figuritas', { scenes: [{ kind: 'figuritas', stickers: [{ id: 'a', page: 2 }], camera: { free } }] });
+  const timeline = compileProject(project, book, kit);
+  expect(sampleCamera(timeline, 0).pose).toEqual(free);
+  expect(sampleCamera(timeline, timeline.duration / 2).pose).toEqual(free);
+});
+
+it('compila tiempos propios y recorta a la duracion incluso al reordenar escenas', () => {
+  const p = projectFromTemplate('clasica'); const item = p.textItems[0];
+  p.textItems = [{ ...item, id: 'libre', start: 3.2, duration: 7 }, { ...item, id: 'recorte', start: 14, duration: 5 }, { ...item, id: 'fuera', start: 20, duration: 2 }, { ...item, id: 'negativo', start: -1, duration: 2 }];
+  const tl = compileProject(p, shape(6));
+  expect(tl.cues.map(c => [c.id, c.start, c.end])).toEqual([['libre', 3.2, 10.2], ['recorte', 14, tl.duration], ['negativo', 0, 1]]);
+  const reordered = compileProject({ ...p, scenes: [...p.scenes].reverse() }, shape(6));
+  expect(reordered.cues[0]).toEqual(tl.cues[0]);
+  expect(reordered.cues[1].end).toBeCloseTo(tl.cues[1].end);
 });

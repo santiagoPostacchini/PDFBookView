@@ -5,7 +5,7 @@
 //
 //   node scripts/studio-e2e.mjs <pdf> [--mode booklet|simple] [--out out/e2e]
 //        [--template clasica|ritmo|minimal] [--formats 9:16,1:1] [--duration 15]
-//        [--caption "Tus fotos, tu historia"] [--handle @tu.marca] [--drag]
+//        [--text "Tus fotos, tu historia"] [--handle @tu.marca] [--drag]
 //        [--view tresCuartos] [--spread 2] [--lighting calida] [--backdrop rosa]
 //        [--no-video] [--no-photo]
 //
@@ -53,6 +53,18 @@ if (await page.$('.sheet-editor')) await page.click('.sheet-editor button[aria-l
 
 await page.click('.topbar .btn:has-text("Estudio")');
 await page.waitForSelector('.studio-panel');
+const cameraCanvas = await page.locator('canvas.book-canvas').first().boundingBox();
+const cameraBefore = await page.evaluate(() => window.bookEngine.getPose());
+await page.mouse.move(cameraCanvas.x + cameraCanvas.width / 2, cameraCanvas.y + cameraCanvas.height / 2);
+await page.mouse.down({ button: 'right' });
+await page.mouse.move(cameraCanvas.x + cameraCanvas.width / 2 + 35, cameraCanvas.y + cameraCanvas.height / 2 + 8, { steps: 5 });
+await page.mouse.up({ button: 'right' });
+const cameraAfter = await page.evaluate(() => window.bookEngine.getPose());
+if (Math.abs(cameraAfter.azimuth - cameraBefore.azimuth) < 1) throw new Error('Click derecho no mira');
+await page.mouse.wheel(0, -180);
+await page.waitForTimeout(350);
+if ((await page.evaluate(() => window.bookEngine.getPose())).distance >= cameraAfter.distance) throw new Error('Rueda no acerca en Foto');
+
 
 if (!has('no-photo')) {
   if (flag('lighting')) await page.click(`.studio-section:has(h3:text("Luz")) .chip:text-is("${cap(flag('lighting'))}")`);
@@ -92,8 +104,6 @@ if (!has('no-video')) {
   // 2. Historia: una frase en la tercera escena (si se puede escribir ahí) y
   // reordenar arrastrando la última escena antes del cierre hasta la segunda posición.
   await page.click('.storyboard .scene-card >> nth=2');
-  const caption = await page.$('input[aria-label="Frase en pantalla"]');
-  if (caption && flag('caption')) await caption.fill(flag('caption'));
   const order = () => page.$$eval('.storyboard .scene-card-label b', (els) => els.map((e) => e.textContent.replace(/^\d+\.\s*/, '')).join(' → '));
   if (has('drag')) {
     const cards = page.locator('.storyboard .scene-card');
@@ -110,13 +120,24 @@ if (!has('no-video')) {
   }
   await shot('ui-video-2-historia.png');
 
-  // 3. Textos y marca
+  // 3. Textos independientes
   await page.click('.video-steps button:has-text("Textos")');
-  if (flag('handle')) await page.fill('.field:has-text("Usuario") input', flag('handle'));
+  if (flag('handle')) {
+    await page.locator('.text-item-select').nth(3).click();
+    await page.getByLabel('Texto', { exact: true }).fill(flag('handle'));
+  }
+  await page.locator('.text-item-select').nth(1).click();
+  if (flag('text')) await page.getByLabel('Texto', { exact: true }).fill(flag('text'));
+  await page.getByLabel('Inicio', { exact: true }).fill('0.2');
+  await page.getByLabel('Duraci\u00f3n', { exact: true }).fill('2.5');
   await shot('ui-video-3-textos.png');
 
   await page.click('.video-steps button:has-text("Ambiente")');
-  await page.getByRole('button', { name: 'Escenario Arena', exact: true }).click();
+  await page.getByRole('button', { name: 'Fondo Arena', exact: true }).click();
+  await page.getByLabel('Usar mesa', { exact: true }).check();
+  await page.getByRole('button', { name: 'Mantel Cuadros azul', exact: true }).click();
+  await page.getByLabel('Color de fondo a elección', { exact: true }).fill('#a1b2c3');
+  await page.waitForFunction(() => window.bookEngine.stageSet?.color === '#a1b2c3' && window.bookEngine.stageSet?.cloth?.tablecloth === 'vichy-azul');
   await shot('ui-video-4-ambiente.png');
 
   // 5. Exportar: formatos y duración.

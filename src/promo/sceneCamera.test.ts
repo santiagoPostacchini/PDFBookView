@@ -1,3 +1,4 @@
+import { sceneCameraBase } from './sceneCamera';
 import { describe, expect, it } from 'vitest';
 import { compileProject, sampleCamera } from './compile';
 import { projectFromTemplate } from './templates';
@@ -31,8 +32,8 @@ describe('movimiento opcional por toma', () => {
       [{ kind: 'figuritas' as const }, { kind: 'doblePagina' as const }, { kind: 'portada' as const }],
     ]) {
       const timeline = compileProject(projectFromTemplate('clasica', { scenes }), book);
-      const titles = timeline.cues.filter((c) => c.kind === 'titulo');
-      expect(titles).toHaveLength(1); expect(titles[0].start).toBe(0); expect(titles[0].end).toBe(timeline.scenes[0].end);
+      const titles = timeline.cues.filter((c) => c.id === 'title');
+      expect(titles).toHaveLength(1); expect(titles[0].start).toBe(0); expect(titles[0].end).toBe(projectFromTemplate('clasica').textItems.find(t => t.id === 'title')!.duration);
     }
   });
   it('mueve sólo la toma elegida entre sus dos puntos, con foco estable y sin modificar el guion', () => {
@@ -61,5 +62,40 @@ describe('movimiento opcional por toma', () => {
   it('limita valores rotos y mantiene fijos los proyectos anteriores', () => {
     expect(sanitizeSceneCamera(undefined)).toBeUndefined();
     expect(sanitizeSceneCamera({ zoom: { enabled: true, from: NaN, to: 900 }, lateral: { enabled: 'true', amount: -50 } })).toEqual({ zoom: { enabled: true, from: 0, to: 0.1 }, lateral: { enabled: false, amount: 0, direction: 'derecha' } });
+  });
+});
+
+describe('pose libre de la toma', () => {
+  const free = { azimuth: 30, elevation: 42, distance: 8, target: [2, -1, 3] as const };
+  it('rechaza datos no finitos y acota todos los ejes', () => {
+    expect(sanitizeSceneCamera({ free: { ...free, distance: Infinity } })).toBeUndefined();
+    expect(sanitizeSceneCamera({ free: { ...free, target: [0, NaN, 0] } })).toBeUndefined();
+    expect(sanitizeSceneCamera({ free: { ...free, elevation: 100, distance: -1, target: [-100, 2, 100] } })?.free)
+      .toEqual({ ...free, elevation: 86, distance: 1.5, target: [-60, 2, 60] });
+  });
+  it('reemplaza el encuadre y el zoom antiguo; persiste sin compartir el objetivo', () => {
+    expect(sceneCameraPoints(free, { free, framingZoom: 1 }, 2)).toEqual([free, free]);
+    const draft = newDraft(); draft.project = updateScene(draft.project, 0, { camera: { free } });
+    const data = new Map<string, string>();
+    const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); } };
+    saveDraft('libre.pdf', draft, storage);
+    expect(loadDraft('libre.pdf', storage)?.project.scenes[0].camera?.free).toEqual(free);
+    const copy = duplicateScene(draft.project, 0).project.scenes[1].camera?.free;
+    expect(copy).toEqual(free); expect(copy?.target).not.toBe(free.target);
+  });
+  it.each([false, true])('editar con movimiento no salta al recompilar (orbita %s)', (orbit) => {
+    const project = projectFromTemplate('clasica');
+    const settings = { free, zoom: camera.zoom, lateral: { ...camera.lateral, orbit } };
+    project.scenes[0].camera = settings;
+    const timeline = compileProject(project, book);
+    const progress = 0.62;
+    const time = timeline.scenes[0].end * progress;
+    const pose = sampleCamera(timeline, time).pose;
+    const base = sceneCameraBase(pose, settings, 2, progress);
+    const again = compileProject(updateScene(project, 0, { camera: { ...settings, free: base } }), book);
+    const result = sampleCamera(again, time).pose;
+    expect(result.distance).toBeCloseTo(pose.distance, 8);
+    expect(result.azimuth).toBeCloseTo(pose.azimuth, 8);
+    result.target.forEach((v, i) => expect(v).toBeCloseTo(pose.target[i], 8));
   });
 });

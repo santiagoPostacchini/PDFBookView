@@ -29,7 +29,7 @@ try {
   });
   await page.getByRole('button', { name: 'Reproducir desde el principio', exact: true }).click();
   await page.waitForFunction(() => window.__titleCalls.join(' ').includes('Álbum personalizado'));
-  await page.locator('.storyboard-play').click();
+  await page.locator('.timeline-play').click();
   await page.getByRole('tab', { name: 'Estilo', exact: false }).first().click();
   const slider = (label) => page.getByRole('slider', { name: new RegExp(`^${label}`) });
   const setSlider = async (label, steps) => {
@@ -42,11 +42,11 @@ try {
   await page.getByLabel('Cargar figuritas', { exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'Ver cómo se pegan', exact: true }).isDisabled(), true);
   await page.getByRole('tab', { name: 'Ambiente', exact: false }).first().click();
-  await page.getByRole('button', { name: 'Mantel · cuadros azul', exact: false }).click();
+  await page.getByRole('button', { name: 'Mantel Cuadros azul', exact: false }).click();
   await setSlider('Sombra de ventana', 15);
   await page.getByText('Más ajustes', { exact: true }).click();
   await setSlider('Sombras de contacto', 12);
-  await page.waitForFunction(() => window.bookEngine.stageSet?.tablecloth === 'vichy-azul' && window.bookEngine.stageSet?.windowStrength === 0.75);
+  await page.waitForFunction(() => window.bookEngine.stageSet?.cloth?.tablecloth === 'vichy-azul' && window.bookEngine.stageSet?.windowStrength === 0.75);
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf'))?.project.ambientOcclusion === 0.6);
   await load();
   await page.getByRole('tab', { name: 'Ambiente', exact: false }).first().click();
@@ -58,10 +58,10 @@ try {
   await page.getByRole('button', { name: 'Cerrar estudio', exact: true }).click();
   const result = await page.evaluate(async () => {
     const { bookEngine: engine, promoLab: lab } = window;
-    const { drawOverlay, overlayTheme, loadTypography } = await import('/src/promo/overlay.ts');
-    const project = lab.projectFromTemplate('clasica'); project.set = 'mantel-azul'; project.format = '16:9';
+    const { drawOverlay, overlayTheme, loadTextFonts } = await import('/src/promo/overlay.ts');
+    const project = lab.projectFromTemplate('clasica'); project.cloth = 'mantel-azul'; project.format = '16:9';
     const timeline = lab.compileProject(project, engine.currentBook);
-    await loadTypography(timeline.typography); engine.enterStudio();
+    await loadTextFonts(timeline); engine.enterStudio();
     const titleCanvas = document.createElement('canvas'); titleCanvas.width = 960; titleCanvas.height = 540;
     const c = titleCanvas.getContext('2d'); const calls = []; const fill = c.fillText.bind(c);
     c.fillText = (text, ...args) => { calls.push({ text, alpha: c.globalAlpha }); fill(text, ...args); };
@@ -72,7 +72,8 @@ try {
     timeline.width = 960; timeline.height = 540;
     const first = (await lab.renderStills(engine, timeline, [0]))[0];
     const shots = [{ name: 'titulo-inicio.png', bytes: [...new Uint8Array(await first.arrayBuffer())] }];
-    const base = lab.SET_PRESETS.find((s) => s.id === 'mantel-azul');
+    const { resolveCloth } = await import('/src/book/scenarios.ts');
+    const base = { ...lab.SET_PRESETS[0], cloth: resolveCloth('mantel-azul') };
     const measurements = await engine.renderSession(960, 540, 36, async (draw, source) => {
       const copy = document.createElement('canvas'); copy.width = 960; copy.height = 540; const ctx = copy.getContext('2d');
       const images = [];
@@ -104,7 +105,7 @@ try {
   if (process.argv.includes('--video')) {
     const video = await page.evaluate(async () => {
       const { bookEngine: engine, promoLab: lab } = window;
-      const project = lab.projectFromTemplate('clasica', { format: '16:9', set: 'mantel-azul', windowShadow: 0.65 });
+      const project = lab.projectFromTemplate('clasica', { format: '16:9', cloth: 'mantel-azul', windowShadow: 0.65 });
       const timeline = lab.compileProject(project, engine.currentBook);
       timeline.width = 640; timeline.height = 360;
       return lab.blobToBase64(await lab.recordTimeline(engine, timeline, { fps: 24 }));

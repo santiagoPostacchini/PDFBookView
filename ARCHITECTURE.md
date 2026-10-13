@@ -116,3 +116,18 @@ Una entrada por decisión. No se borran: si una cambia, se marca como reemplazad
 - Razón: cada paso responde una pregunta (qué estilo, qué historia, qué textos, qué ambiente, cómo exportar) y todo se alcanza con teclado, en celular y en escritorio; una prueba automática (`ui-a11y-e2e.mjs`) vigila desbordes, nombres accesibles y foco a 390, 768 y 1440 px, y otra (`contrast.test.ts`) el contraste del texto.
 - Alternativas consideradas: cuatro pasos con el ambiente dentro de Estilo (el usuario prefirió cinco por simpleza visual).
 - Estado: vigente
+
+### D-014: Textos del video como ítems independientes (2026-10-12)
+- Contexto: título, línea chica, llamado a la acción y usuario eran campos fijos atados a la primera escena y al cierre, con una tipografía global.
+- Decisión: cada texto es un ítem (`TextItem`) con fuente propia (integrada o subida por la persona), color, tamaño, posición, inicio y duración; ya no es obligatorio que haya textos al principio ni al final. Se editan con panel y arrastre en la vista previa.
+- Razón: más libertad de diseño con menos pantallas fijas; se eliminan los campos fijos, la frase por escena y la tipografía global.
+- Consecuencia: `projectStorage` sube a versión 2 con migración desde v1; las fuentes subidas viven en IndexedDB del navegador, nunca en el repositorio.
+
+### D-015: Cámara libre y rueda como zoom (2026-10-12)
+- Decisión: click derecho para mirar, W/A/S/D/Q/E para moverse, rueda para el zoom; se quitan los botones Acercar/Alejar. En Video la pose libre se guarda en la toma (`SceneCamera.free`) para que el MP4 coincida con la vista previa.
+- Razón: control directo como en un visor 3D, sin sliders de zoom. El click izquierdo sigue pasando hojas y orbitando.
+
+### D-016: Mesa, mantel y fondo independientes (2026-10-12)
+- Contexto: un único escenario fijaba piso, mantel, horizonte y niebla; elegir un color anulaba el mantel y viceversa.
+- Decisión: tres ajustes separados: usar mesa (sí/no), mantel (presets y color a elección) y fondo (presets y color a elección). Sin mesa se ve solo el fondo; el mantel existe únicamente con mesa.
+- Consecuencia: los ids `mantel-*` migran a mantel + mesa activada; el fondo se muestra con el color elegido sin oscurecerlo.

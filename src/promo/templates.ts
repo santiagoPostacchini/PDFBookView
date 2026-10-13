@@ -1,4 +1,4 @@
-import type { PromoProject, PromoTexts, SceneKind, SceneSpec, TypographyId } from './model';
+import type { PromoProject, TextItem, FormatId, SceneKind, SceneSpec, TypographyId } from './model';
 
 /** Catálogo de escenas tal como se muestran en el guion (storyboard). */
 export const SCENES: Record<SceneKind, { label: string; hint: string; base: number; usesSpread: boolean }> = {
@@ -8,7 +8,7 @@ export const SCENES: Record<SceneKind, { label: string; hint: string; base: numb
   hojeo: { label: 'Hojeo', hint: 'Pasan varias hojas seguidas, vistas de costado.', base: 2.6, usesSpread: true },
   detalle: { label: 'Detalle', hint: 'Primer plano de una página, con fondo desenfocado.', base: 2.4, usesSpread: true },
   cenital: { label: 'Vista cenital', hint: 'Desde arriba, como una foto de producto plana.', base: 2.4, usesSpread: true },
-  cierre: { label: 'Cierre', hint: 'El álbum se cierra y aparece tu llamado a la acción.', base: 3.0, usesSpread: false },
+  cierre: { label: 'Cierre', hint: 'El álbum se cierra en el último plano.', base: 3.0, usesSpread: false },
   figuritas: { label: 'Figuritas', hint: 'El paquete se abre y tus figuritas vuelan hasta su lugar en el álbum.', base: 6, usesSpread: false },
 };
 
@@ -64,10 +64,10 @@ export const TEMPLATES: Template[] = [
     scenes: [
       { kind: 'portada' },
       { kind: 'apertura' },
-      { kind: 'doblePagina', caption: 'Tus fotos, tu historia' },
+      { kind: 'doblePagina' },
       { kind: 'hojeo' },
       { kind: 'detalle' },
-      { kind: 'cenital', caption: 'Impreso y armado a mano' },
+      { kind: 'cenital' },
       { kind: 'cierre' },
     ],
   },
@@ -89,7 +89,7 @@ export const TEMPLATES: Template[] = [
       { kind: 'portada' },
       { kind: 'apertura' },
       { kind: 'hojeo' },
-      { kind: 'doblePagina', caption: 'Diseño personalizado' },
+      { kind: 'doblePagina' },
       { kind: 'detalle' },
       { kind: 'cierre' },
     ],
@@ -124,7 +124,7 @@ export const TEMPLATES: Template[] = [
   },
 ];
 
-export const DEFAULT_TEXTS: PromoTexts = {
+export const DEFAULT_TEXTS = {
   title: 'Álbum personalizado',
   subtitle: 'Hecho a mano, página por página',
   cta: 'Pedí el tuyo',
@@ -143,10 +143,25 @@ export function projectFromTemplate(id: string, overrides: Partial<PromoProject>
     format: '9:16',
     duration: t.duration,
     scenes: t.scenes.map((s) => ({ ...s })),
-    texts: { ...DEFAULT_TEXTS },
-    typography: t.typography,
+    textItems: initialTextItems(t, overrides.format ?? '9:16', overrides.duration ?? t.duration),
     set: t.set,
     lighting: t.lighting,
     ...overrides,
   };
+}
+
+/** Siembra inicial; los tiempos dejan de seguir a las escenas después de crear el video. */
+export function initialTextItems(t: Template, format: FormatId, duration: number): TextItem[] {
+  const weights = t.scenes.map(s => SCENES[s.kind].base * ({ corta: 0.75, normal: 1, larga: 1.35 }[s.length ?? 'normal']));
+  const sum = weights.reduce((a, b) => a + b, 0);
+  const first = duration * weights[0] / sum;
+  const last = duration * weights[weights.length - 1] / sum;
+  const closing = duration - last + Math.min(0.7, last * 0.25);
+  const vertical = format === '9:16';
+  return (['subtitle', 'title', 'cta', 'handle'] as const).map((id, i) => ({
+    id, text: DEFAULT_TEXTS[id], start: i < 2 ? 0 : closing, duration: i < 2 ? first : duration - closing,
+    x: 0.5, y: (vertical ? 0.17 : 0.09) + (i % 2) * (vertical ? 0.065 : 0.09),
+    size: (i === 1 || i === 2) ? (vertical ? 0.042 : 0.055) : (vertical ? 0.019 : 0.027),
+    color: 'auto', font: `builtin:${t.typography}`, align: 'centro', animation: i < 2 ? 'ninguna' : 'subir',
+  }));
 }

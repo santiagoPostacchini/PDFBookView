@@ -150,7 +150,7 @@ describe('figuritas y coreografía', () => {
     const project = projectFromTemplate('figuritas', { scenes: [{ kind: 'figuritas', stickers: [{ id: 'a', slot: 13 }, { id: 'b', page: 2 }] }] });
     expect(sanitizeProject(project)?.scenes).toEqual(project.scenes);
     expect(duplicateScene(project, 0).project.scenes[1]).toEqual(project.scenes[0]);
-    expect(updateScene(project, 0, { caption: 'Recuerdos' }).scenes[0].stickers).toEqual(project.scenes[0].stickers);
+    expect(updateScene(project, 0, { length: 'larga' }).scenes[0].stickers).toEqual(project.scenes[0].stickers);
     expect(sanitizeProject({ ...project, scenes: [{ kind: 'figuritas', stickers: [{ id: 'a', page: -1 }, { id: 42 }] }] })?.scenes[0].stickers).toEqual([{ id: 'a' }]);
   });
 });

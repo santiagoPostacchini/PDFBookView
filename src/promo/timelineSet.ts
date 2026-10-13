@@ -1,5 +1,5 @@
 import { SET_PRESETS, type StageSetSpec } from '../book/StageSet';
-import { resolveScenario } from '../book/scenarios';
+import { resolveCloth, resolveScenario } from '../book/scenarios';
 import type { Timeline } from './compile';
 import { packTableBounds } from './figuritas/choreography';
 export function timelineSet(timeline: Timeline): StageSetSpec {
@@ -11,5 +11,5 @@ export function timelineSet(timeline: Timeline): StageSetSpec {
     width: 2 * Math.max(...bounds.map((b) => Math.max(Math.abs(b.minX), Math.abs(b.maxX)) + 0.4)),
     depth: 2 * Math.max(...bounds.map((b) => Math.max(Math.abs(b.minZ), Math.abs(b.maxZ)) + 0.4)),
   } : undefined;
-  return { ...base, ...(tableSize ? { tableSize } : {}), table: timeline.table ?? true, windowShadow: strength > 0, windowStrength: strength };
+  return { ...base, cloth: resolveCloth(timeline.cloth), ...(tableSize ? { tableSize } : {}), table: timeline.table ?? true, windowShadow: strength > 0, windowStrength: strength };
 }

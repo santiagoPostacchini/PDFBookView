@@ -21,29 +21,34 @@ try {
   };
   await load();
   for (const [label, pattern] of [['cuadros rosa', 'vichy-rosa'], ['cuadros azul', 'vichy-azul'], ['rayas salvia', 'rayas-salvia']]) {
-    await page.getByRole('button', { name: `Mantel · ${label}`, exact: false }).click();
-    await page.waitForFunction((value) => window.bookEngine.stageSet?.tablecloth === value, pattern);
+    await page.getByRole('button', { name: `Mantel ${label[0].toUpperCase() + label.slice(1)}`, exact: false }).click();
+    await page.waitForFunction((value) => window.bookEngine.stageSet?.cloth?.tablecloth === value, pattern);
   }
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf'))?.project.set === 'mantel-rayas');
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf'))?.project.cloth === 'mantel-rayas');
   await load();
-  await page.waitForFunction(() => window.bookEngine.stageSet?.tablecloth === 'rayas-salvia');
-  await page.getByRole('button', { name: 'Escenario Arena', exact: true }).click();
-  await page.waitForFunction(() => !window.bookEngine.stageSet?.tablecloth);
-  await page.getByLabel('Color de escenario a elección', { exact: true }).fill('#a1b2c3');
-  await page.waitForFunction(() => window.bookEngine.stageSet?.color === '#a1b2c3');
+  await page.waitForFunction(() => window.bookEngine.stageSet?.cloth?.tablecloth === 'rayas-salvia');
+  await page.getByRole('button', { name: 'Fondo Arena', exact: true }).click();
+  await page.waitForFunction(() => window.bookEngine.stageSet?.color === '#dcc6a8' && window.bookEngine.stageSet?.cloth?.tablecloth === 'rayas-salvia');
+  await page.getByLabel('Usar mesa', { exact: true }).uncheck();
+  await page.waitForFunction(() => window.bookEngine.stageSet?.table === false);
+  await page.getByLabel('Usar mesa', { exact: true }).check();
+  await page.getByLabel('Color de mantel a elección', { exact: true }).fill('#123456');
+  await page.getByLabel('Color de fondo a elección', { exact: true }).fill('#a1b2c3');
+  await page.waitForFunction(() => window.bookEngine.stageSet?.color === '#a1b2c3' && window.bookEngine.stageSet?.cloth?.color === '#123456');
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf'))?.project.set === 'color:#a1b2c3');
   await load();
-  await page.waitForFunction(() => window.bookEngine.stageSet?.color === '#a1b2c3');
+  await page.waitForFunction(() => window.bookEngine.stageSet?.color === '#a1b2c3' && window.bookEngine.stageSet?.cloth?.color === '#123456');
   await page.getByRole('button', { name: 'Cerrar estudio', exact: true }).click();
   const result = await page.evaluate(async () => {
     const { bookEngine: engine, promoLab: lab } = window;
     engine.enterStudio();
-    const presets = lab.SET_PRESETS.filter((s) => s.tablecloth);
+    const { CLOTHS } = await import('/src/book/scenarios.ts');
+    const presets = CLOTHS.filter((s) => s.tablecloth);
     const canvas = document.createElement('canvas'); canvas.width = 960; canvas.height = 920;
     const ctx = canvas.getContext('2d'); ctx.fillStyle = '#201e1c'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     const shots = [];
     for (let i = 0; i < presets.length; i++) {
-      const project = lab.projectFromTemplate('clasica'); project.set = presets[i].id; project.format = '16:9';
+      const project = lab.projectFromTemplate('clasica'); project.cloth = presets[i].id; project.format = '16:9';
       const timeline = lab.compileProject(project, engine.currentBook); timeline.width = 960; timeline.height = 540;
       const times = [timeline.scenes[0], timeline.scenes[2]].map((s) => s.start + (s.end - s.start) * 0.65);
       const blobs = await lab.renderStills(engine, timeline, times);

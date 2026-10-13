@@ -1,4 +1,4 @@
-import { posePosition, type CamPose } from './framing';
+import { poseFromPosition, posePosition, type CamPose } from './framing';
 
 /**
  * Recorrido de cámara continuo: una curva suave (Catmull-Rom centrípeta, sin
@@ -20,12 +20,7 @@ type Vec = number[];
 const channels = (k: PathKey): Vec => [...posePosition(k.pose), ...k.pose.target, k.aperture];
 
 const toPose = (v: Vec): { pose: CamPose; aperture: number } => ({
-  pose: {
-    azimuth: Math.atan2(v[0] - v[3], v[2] - v[5]) * 180 / Math.PI,
-    elevation: Math.max(5, Math.min(86, Math.atan2(v[1] - Math.max(0, v[4]), Math.hypot(v[0] - v[3], v[2] - v[5])) * 180 / Math.PI)),
-    distance: Math.max(0.01, Math.hypot(v[0] - v[3], v[1] - Math.max(0, v[4]), v[2] - v[5])),
-    target: [v[3], Math.max(0, v[4]), v[5]],
-  },
+  pose: poseFromPosition(v.slice(0, 3), [v[3], v[4], v[5]]),
   aperture: Math.max(0, v[6]),
 });
 

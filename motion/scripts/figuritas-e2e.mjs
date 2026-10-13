@@ -25,6 +25,8 @@ try {
   await page.getByRole('tab', { name: 'Video promocional' }).click();
   await page.locator('.template-card').filter({ has: page.locator('b', { hasText: /^Figuritas$/ }) }).click();
   await page.locator('.storyboard .scene-card').nth(3).click();
+  await page.waitForFunction(() => Object.keys(localStorage).some(k => k.startsWith('pdf-book-view.video:') && JSON.parse(localStorage.getItem(k)).version === 2));
+  assert.equal(await page.evaluate(() => { const key = Object.keys(localStorage).find(k => k.startsWith('pdf-book-view.video:')); const { project } = JSON.parse(localStorage.getItem(key)); return project.textItems.length === 4 && !('texts' in project) && !('typography' in project); }), true);
   assert.equal(await page.getByText('Todavía no cargaste figuritas', { exact: true }).isVisible(), true);
   assert.equal(await page.locator('.sticker-pack details').getAttribute('open'), null);
   await page.getByLabel('Cargar figuritas', { exact: true }).setInputFiles(sheet);
@@ -109,7 +111,7 @@ try {
       console.log('Sitios', library.stickers.map((s) => [s.number, slots.get(s.number)]));
       const samples = {}, curves = {}, destinations = [];
       for (const format of ['9:16', '16:9']) {
-        const project = projectFromTemplate('figuritas', { format, set: 'mantel-rosa' });
+        const project = projectFromTemplate('figuritas', { format, cloth: 'mantel-rosa' });
         // Seis figuritas en una escena y la séptima en otra, para comprobar las siete.
         project.scenes[3].stickers = library.stickers.slice(0, 6).map((s) => ({ id: s.id }));
         project.scenes.splice(4, 0, { kind: 'figuritas', stickers: library.stickers.slice(6).map((s) => ({ id: s.id })) });
@@ -174,6 +176,8 @@ try {
   await page.getByRole('tab', { name: 'Ambiente', exact: false }).first().click();
   await page.getByRole('button', { name: 'Automático · color de la tapa' }).click();
   await page.waitForFunction(() => window.bookEngine.stageSet?.color && !window.bookEngine.stageSet.id);
+  await page.getByRole('button', { name: 'Mantel Cuadros rosa', exact: true }).click();
+  await page.waitForFunction(() => window.bookEngine.stageSet?.cloth?.tablecloth === 'vichy-rosa');
   const autoColor = await page.evaluate(() => window.bookEngine.stageSet.color);
   assert.notEqual(autoColor, '#dcc6a8');
   await page.getByRole('tab', { name: 'Exportar', exact: false }).first().click();

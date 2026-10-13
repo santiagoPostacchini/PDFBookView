@@ -1,8 +1,10 @@
+import { sanitizeTextItems } from './textItems';
+import { sceneDurations } from './compile';
 import { LIGHTING_PRESETS } from '../book/Stage';
-import { customScenarioColor } from '../book/scenarios';
+import { customScenarioColor, resolveCloth } from '../book/scenarios';
 import { SET_PRESETS } from '../book/StageSet';
-import { FORMATS, type FormatId, type PromoProject, type PromoTexts, type SceneLength, type SceneSpec, type TypographyId } from './model';
-import { DEFAULT_TEXTS, projectFromTemplate, SCENES, TEMPLATES, TYPOGRAPHY } from './templates';
+import { FORMATS, type BookShape, type FormatId, type PromoProject, type SceneLength, type SceneSpec, type TextItem } from './model';
+import { projectFromTemplate, SCENES, TEMPLATES } from './templates';
 import { sanitizeSceneCamera } from './sceneCamera';
 
 /**
@@ -18,11 +20,11 @@ export interface VideoDraft {
   formats: FormatId[];
 }
 
-export type BrandKit = Partial<Pick<PromoTexts, 'cta' | 'handle'>>;
+export type BrandKit = { cta?: string; handle?: string };
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
-const VERSION = 1;
+const VERSION = 2;
 const draftKey = (fileName: string) => `pdf-book-view.video:${fileName.toLowerCase()}`;
 const BRAND_KEY = 'pdf-book-view.marca';
 const MAX_SCENES = 16;
@@ -48,7 +50,6 @@ function sanitizeScene(raw: unknown): SceneSpec | null {
   const camera = sanitizeSceneCamera(raw.camera);
   if (camera) scene.camera = camera;
   if (Number.isInteger(raw.spread) && (raw.spread as number) >= 1 && (raw.spread as number) <= 999) scene.spread = raw.spread as number;
-  if (typeof raw.caption === 'string' && raw.caption.trim()) scene.caption = raw.caption.slice(0, 80);
   const length = oneOf(raw.length, LENGTHS, 'normal');
   if (length !== 'normal') scene.length = length;
   if (scene.kind === 'figuritas' && Array.isArray(raw.stickers)) {
@@ -69,23 +70,19 @@ export function sanitizeProject(raw: unknown): PromoProject | null {
   const template = TEMPLATES.find((t) => t.id === raw.template) ?? TEMPLATES[0];
   const base = projectFromTemplate(template.id);
   const scenes = Array.isArray(raw.scenes) ? raw.scenes.map(sanitizeScene).filter((s): s is SceneSpec => s !== null).slice(0, MAX_SCENES) : [];
-  const texts = isObject(raw.texts) ? raw.texts : {};
   const duration = typeof raw.duration === 'number' && Number.isFinite(raw.duration) ? Math.max(6, Math.min(60, raw.duration)) : base.duration;
+  const legacyCloth = typeof raw.set === 'string' && raw.set.startsWith('mantel-') && resolveCloth(raw.set) ? raw.set : undefined;
+  const cloth = typeof raw.cloth === 'string' && resolveCloth(raw.cloth) ? raw.cloth : legacyCloth;
   return {
     windowShadow: typeof raw.windowShadow === 'number' && Number.isFinite(raw.windowShadow) ? Math.max(0, Math.min(1, raw.windowShadow)) : undefined,
-    table: typeof raw.table === 'boolean' ? raw.table : undefined,
+    cloth,
+    table: legacyCloth ? true : typeof raw.table === 'boolean' ? raw.table : undefined,
     ambientOcclusion: typeof raw.ambientOcclusion === 'number' && Number.isFinite(raw.ambientOcclusion) ? Math.max(0, Math.min(1, raw.ambientOcclusion)) : undefined,
     template: template.id,
     format: oneOf(raw.format, FORMAT_IDS, base.format),
     duration: Math.round(duration * 10) / 10,
     scenes: scenes.length ? scenes : base.scenes,
-    texts: {
-      title: text(texts.title, 60, DEFAULT_TEXTS.title),
-      subtitle: text(texts.subtitle, 60, DEFAULT_TEXTS.subtitle),
-      cta: text(texts.cta, 60, DEFAULT_TEXTS.cta),
-      handle: text(texts.handle, 60, DEFAULT_TEXTS.handle),
-    },
-    typography: oneOf(raw.typography, Object.keys(TYPOGRAPHY) as TypographyId[], base.typography),
+    textItems: Array.isArray(raw.textItems) ? sanitizeTextItems(raw.textItems) : base.textItems,
     set: typeof raw.set === 'string' && customScenarioColor(raw.set) ? raw.set : oneOf(
       raw.set,
       [...SET_PRESETS.map((s) => s.id), 'automatico'],
@@ -108,15 +105,15 @@ function sanitizeFormats(raw: unknown, preview: FormatId): FormatId[] {
 /** Video nuevo para un álbum: plantilla Clásica con los textos de "Mi marca". */
 export function newDraft(brand: BrandKit = {}, templateId = TEMPLATES[0].id): VideoDraft {
   const project = projectFromTemplate(templateId);
-  project.texts = { ...project.texts, ...Object.fromEntries(Object.entries(brand).filter(([, v]) => typeof v === 'string' && v)) };
+  project.textItems = sanitizeTextItems(project.textItems.map(item => ({ ...item, text: brand[item.id as keyof BrandKit] || item.text })));
   return { project, formats: [project.format] };
 }
 
-export function loadDraft(fileName: string, storage: StorageLike | null = defaultStorage()): VideoDraft | null {
+export function loadDraft(fileName: string, storage: StorageLike | null = defaultStorage(), book?: BookShape): VideoDraft | null {
   try {
     const raw = JSON.parse(storage?.getItem(draftKey(fileName)) ?? 'null');
-    if (!isObject(raw) || raw.version !== VERSION) return null;
-    const project = sanitizeProject(raw.project);
+    if (!isObject(raw) || (raw.version !== VERSION && raw.version !== 1)) return null;
+    const project = raw.version === 1 ? migrateV1Project(raw.project, book) : sanitizeProject(raw.project);
     return project ? { project, formats: sanitizeFormats(raw.formats, project.format) } : null;
   } catch {
     return null;
@@ -150,4 +147,40 @@ export function saveBrand(brand: BrandKit, storage: StorageLike | null = default
   } catch {
     /* sin almacenamiento */
   }
+}
+
+/**
+ * Migración liviana: conserva los pesos y mínimos de v1, sin calcular cámaras.
+ * Sin medidas se presupone un libro con interiores; con medidas se omiten las
+ * escenas que no puede abrir. Figuritas conserva su peso base porque sus assets
+ * se cargan de manera asíncrona y no están en el borrador.
+ */
+export function migrateV1Project(raw: unknown, book?: BookShape): PromoProject | null {
+  const project = sanitizeProject(raw);
+  if (!project || !isObject(raw)) return null;
+  const oldTexts = isObject(raw.texts) ? raw.texts : {};
+  const template = TEMPLATES.find(t => t.id === project.template)!;
+  const usable = project.scenes.map((scene, index) => ({ scene, index })).filter(({ scene }) => !book || book.leafCount >= 2 || scene.kind === 'portada' || scene.kind === 'cierre');
+  const seeds = projectFromTemplate(project.template, { format: project.format }).textItems;
+  const durations = sceneDurations(usable.map(({ scene: s }) => SCENES[s.kind].base * template.pace * ({ corta: 0.75, normal: 1, larga: 1.35 }[s.length ?? 'normal'])), project.duration,
+    usable.map(({ scene: s }) => s.kind === 'portada' ? 2 : s.kind === 'cierre' ? 2.6 : 1.3));
+  const font = typeof raw.typography === 'string' && ['clasica', 'moderna', 'manuscrita'].includes(raw.typography) ? `builtin:${raw.typography}` : project.textItems[0]?.font ?? 'builtin:clasica';
+  const items: TextItem[] = [];
+  let start = 0;
+  usable.forEach(({ scene, index }, i) => {
+    const end = start + durations[i];
+    for (const id of i === 0 ? ['subtitle', 'title'] : []) {
+      const seed = seeds.find(t => t.id === id)!;
+      items.push({ ...seed, text: text(oldTexts[id], 120, seed.text), start, duration: durations[i], font });
+    }
+    if (scene.kind === 'cierre') for (const id of ['cta', 'handle']) {
+      const seed = seeds.find(t => t.id === id)!;
+      const at = start + Math.min(0.7, durations[i] * 0.25);
+      items.push({ ...seed, id: `${id}-${i}`, text: text(oldTexts[id], 120, seed.text), start: at, duration: project.duration - at, font });
+    }
+    const oldScene = Array.isArray(raw.scenes) ? raw.scenes.filter(s => isObject(s) && typeof s.kind === 'string' && s.kind in SCENES)[index] : null;
+    if (isObject(oldScene) && typeof oldScene.caption === 'string' && oldScene.caption.trim()) items.push({ id: `frase-${i}`, text: oldScene.caption, start: start + 0.3, duration: Math.max(0.5, durations[i] - 0.4), x: 0.5, y: 0.73, size: 0.035, color: 'auto', font, animation: 'subir', align: 'centro' });
+    start = end;
+  });
+  return { ...project, textItems: sanitizeTextItems(items) };
 }

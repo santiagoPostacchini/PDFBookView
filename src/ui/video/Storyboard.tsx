@@ -6,7 +6,7 @@ import { sceneAt } from '../../promo/editing';
 import type { PromoProject } from '../../promo/model';
 import { SCENES } from '../../promo/templates';
 import { CanvasThumb } from '../CanvasThumb';
-import { IconPlay, IconPlus, IconStop } from '../icons';
+import { IconPlus } from '../icons';
 import { usePageThumbs } from '../usePageThumbs';
 
 interface Props {
@@ -21,17 +21,16 @@ interface Props {
   onSelect: (index: number) => void;
   onPlace: (from: number, to: number) => void;
   onAdd: () => void;
-  onTogglePlay: () => void;
 }
 
 export const seconds = (s: number) => s.toFixed(1).replace('.', ',');
 
 /**
  * Guion del video debajo del visor: una tarjeta por escena con las páginas que
- * muestra y cuánto dura. Se elige tocando, se reordena arrastrando y el botón
- * de la izquierda reproduce desde el principio.
+ * muestra y cuánto dura. Se elige tocando y se reordena arrastrando.
+ * Los controles de reproducción están en TimelineBar, arriba del guion.
  */
-export function Storyboard({ engine, project, timeline, selected, playing, clock, disabled, onSelect, onPlace, onAdd, onTogglePlay }: Props) {
+export function Storyboard({ engine, project, timeline, selected, playing, clock, disabled, onSelect, onPlace, onAdd }: Props) {
   const book = engine.currentBook;
   const pageCount = book?.pageCount ?? 0;
   const thumbs = usePageThumbs(engine, pageCount);
@@ -60,16 +59,6 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
 
   return (
     <div className="storyboard panel" role="toolbar" aria-label="Guion del video">
-      <button
-        className="storyboard-play"
-        onClick={onTogglePlay}
-        disabled={disabled}
-        aria-label={playing ? 'Detener' : 'Reproducir desde el principio'}
-        title={playing ? 'Detener' : 'Reproducir desde el principio'}
-      >
-        {playing ? <IconStop width={20} height={20} /> : <IconPlay width={20} height={20} />}
-      </button>
-
       <ol className="storyboard-track">
         {project.scenes.map((scene, i) => {
           const compiled = timeline.scenes.find((s) => s.index === i);
@@ -110,7 +99,7 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
                   onSelect(i);
                 }}
                 disabled={disabled}
-                title={compiled ? `${SCENES[scene.kind].hint} Arrastrala para cambiarla de lugar.` : 'Este álbum tiene una sola hoja: la escena se omite.'}
+                title={compiled ? `${SCENES[scene.kind].hint} Arrastrala para cambiarla de lugar.` : scene.kind === 'figuritas' ? 'Cargá figuritas para que esta escena aparezca en el video.' : 'Este álbum tiene una sola hoja: la escena se omite.'}
                 aria-current={i === active ? 'true' : undefined}
               >
                 <SceneThumb thumbs={thumbs} spread={compiled?.spread ?? 0} pageCount={pageCount} leafCount={book?.leafCount ?? 0} />
@@ -118,9 +107,8 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
                   <b>
                     {i + 1}. {SCENES[scene.kind].label}
                   </b>
-                  <small>{compiled ? `${seconds(compiled.end - compiled.start)} s` : 'se omite'}</small>
+                  <small>{compiled ? `${seconds(compiled.end - compiled.start)} s` : scene.kind === 'figuritas' ? 'faltan figuritas' : 'se omite'}</small>
                 </span>
-                {scene.caption && <span className="scene-card-caption">“{scene.caption}”</span>}
                 {progress !== null && <span className="scene-card-progress" style={{ width: `${Math.min(1, Math.max(0, progress)) * 100}%` }} />}
               </button>
             </li>
@@ -134,9 +122,6 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
         </li>
       </ol>
 
-      <span className="storyboard-time" aria-live="off">
-        {seconds(clock)} / {seconds(timeline.duration)} s
-      </span>
     </div>
   );
 }

@@ -68,8 +68,8 @@ const result = await page.evaluate(async (o) => {
   if (o.duration) project.duration = o.duration;
   if (o.set) project.set = o.set;
   if (o.lighting) project.lighting = o.lighting;
-  if (o.handle) project.texts.handle = o.handle;
-  if (o.typography) project.typography = o.typography;
+  if (o.handle) project.textItems.find(t => t.id === 'handle').text = o.handle;
+  if (o.typography) project.textItems = project.textItems.map(t => ({ ...t, font: `builtin:${o.typography}` }));
   const book = engine.currentBook;
   const timeline = lab.compileProject(project, book);
   const times = o.frames ? o.frames.split(',').map(Number) : timeline.scenes.map((s) => (s.start + s.end) / 2);
@@ -120,8 +120,8 @@ if (has('video')) {
     if (o.duration) project.duration = o.duration;
     if (o.set) project.set = o.set;
     if (o.lighting) project.lighting = o.lighting;
-    if (o.handle) project.texts.handle = o.handle;
-    if (o.typography) project.typography = o.typography;
+    if (o.handle) project.textItems.find(t => t.id === 'handle').text = o.handle;
+    if (o.typography) project.textItems = project.textItems.map(t => ({ ...t, font: `builtin:${o.typography}` }));
     const timeline = lab.compileProject(project, engine.currentBook);
     let last = 0;
     const blob = await lab.recordTimeline(engine, timeline, {

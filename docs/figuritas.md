@@ -11,7 +11,7 @@
 
 **Ocultar barra** y **Mostrar barra** recuerdan la preferencia por separado para Video (oculta por defecto) y Foto/lectura (visible por defecto). Al volver a Foto o cerrar el Estudio se recupera la preferencia general. El cuadro del video aprovecha el espacio liberado.
 
-Todas las plantillas empiezan con **planos fijos con cortes**. El guion alterna tapa, apertura, doble página, detalle y vista cenital. En **Historia → Movimiento de esta toma → Acercamiento de esta toma** podés elegir el zoom fijo, entre el encuadre original y el doble de acercamiento, sin activar ningún movimiento. Podés dejar elementos fuera del cuadro según tu preferencia; el valor se guarda por toma.
+Todas las plantillas empiezan con **planos fijos con cortes**. El guion alterna tapa, apertura, doble página, detalle y vista cenital. Mové la cámara directamente en la vista previa para elegir el encuadre de cada toma; se guarda al terminar el gesto. **Restablecer encuadre** recupera el plano calculado y borra el acercamiento antiguo.
 
 Para darle movimiento a una toma, elegila en **Historia → Movimiento de esta toma**. **Activar zoom suave** permite definir el acercamiento inicial y final entre 0% y 10%; si el inicial es mayor, la cámara se aleja. **Activar movimiento lateral** permite elegir dirección y recorrido, hasta 15% del ancho de una página. **Girar alrededor del centro del álbum** convierte ese desplazamiento en una órbita suave de hasta 9°, con el centro en foco. Podés combinarlo con el zoom. **Ver punto inicial**, **Ver punto final** y **Ver esta toma** permiten revisar el recorrido antes de exportar. Apagar los movimientos vuelve al plano fijo y conserva los valores para reactivarlos. Cada toma guarda sus ajustes, que también se aplican al MP4.
 
@@ -19,7 +19,7 @@ El título de **Al empezar** aparece en la primera toma utilizable, aunque hayas
 
 En **Ambiente → Escenario**, **Automático · color de la tapa** toma un tono de la portada para el escenario. Si no encuentra un tono útil, usa Arena. El botón **Luz de ventana** permite elegir lino cálido con sombras suaves del marco para cualquier plantilla, sin cambiar el guion.
 
-En las muestras compactas de **Ambiente → Escenario**, compartidas con Foto, elegí cuadros rosa, cuadros azul o rayas salvia. En **Luz**, **Sombra de ventana** ajusta cuánto se ve el marco sobre cualquier superficie o mantel; 0% lo apaga. **Sombras de contacto** regula la oclusión ambiental y **Mostrar mesa con bordes y patas** permite alternar entre una mesa finita y la superficie extendida. Estos ajustes quedan guardados con el video. El antialiasing se aplica automáticamente.
+En **Ambiente**, elegí el **Fondo**, activá **Usar mesa** y elegí el **Mantel** por separado. Fondo y mantel admiten presets y color propio; cambiar el fondo conserva el mantel. Sin mesa solo se ve el fondo, y al encenderla vuelve el mantel elegido. **Sombra de ventana** se combina con ambos (0% la apaga); **Sombras de contacto** queda en Más ajustes. Los borradores con escenarios mantel-* migran al fondo de la plantilla, con mantel y mesa encendida. Estos ajustes quedan guardados con el video.
 
 ## Tamaños y destinos
 
@@ -40,3 +40,11 @@ Las imágenes y el paquete se guardan por nombre de álbum en el navegador, medi
 - `node scripts/camera-motion-e2e.mjs [URL]` verifica zoom y lateral por toma, ambos puntos, reproducción acotada, persistencia, desactivación y exportación MP4 real.
 
 La música opcional (T-008) queda para una etapa posterior por decisión del usuario.
+
+La cámara se maneja en la vista previa: click izquierdo gira (sobre el libro en Foto pasa o arrastra hojas), click derecho mira, W/A/S/D desplazan en el plano de vista y Q/E bajan/suben. La rueda acerca/aleja; + y - siguen disponibles y 0 vuelve a la vista inicial. En Video se guarda el encuadre por toma al terminar el gesto, persiste al recargar y se usa al exportar MP4. Durante la reproducción los controles se deshabilitan. Restablecer encuadre borra la pose libre y el acercamiento antiguo; zoom suave y movimiento lateral siguen siendo opcionales.
+
+## Textos independientes (F-3a)
+
+Los textos ya no pertenecen a una escena: Textos y marca muestra una lista con contenido, inicio y duración propios. La escena Figuritas no tiene un campo de frase; al reordenar o ajustar escenas los ítems conservan sus tiempos. Los videos nuevos traen los cuatro textos de la plantilla y los borradores v1 migran a v2 conservando título, línea chica, llamado, usuario y frases guardadas. Mi marca sólo se usa al crear un video.
+
+La migración calcula los intervalos con los pesos y mínimos de v1 sin ejecutar el render 3D. Con medidas del libro omite escenas que no pueden abrirse. Como el borrador no contiene los assets de Figuritas (se cargan por separado), su intervalo se aproxima con el peso base. El dibujo avanzado, las fuentes subidas y la manipulación visual quedan para F-3b/F-3c.

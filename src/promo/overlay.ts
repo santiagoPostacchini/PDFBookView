@@ -1,11 +1,11 @@
 import type { OverlayCue, Timeline } from './compile';
 import type { TypographyId } from './model';
 import { TYPOGRAPHY } from './templates';
+import { ensureFont, userFontFamily } from './fonts';
 
 /**
- * Textos en pantalla del video (título, frases y cierre), dibujados en un canvas
- * 2D encima del cuadro 3D. Animaciones sobrias (aparecer subiendo, el interletrado
- * que se cierra, una línea que crece) y siempre dentro de las zonas seguras.
+ * Ítems de texto dibujados en el mismo canvas 2D para vista previa y MP4.
+ * La posición y alineación son propias del ítem; las guías seguras las pinta preview.
  */
 
 export interface OverlayTheme {
@@ -55,149 +55,79 @@ export async function loadTypography(id: TypographyId): Promise<void> {
   loaded.add(id);
 }
 
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const easeOut = (x: number) => 1 - (1 - clamp01(x)) ** 3;
-
-interface Layout {
-  /** Escala respecto de un cuadro de 1080 px de lado corto. */
-  unit: number;
-  /** Escala extra de los títulos (en cuadrado hay menos alto disponible). */
-  head: number;
-  align: 'center' | 'left';
-  x: number;
-  maxWidth: number;
-  /** Arriba del bloque de título/cierre y centro de las frases. */
-  headTop: number;
-  captionY: number;
-  /** Las frases siempre van centradas abajo. */
-  captionX: number;
+export async function loadTextFonts(timeline: Timeline): Promise<void> {
+  await Promise.all([...new Set([`builtin:${timeline.textTypography ?? 'clasica'}`, ...timeline.cues.map(c => c.font)])].map(ensureFont));
 }
-
-/**
- * Zonas seguras: Reels/TikTok tapan ~13 % arriba, la columna de botones a la
- * derecha y abajo el usuario y la descripción (~25 %; en anuncios, hasta 35 %).
- */
-function layoutFor(w: number, h: number): Layout {
-  const unit = Math.min(w, h) / 1080;
-  const aspect = w / h;
-  if (aspect > 1.3) return { unit, head: 0.85, align: 'left', x: w * 0.07, maxWidth: w * 0.34, headTop: h * 0.3, captionX: w * 0.5, captionY: h * 0.92 };
-  if (aspect < 0.7) return { unit, head: 1, align: 'center', x: w * 0.48, maxWidth: w * 0.76, headTop: h * 0.15, captionX: w * 0.48, captionY: h * 0.725 };
-  return { unit, head: 0.72, align: 'center', x: w * 0.5, maxWidth: w * 0.84, headTop: h * 0.06, captionX: w * 0.5, captionY: h * 0.915 };
+export const CUE_MAX_WIDTH = 0.84;
+export const CUE_LINE_HEIGHT = 1.1;
+function fontCss(cue: OverlayCue, size: number): string {
+  const builtin = TYPOGRAPHY[cue.font.slice(8) as TypographyId] ?? TYPOGRAPHY.clasica;
+  const family = cue.font.startsWith('user:') ? cue.font.replace(':', '-') : builtin.display;
+  return `${cue.bold ? 700 : builtin.displayWeight} ${size}px "${family}", serif`;
 }
-
-function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(/\s+/).filter(Boolean);
+/** Caja tipográfica (em), sin halo ni desplazamiento de animación; x es el ancla de alineación. */
+export function layoutCue(measure: (text: string, fontCss: string) => number, cue: OverlayCue, frameWidth: number, frameHeight: number) {
+  const size = cue.size * frameHeight, css = fontCss(cue, size);
+  const max = frameWidth * CUE_MAX_WIDTH;
   const lines: string[] = [];
-  let line = '';
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (line && ctx.measureText(next).width > maxWidth) {
-      lines.push(line);
-      line = word;
-    } else line = next;
+  for (const paragraph of cue.text.split('\n')) {
+    let line = '';
+    for (const word of paragraph.split(/\s+/).filter(Boolean)) {
+      const next = line ? `${line} ${word}` : word;
+      if (line && measure(next, css) > max) { lines.push(line); line = ''; }
+      else if (line) line += ' ';
+      // También parte palabras largas, sin comprimir las letras con fillText(maxWidth).
+      for (const char of word) {
+        if (line && measure(line + char, css) > max) { lines.push(line); line = ''; }
+        line += char;
+      }
+    }
+    lines.push(line.trimEnd());
   }
-  if (line) lines.push(line);
-  return lines;
+  const width = Math.max(0, ...lines.map(line => measure(line, css)));
+  const height = size + (lines.length - 1) * size * CUE_LINE_HEIGHT;
+  const x = cue.x * frameWidth - (cue.align === 'izquierda' ? 0 : cue.align === 'derecha' ? width : width / 2);
+  return { lines, size, fontCss: css, box: { x, y: cue.y * frameHeight - height / 2, width, height } };
 }
-
-/** Opacidad y desplazamiento de un elemento que entra en `delay` y sale al final del cue. */
-function motion(cue: OverlayCue, t: number, delay: number, unit: number) {
-  // La apertura ya tiene texto visible en el primer cuadro; el resto entra suavemente.
-  const enter = cue.kind === 'titulo' ? 1 : easeOut((t - cue.start - delay) / 0.7);
-  const exit = cue.end >= Number.MAX_SAFE_INTEGER ? 1 : 1 - easeOut((t - (cue.end - 0.45)) / 0.45);
-  return { alpha: Math.min(enter, exit), dy: (1 - enter) * 26 * unit - (1 - exit) * 10 * unit, enter };
-}
-
-export function drawOverlay(ctx: CanvasRenderingContext2D, timeline: Timeline, t: number, theme: OverlayTheme): void {
-  const { width: w, height: h } = ctx.canvas;
-  const font = TYPOGRAPHY[timeline.typography];
-  const L = layoutFor(w, h);
+export function measureCueBox(ctx: CanvasRenderingContext2D, cue: OverlayCue, frameWidth: number, frameHeight: number, fallback: TypographyId = 'clasica') {
   ctx.save();
-  ctx.textBaseline = 'alphabetic';
-  ctx.textAlign = L.align;
-  for (const cue of timeline.cues) {
-    if (t < cue.start || t > cue.end) continue;
-    const end = cue.end >= timeline.duration ? { ...cue, end: Number.MAX_SAFE_INTEGER } : cue;
-    if (cue.kind === 'frase') drawCaption(ctx, end, t, L, font, theme);
-    else drawHead(ctx, end, t, L, font, theme);
-  }
-  ctx.restore();
+  const resolved = cue.font.startsWith('user:') && !userFontFamily(cue.font) ? { ...cue, font: `builtin:${fallback}` } : cue;
+  try { return layoutCue((text, css) => { ctx.font = css; return ctx.measureText(text).width; }, resolved, frameWidth, frameHeight).box; }
+  finally { ctx.restore(); }
 }
-
-type Font = (typeof TYPOGRAPHY)[TypographyId];
-
-function setHalo(ctx: CanvasRenderingContext2D, theme: OverlayTheme, unit: number) {
-  ctx.shadowColor = theme.halo;
-  ctx.shadowBlur = 22 * unit;
-  ctx.shadowOffsetY = 0;
+const clamp = (v: number) => Math.max(0, Math.min(1, v));
+const easeOut = (v: number) => 1 - (1 - clamp(v)) ** 3;
+export function cueMotion(cue: OverlayCue, t: number, duration: number, frameHeight: number) {
+  if (t < cue.start || t > cue.end) return { alpha: 0, dy: 0 };
+  if (cue.animation === 'ninguna') return { alpha: 1, dy: 0 };
+  const length = cue.end - cue.start;
+  const enter = cue.start === 0 ? 1 : easeOut((t - cue.start) / Math.min(0.7, length / 2));
+  const exit = cue.end >= duration ? 1 : 1 - easeOut((t - cue.end + Math.min(0.45, length / 2)) / Math.min(0.45, length / 2));
+  return { alpha: Math.min(enter, exit), dy: cue.animation === 'subir' ? (1 - enter) * frameHeight * 0.015 : 0 };
 }
-
-/** Título de apertura o cierre: línea chica + texto grande + filete. */
-function drawHead(ctx: CanvasRenderingContext2D, cue: OverlayCue, t: number, L: Layout, font: Font, theme: OverlayTheme) {
-  const u = L.unit * L.head;
-  const isTitle = cue.kind === 'titulo';
-  const [small, big] = isTitle ? cue.lines : [cue.lines[1], cue.lines[0]];
-  const bigSize = (isTitle ? 132 : 124) * u;
-  ctx.font = `${font.displayWeight} ${bigSize}px "${font.display}"`;
-  const bigLines = wrap(ctx, big ?? '', L.maxWidth);
-  let y = L.headTop;
-  setHalo(ctx, theme, u);
-  ctx.fillStyle = theme.text;
-
-  // En la apertura, la línea chica va arriba; en el cierre, el usuario va abajo.
-  const drawSmall = (delay: number) => {
-    if (!small) return;
-    const m = motion(cue, t, delay, u);
-    const size = (isTitle ? 32 : 42) * u;
-    ctx.globalAlpha = m.alpha * 0.88;
-    ctx.font = `500 ${size}px "${font.body}"`;
-    ctx.letterSpacing = `${((isTitle ? 0.28 : 0.06) + (1 - m.enter) * 0.12) * size}px`;
-    ctx.fillText(isTitle ? small.toUpperCase() : small, L.x, y + size + m.dy);
-    ctx.letterSpacing = '0px';
-    y += size + 36 * u;
-  };
-
-  if (isTitle) drawSmall(0);
-  const m = motion(cue, t, isTitle ? 0.12 : 0, u);
-  ctx.globalAlpha = m.alpha;
-  ctx.font = `${font.displayWeight} ${bigSize}px "${font.display}"`;
-  ctx.letterSpacing = `${(1 - m.enter) * 0.05 * bigSize}px`;
-  for (const line of bigLines) {
-    y += bigSize * 0.92;
-    ctx.fillText(line, L.x, y + m.dy);
-  }
-  ctx.letterSpacing = '0px';
-  y += 52 * u;
-
-  // Filete que crece desde el centro (o desde el margen, alineado a la izquierda).
-  const r = motion(cue, t, isTitle ? 0.4 : 0.25, u);
-  const ruleWidth = 72 * u * r.enter;
-  ctx.globalAlpha = r.alpha * 0.8;
-  ctx.shadowBlur = 0;
-  const rx = L.align === 'center' ? L.x - ruleWidth / 2 : L.x;
-  ctx.fillRect(rx, y, ruleWidth, Math.max(1, 2.5 * u));
-  y += 26 * u;
-  setHalo(ctx, theme, u);
-  if (!isTitle) drawSmall(0.35);
-  ctx.globalAlpha = 1;
+function resolvedCue(cue: OverlayCue, timeline: Timeline): OverlayCue {
+  return cue.font.startsWith('user:') && !userFontFamily(cue.font) ? { ...cue, font: `builtin:${timeline.textTypography ?? 'clasica'}` } : cue;
 }
-
-/** Frase de escena: una línea elegante, abajo, dentro de la zona segura. */
-function drawCaption(ctx: CanvasRenderingContext2D, cue: OverlayCue, t: number, L: Layout, font: Font, theme: OverlayTheme) {
-  const u = L.unit;
-  const size = (font.italic ? 70 : 84) * u * (L.align === 'left' ? 0.85 : 1);
-  const m = motion(cue, t, 0, u);
-  ctx.globalAlpha = m.alpha;
-  setHalo(ctx, theme, u);
-  ctx.fillStyle = theme.text;
-  ctx.textAlign = 'center';
-  ctx.font = `${font.italic ? 'italic 500' : font.displayWeight} ${size}px "${font.display}"`;
-  const lines = wrap(ctx, cue.lines[0] ?? '', Math.max(L.maxWidth, ctx.canvas.width * 0.7));
-  let y = L.captionY - ((lines.length - 1) * size * 1.05) / 2;
-  for (const line of lines) {
-    ctx.fillText(line, L.captionX, y + m.dy);
-    y += size * 1.05;
+export function drawOverlay(ctx: CanvasRenderingContext2D, timeline: Timeline, t: number, theme: OverlayTheme): void {
+  const { width, height } = ctx.canvas;
+  for (const raw of timeline.cues) {
+    const motion = cueMotion(raw, t, timeline.duration, height);
+    if (motion.alpha <= 0) continue;
+    const cue = resolvedCue(raw, timeline);
+    ctx.save();
+    try {
+      const layout = layoutCue((text, css) => { ctx.font = css; return ctx.measureText(text).width; }, cue, width, height);
+      ctx.font = layout.fontCss;
+      ctx.globalAlpha = motion.alpha;
+      ctx.fillStyle = cue.color === 'auto' ? theme.text : cue.color;
+      ctx.shadowColor = cue.color === 'auto' ? theme.halo : overlayTheme(cue.color).halo;
+      // overlayTheme elige halo claro sobre fondos claros; para texto se invierte.
+      if (cue.color !== 'auto') ctx.shadowColor = overlayTheme(cue.color).text === '#3a2a1f' ? 'rgba(10, 8, 6, 0.45)' : 'rgba(255, 249, 240, 0.55)';
+      ctx.shadowBlur = height * 0.012;
+      ctx.shadowOffsetX = ctx.shadowOffsetY = 0;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = cue.align === 'izquierda' ? 'left' : cue.align === 'derecha' ? 'right' : 'center';
+      layout.lines.forEach((line, i) => ctx.fillText(line, cue.x * width, layout.box.y + layout.size / 2 + i * layout.size * CUE_LINE_HEIGHT + motion.dy));
+    } finally { ctx.restore(); }
   }
-  ctx.textAlign = L.align;
-  ctx.globalAlpha = 1;
 }

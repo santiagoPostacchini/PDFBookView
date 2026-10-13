@@ -1454,3 +1454,14 @@ input.toggle:disabled { opacity: 0.55; cursor: default; }
   .scene-footer > .btn { min-height: 32px; width: auto; margin: 4px auto 0; font-size: 12px; }
   .app.is-video .book-canvas { top: 4px !important; bottom: 4px !important; height: calc(100% - 8px) !important; width: auto !important; max-width: calc(100% - 16px); object-fit: contain; }
 }
+
+/* Dibujos de las muestras de mantel compartidas. */
+.cloth-vichy-rosa .swatch-color, .cloth-vichy-azul .swatch-color {
+  background-image: repeating-linear-gradient(0deg, transparent 0 5px, var(--cloth-ink) 5px 10px), repeating-linear-gradient(90deg, transparent 0 5px, var(--cloth-ink) 5px 10px) !important;
+}
+.cloth-vichy-rosa { --cloth-ink: rgb(174 66 88 / 34%); }
+.cloth-vichy-azul { --cloth-ink: rgb(66 115 174 / 34%); }
+.cloth-rayas-salvia .swatch-color { background-image: repeating-linear-gradient(90deg, transparent 0 5px, rgb(87 137 85 / 45%) 5px 10px) !important; }
+
+/* Un ?nico acceso a la vista inicial, tambi?n en m?vil. */
+.camera-controls { gap: 0; padding: 4px; flex-direction: row; }

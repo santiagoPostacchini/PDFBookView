@@ -1,21 +1,25 @@
+import type { TextItem } from './model';
+import type { CamPose } from '../studio/framing';
 import type { BookEngine, Director } from '../book/BookEngine';
 import { timelineSet } from './timelineSet';
 import { pagesToPreload, type Timeline } from './compile';
-import { drawOverlay, loadTypography, overlayTheme, type OverlayTheme } from './overlay';
+import { drawOverlay, loadTextFonts, overlayTheme, type OverlayTheme } from './overlay';
 import { TimelinePlayer } from './TimelinePlayer';
 import type { FiguritasImages } from './figuritas/assets';
 
 const FPS = 30;
 
 /** Margen del cuadro en el editor de video: abajo queda el guion de escenas. */
-export const VIDEO_FRAME_MARGINS = { top: 108, bottom: 168, side: 28 };
-const frameMargins = () => ({ ...VIDEO_FRAME_MARGINS, top: document.documentElement.dataset.topbarHidden === 'true' ? 24 : VIDEO_FRAME_MARGINS.top });
+export const VIDEO_FRAME_MARGINS = { top: 108, bottom: 320, side: 28 };
+const frameMargins = () => window.matchMedia('(max-width: 768px)').matches
+  ? { top: 4, bottom: 4, side: 8 }
+  : { ...VIDEO_FRAME_MARGINS, top: document.documentElement.dataset.topbarHidden === 'true' ? 24 : VIDEO_FRAME_MARGINS.top };
 
 /**
  * Vista previa del video en el visor 3D: muestra cualquier instante (al tocar
  * una escena del guion) o reproduce en tiempo real, con los textos dibujados en
- * la capa 2D del motor. Mientras existe, la cámara no responde al mouse: lo que
- * se ve es exactamente lo que se va a exportar.
+ * la capa 2D del motor. En pausa permite editar la cámara de la toma; durante
+ * la reproducción la cámara sigue exclusivamente el guion.
  */
 export class VideoPreview {
   /** Instante mostrado (o reproducido), en segundos. */
@@ -23,21 +27,37 @@ export class VideoPreview {
   playing = false;
   /** Guías de lo que tapa la interfaz de Reels/TikTok (sólo en la vista previa). */
   safeZones = false;
+  /** Texto tenue solo para edición; recordTimeline nunca usa este canal. */
+  editingText: TextItem | null = null;
+  private ghost: HTMLCanvasElement | null = null;
   onTick?: (time: number) => void;
   onStop?: () => void;
+  onCameraEdit?: (sceneId: number, pose: CamPose) => void;
 
   private timeline: Timeline | null = null;
   private player: TimelinePlayer | null = null;
   private theme: OverlayTheme = overlayTheme('#dcc6a8');
   private preloadTimer = 0;
   private disposed = false;
+  private fontsReady: Timeline | null = null;
+  private fontGeneration = 0;
+  private readonly fontsChanged = () => {
+    if (this.timeline) this.setTimeline(this.timeline);
+  };
   private readonly updateFrame = () => {
     if (this.timeline) this.engine.setFrameAspect(this.timeline.aspect, frameMargins());
   };
 
   constructor(private readonly engine: BookEngine, private readonly images?: FiguritasImages) {
     window.addEventListener('pdf-book-view.topbar', this.updateFrame);
+    window.addEventListener('resize', this.updateFrame);
+    window.addEventListener('pdf-book-view.fonts', this.fontsChanged);
     engine.setInteractive(false);
+    engine.setCameraControls(true);
+    engine.onCameraEdit = (pose) => {
+      const scene = this.timeline?.scenes.find((s) => this.time < s.end) ?? this.timeline?.scenes.at(-1);
+      if (scene && !this.playing && !this.disposed) this.onCameraEdit?.(scene.index, pose);
+    };
     engine.setOverlay((ctx) => this.paint(ctx));
   }
 
@@ -52,18 +72,13 @@ export class VideoPreview {
     if (this.playing) this.stop();
     this.timeline = timeline;
     const set = timelineSet(timeline);
-    if (previous?.set !== timeline.set || previous?.coverColor !== timeline.coverColor || previous?.windowShadow !== timeline.windowShadow || previous?.table !== timeline.table || previous?.shows !== timeline.shows) this.engine.setSet(set);
+    if (previous?.set !== timeline.set || previous?.cloth !== timeline.cloth || previous?.coverColor !== timeline.coverColor || previous?.windowShadow !== timeline.windowShadow || previous?.table !== timeline.table || previous?.shows !== timeline.shows) this.engine.setSet(set);
     if (previous?.lighting !== timeline.lighting) this.engine.setLighting(timeline.lighting);
     if (previous?.aspect !== timeline.aspect) this.engine.setFrameAspect(timeline.aspect, frameMargins());
     this.theme = overlayTheme(set.color);
-    if (previous?.typography !== timeline.typography) {
-      loadTypography(timeline.typography)
-        .then(() => {
-          if (this.timeline?.typography !== timeline.typography) return;
-          this.engine.invalidate();
-        })
-        .catch((error) => console.error(error));
-    }
+    this.fontsReady = null;
+    const generation = ++this.fontGeneration;
+    loadTextFonts(timeline).then(() => { if (this.timeline === timeline && generation === this.fontGeneration && !this.disposed) { this.fontsReady = timeline; this.engine.invalidate(); } });
     this.seek(at);
     this.schedulePreload();
   }
@@ -78,7 +93,7 @@ export class VideoPreview {
     const player = new TimelinePlayer(this.engine, timeline, this.images);
     player.reset();
     const frames = Math.round(Math.max(0, Math.min(timeline.duration, t)) * FPS);
-    for (let i = 0; i < frames; i++) player.step(1 / FPS);
+    for (let i = 0; i < frames; i++) player.step((i + 1) / FPS - player.time);
     this.player = player;
     this.time = player.time;
     this.engine.invalidate();
@@ -100,10 +115,12 @@ export class VideoPreview {
       },
     };
     this.playing = true;
+    this.engine.setCameraControls(false);
     this.engine.play(
       director,
       () => {
         this.playing = false;
+        this.engine.setCameraControls(true);
         this.onStop?.();
       },
       timeline.fov,
@@ -124,8 +141,11 @@ export class VideoPreview {
     this.player?.dispose();
     this.disposed = true;
     window.removeEventListener('pdf-book-view.topbar', this.updateFrame);
+    window.removeEventListener('resize', this.updateFrame);
+    window.removeEventListener('pdf-book-view.fonts', this.fontsChanged);
     window.clearTimeout(this.preloadTimer);
     this.engine.setOverlay(null);
+    this.engine.onCameraEdit = undefined;
     this.engine.setInteractive(true);
     this.engine.setSet(null);
     this.engine.unpinPages();
@@ -143,7 +163,14 @@ export class VideoPreview {
   private paint(ctx: CanvasRenderingContext2D): void {
     const timeline = this.timeline;
     if (!timeline) return;
-    drawOverlay(ctx, timeline, this.time, this.theme);
+    if (this.fontsReady === timeline) drawOverlay(ctx, timeline, this.time, this.theme);
+    const item = this.editingText;
+    if (this.fontsReady === timeline && !this.playing && item && (this.time < item.start || this.time > Math.min(timeline.duration, item.start + item.duration))) {
+      this.ghost ??= document.createElement('canvas');
+      this.ghost.width = ctx.canvas.width; this.ghost.height = ctx.canvas.height;
+      drawOverlay(this.ghost.getContext('2d')!, { ...timeline, cues: [{ ...item, start: 0, end: timeline.duration, animation: 'ninguna' }] }, this.time, this.theme);
+      ctx.save(); ctx.globalAlpha = 0.3; ctx.drawImage(this.ghost, 0, 0); ctx.restore();
+    }
     if (this.safeZones && timeline.aspect < 0.7) drawSafeZones(ctx);
   }
 }

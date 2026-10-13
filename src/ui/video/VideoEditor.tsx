@@ -1,11 +1,16 @@
+import { TimelineBar } from './TimelineBar';
+import { newTextAt, snapTime } from '../../promo/timelineBar';
+import { TextInteraction } from './TextInteraction';
+import { addText, updateText } from '../../promo/editing';
+import { sceneCameraBase } from '../../promo/sceneCamera';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { BookEngine } from '../../book/BookEngine';
 import { compileProject, type Timeline } from '../../promo/compile';
 import { addScene, applyTemplate, duplicateScene, moveScene, pacingAdvice, placeScene, removeScene, sceneAt, sceneFocusTime, updateScene, type Edit } from '../../promo/editing';
-import { FORMATS, type FormatId, type PromoProject, type PromoTexts } from '../../promo/model';
+import { FORMATS, type FormatId, type PromoProject } from '../../promo/model';
 import { VideoPreview } from '../../promo/preview';
-import { loadBrand, loadDraft, newDraft, saveBrand, saveDraft, type VideoDraft } from '../../promo/projectStorage';
+import { loadBrand, loadDraft, newDraft, saveDraft, type VideoDraft } from '../../promo/projectStorage';
 import { recordTimeline } from '../../promo/record';
 import { downloadBlob, fileSlug } from '../download';
 import { IconAlert } from '../icons';
@@ -24,7 +29,7 @@ type Step = 'estilo' | 'historia' | 'textos' | 'ambiente' | 'exportar';
 const STEPS: { id: Step; label: string }[] = [
   { id: 'estilo', label: 'Estilo' },
   { id: 'historia', label: 'Historia' },
-  { id: 'textos', label: 'Textos y marca' },
+  { id: 'textos', label: 'Textos' },
   { id: 'ambiente', label: 'Ambiente' },
   { id: 'exportar', label: 'Exportar' },
 ];
@@ -43,7 +48,7 @@ interface Props {
 
 /**
  * Editor de video para personas no técnicas, en 5 pasos (estilo, historia,
- * textos y marca, ambiente, exportar). El visor 3D es la vista previa: muestra la escena
+ * textos, ambiente, exportar). El visor 3D es la vista previa: muestra la escena
  * elegida con sus textos o reproduce el video tal como se va a exportar.
  */
 export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
@@ -86,9 +91,10 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
   }, [library]);
   const changeLibrary = (next: FiguritasLibrary) => { setLibrary(next); void saveLibrary(fileName, next); };
   const shape = useMemo(() => ({ leafCount: book?.leafCount ?? 1, pageWidth: book?.pageWidth ?? 2, pageHeight: book?.pageHeight ?? 3, slots, pagePt, coverColor }), [book, slots, pagePt, coverColor]);
-  const [draft, setDraft] = useState<VideoDraft>(() => loadDraft(fileName) ?? newDraft(loadBrand()));
+  const [draft, setDraft] = useState<VideoDraft>(() => loadDraft(fileName, undefined, shape) ?? newDraft(loadBrand()));
   const [step, setStep] = useState<Step>('estilo');
   const [selected, setSelected] = useState(0);
+  const [selectedText, setSelectedText] = useState<string | null>(draft.project.textItems[0]?.id ?? null);
   const [adding, setAdding] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [clock, setClock] = useState(0);
@@ -100,6 +106,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
 
   const timeline = useMemo(() => compileProject(project, shape, images ? library ?? undefined : undefined), [project, shape, library, images]);
   const preview = useRef<VideoPreview | null>(null);
+  const pendingScene = useRef<number | null>(null);
   const shown = useRef<Timeline | null>(null);
   const latest = useRef(timeline);
   latest.current = timeline;
@@ -110,12 +117,23 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
     const p = new VideoPreview(engine, images);
     setPlaying(false);
     preview.current = p;
+    p.onCameraEdit = (index, pose) => {
+      const scene = latest.current.scenes.find((s) => s.index === index);
+      if (!scene) return;
+      const progress = (p.time - scene.start) / (scene.end - scene.start);
+      setDraft((d) => {
+        const spec = d.project.scenes[index];
+        if (!spec) return d;
+        const free = sceneCameraBase(pose, spec.camera, engine.currentBook?.pageWidth ?? 2, progress);
+        return { ...d, project: updateScene(d.project, index, { camera: { ...spec.camera, free } }) };
+      });
+    };
     let last = 0;
     p.onTick = (t) => {
       const now = performance.now();
       if (now - last < 80) return;
       last = now;
-      setClock(t);
+      setClock(snapTime(t, latest.current.duration));
     };
     p.onStop = () => {
       // Al detener queda elegida la escena que se estaba viendo.
@@ -134,7 +152,8 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
   useEffect(() => {
     const p = preview.current;
     if (!p || playing || recording) return;
-    const t = sceneFocusTime(timeline, selected);
+    const t = snapTime(pendingScene.current === null ? p.time : sceneFocusTime(timeline, pendingScene.current), timeline.duration);
+    pendingScene.current = null;
     if (shown.current !== timeline) {
       p.setTimeline(timeline, t);
       shown.current = timeline;
@@ -142,7 +161,13 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
       p.seek(t);
     }
     setClock(t);
-  }, [timeline, selected, playing, recording, images]);
+  }, [timeline, playing, recording, images]);
+
+  useEffect(() => {
+    const p = preview.current; if (!p) return;
+    p.editingText = step === 'textos' && !playing && !recording ? project.textItems.find(t => t.id === selectedText) ?? null : null;
+    engine.invalidate();
+  }, [step, selectedText, project.textItems, playing, recording, engine, images]);
 
   useEffect(() => preview.current?.setSafeZones(safeZones && project.format === '9:16'), [safeZones, project.format]);
   useEffect(() => onBusyChange?.(!!recording), [recording, onBusyChange]);
@@ -155,15 +180,13 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
 
   const setProject = useCallback((next: PromoProject, index?: number) => {
     setDraft((d) => ({ ...d, project: next }));
-    if (index !== undefined) setSelected(Math.max(0, Math.min(index, next.scenes.length - 1)));
+    if (index !== undefined) {
+      pendingScene.current = Math.max(0, Math.min(index, next.scenes.length - 1));
+      setSelected(pendingScene.current);
+    }
   }, []);
+  const seek = (time: number) => { const t = snapTime(time, timeline.duration); preview.current?.seek(t); setClock(t); };
   const apply = (edit: Edit) => setProject(edit.project, edit.index);
-
-  const setTexts = (patch: Partial<PromoTexts>) => {
-    const texts = { ...project.texts, ...patch };
-    setProject({ ...project, texts });
-    if ('cta' in patch || 'handle' in patch) saveBrand({ cta: texts.cta, handle: texts.handle });
-  };
 
   const toggleFormat = (format: FormatId) =>
     setDraft((d) => {
@@ -223,6 +246,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
 
   return (
     <>
+      {step === 'textos' && !playing && !recording && <TextInteraction engine={engine} timeline={timeline} items={project.textItems} selected={selectedText} time={clock} onSelect={setSelectedText} onChange={(id, patch) => setDraft(d => ({ ...d, project: updateText(d.project, id, patch) }))} />}
       <nav role="tablist" className="video-steps" aria-label="Pasos del video">
         {STEPS.map((s, i) => (
           <button
@@ -258,7 +282,12 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
         )}
 
         {step === 'estilo' && <>
-          <StyleStep project={project} onPick={(id) => setProject(applyTemplate(project, id), 0)} onNext={() => setStep('historia')} />
+          <StyleStep project={project} onPick={(id) => {
+            const next = applyTemplate(project, id);
+            const figuritas = id === 'figuritas' ? next.scenes.findIndex((s) => s.kind === 'figuritas') : -1;
+            setProject(next, Math.max(0, figuritas));
+            if (figuritas >= 0) setStep('historia'); // para cargar las figuritas enseguida
+          }} onNext={() => setStep('historia')} />
         </>}
 
         {step === 'historia' &&
@@ -285,12 +314,11 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
               onDuplicate={() => apply(duplicateScene(project, selected))}
               onRemove={() => apply(removeScene(project, selected))}
               onAdd={() => setAdding(true)}
-              onGoToTexts={() => setStep('textos')}
               onShowPoint={(point) => {
                 const scene = timeline.scenes.find((s) => s.index === selected);
                 if (!scene) return;
                 const t = point === 'inicio' ? scene.start : Math.max(scene.start, scene.end - 1 / 30);
-                preview.current?.seek(t); setClock(t);
+                seek(t);
               }}
               onPlayScene={() => play(startOfSelected, (timeline.scenes.find((s) => s.index === selected)?.end ?? timeline.duration) - 1 / 30)}
             />
@@ -299,12 +327,8 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
         {step === 'textos' && (
           <TextsStep
             project={project}
-            onTexts={setTexts}
-            onChange={(patch) => setProject({ ...project, ...patch })}
-            onShow={(kind) => {
-                const index = kind === 'portada' ? (timeline.scenes[0]?.index ?? -1) : project.scenes.map((s) => s.kind).lastIndexOf(kind);
-              if (index >= 0) setSelected(index);
-            }}
+            onChange={setProject}
+            selected={selectedText} onSelect={setSelectedText} time={clock} duration={timeline.duration}
           />
         )}
 
@@ -333,6 +357,12 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
 
       {dock &&
         createPortal(
+          <>
+          <TimelineBar timeline={timeline} items={project.textItems} selected={selectedText} clock={clock} disabled={busy} playing={playing}
+            onSeek={seek} onPlay={() => play(0)}
+            onSelect={id => { preview.current?.stop(); setSelectedText(id); setStep('textos'); setAdding(false); }}
+            onChange={(id, patch) => setDraft(d => ({ ...d, project: updateText(d.project, id, patch) }))}
+            onAdd={() => { seek(clock); const next = addText(project, newTextAt(snapTime(clock, timeline.duration), timeline.duration)); setProject(next); setSelectedText(next.textItems.at(-1)?.id ?? null); setStep('textos'); setAdding(false); }} />
           <Storyboard
             engine={engine}
             project={project}
@@ -343,6 +373,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
             disabled={busy}
             onSelect={(index) => {
               if (playing) preview.current?.stop();
+              seek(sceneFocusTime(timeline, index));
               setSelected(index);
               setStep('historia');
               setAdding(false);
@@ -352,8 +383,8 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
               setStep('historia');
               setAdding(true);
             }}
-            onTogglePlay={() => play(0)}
-          />,
+          />
+          </>,
           dock,
         )}
     </>

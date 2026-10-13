@@ -1,7 +1,7 @@
 import type { BookEngine } from '../book/BookEngine';
 import { timelineSet } from './timelineSet';
 import { pagesToPreload, type Timeline } from './compile';
-import { drawOverlay, loadTypography, overlayTheme } from './overlay';
+import { drawOverlay, loadTextFonts, overlayTheme } from './overlay';
 import { TimelinePlayer } from './TimelinePlayer';
 import type { FiguritasImages } from './figuritas/assets';
 
@@ -37,7 +37,7 @@ async function produce<T>(
   const fps = options.fps ?? 30;
   const previous = { set: engine.stageSet, lighting: engine.lightingId };
   const spec = timelineSet(timeline);
-  await loadTypography(timeline.typography);
+  await loadTextFonts(timeline);
   engine.setLighting(timeline.lighting);
   engine.setSet(spec);
   try {

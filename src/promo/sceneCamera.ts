@@ -8,24 +8,31 @@ const limited = (value: unknown, max: number, fallback: number) => typeof value 
 export function sanitizeSceneCamera(value: unknown): SceneCamera | undefined {
   if (!object(value)) return undefined;
   const result: SceneCamera = {};
+  const free = value.free;
+  if (object(free) && [free.azimuth, free.elevation, free.distance].every((v) => typeof v === 'number' && Number.isFinite(v))
+    && Array.isArray(free.target) && free.target.length === 3 && free.target.every((v) => typeof v === 'number' && Number.isFinite(v))) {
+    result.free = { azimuth: ((free.azimuth as number) % 360 + 540) % 360 - 180,
+      elevation: limited(free.elevation, 86, 0), distance: Math.max(1.5, limited(free.distance, 60, 1.5)),
+      target: free.target.map((v: number) => Math.max(-60, Math.min(60, v))) as [number, number, number] };
+  }
   if (typeof value.framingZoom === 'number' && Number.isFinite(value.framingZoom)) result.framingZoom = limited(value.framingZoom, 1, 0);
   if (object(value.zoom)) result.zoom = { enabled: value.zoom.enabled === true, from: limited(value.zoom.from, 0.1, 0), to: limited(value.zoom.to, 0.1, 0.06) };
   if (object(value.lateral)) result.lateral = { enabled: value.lateral.enabled === true, amount: limited(value.lateral.amount, 0.15, 0.08), direction: value.lateral.direction === 'izquierda' ? 'izquierda' : 'derecha' };
   if (object(value.lateral) && value.lateral.orbit === true) result.lateral!.orbit = true;
-  return result.zoom || result.lateral || result.framingZoom !== undefined ? result : undefined;
+  return result.free || result.zoom || result.lateral || result.framingZoom !== undefined ? result : undefined;
 }
 
 /** Dos puntos por toma; el lateral traslada cámara y objetivo en el eje del cuadro. */
 export function sceneCameraPoints(base: CamPose, camera: SceneCamera | undefined, pageWidth: number): [CamPose, CamPose] {
   const settings = sanitizeSceneCamera(camera);
-  base = { ...base, distance: base.distance / (1 + (settings?.framingZoom ?? 0)) };
+  base = settings?.free ?? { ...base, distance: base.distance / (1 + (settings?.framingZoom ?? 0)) };
   const zoom = settings?.zoom;
   const lateral = settings?.lateral;
   if (lateral?.enabled && lateral.orbit) {
     // Centro del álbum, conservando la altura de enfoque y la posición central de cámara.
     const position = posePosition(base);
-    const target: CamPose['target'] = [0, base.target[1], 0];
-    const dx = position[0], dy = position[1] - target[1], dz = position[2];
+    const target: CamPose['target'] = settings?.free ? base.target : [0, base.target[1], 0];
+    const dx = position[0] - target[0], dy = position[1] - target[1], dz = position[2] - target[2];
     const distance = Math.hypot(dx, dy, dz);
     const azimuth = Math.atan2(dx, dz) * 180 / Math.PI;
     const elevation = Math.atan2(dy, Math.hypot(dx, dz)) * 180 / Math.PI;
@@ -40,4 +47,18 @@ export function sceneCameraPoints(base: CamPose, camera: SceneCamera | undefined
     const amount = zoom?.enabled ? (end ? zoom.to : zoom.from) : 0;
     return { ...base, distance: base.distance / (1 + amount), target: [base.target[0] + Math.cos(az) * offset, base.target[1], base.target[2] - Math.sin(az) * offset] } as CamPose;
   }) as [CamPose, CamPose];
+}
+
+/** Deshace el movimiento en el instante editado para guardar la pose base sin saltos. */
+export function sceneCameraBase(pose: CamPose, camera: SceneCamera | undefined, pageWidth: number, progress: number): CamPose {
+  const settings = sanitizeSceneCamera(camera);
+  const zoom = settings?.zoom;
+  const lateral = settings?.lateral;
+  const scale = zoom?.enabled ? (1 - progress) / (1 + zoom.from) + progress / (1 + zoom.to) : 1;
+  const angle = lateral?.enabled && lateral.orbit ? (progress - 0.5) * lateral.amount * 60 * (lateral.direction === 'izquierda' ? -1 : 1) : 0;
+  const azimuth = pose.azimuth - angle;
+  const offset = lateral?.enabled && !lateral.orbit ? (progress - 0.5) * pageWidth * lateral.amount * (lateral.direction === 'izquierda' ? -1 : 1) : 0;
+  const az = azimuth * Math.PI / 180;
+  return { ...pose, azimuth, distance: pose.distance / scale,
+    target: [pose.target[0] - Math.cos(az) * offset, pose.target[1], pose.target[2] + Math.sin(az) * offset] };
 }

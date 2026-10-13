@@ -4,8 +4,8 @@ import { customScenarioColor } from '../../book/scenarios';
 import { ScenarioPicker } from '../ScenarioPicker';
 import type { Timeline } from '../../promo/compile';
 import { spreadLabel } from '../../promo/editing';
-import { FORMATS, type FormatId, type PromoProject, type PromoTexts, type SceneKind, type SceneLength, type SceneSpec, type TypographyId } from '../../promo/model';
-import { SCENES, TEMPLATES, TYPOGRAPHY } from '../../promo/templates';
+import { FORMATS, type FormatId, type PromoProject, type SceneKind, type SceneLength, type SceneSpec } from '../../promo/model';
+import { SCENES, TEMPLATES } from '../../promo/templates';
 import { CanvasThumb } from '../CanvasThumb';
 import { Chips, Disclosure, Section, Slider, Toggle } from '../controls';
 import { IconAlert, IconArrowLeft, IconArrowRight, IconCopy, IconDownload, IconPlay, IconPlus, IconStop, IconTrash } from '../icons';
@@ -52,7 +52,6 @@ interface SceneStepProps {
   onDuplicate: () => void;
   onRemove: () => void;
   onAdd: () => void;
-  onGoToTexts: () => void;
   onShowPoint: (point: 'inicio' | 'fin') => void;
   onPlayScene: () => void;
 }
@@ -63,7 +62,7 @@ const LENGTHS: { id: SceneLength; label: string }[] = [
   { id: 'larga', label: 'Larga' },
 ];
 
-export function SceneStep({ engine, project, timeline, index, onChange, onMove, onDuplicate, onRemove, onAdd, onGoToTexts, onShowPoint, onPlayScene, figuritas }: SceneStepProps) {
+export function SceneStep({ engine, project, timeline, index, onChange, onMove, onDuplicate, onRemove, onAdd, onShowPoint, onPlayScene, figuritas }: SceneStepProps) {
   const scene = project.scenes[index];
   const book = engine.currentBook;
   const thumbs = usePageThumbs(engine, book?.pageCount ?? 0);
@@ -71,8 +70,6 @@ export function SceneStep({ engine, project, timeline, index, onChange, onMove, 
   const info = SCENES[scene.kind];
   const compiled = timeline.scenes.find((s) => s.index === index);
   const interior = Math.max(1, book.leafCount - 1);
-  const isOpening = timeline.scenes[0]?.index === index;
-  const isText = isOpening || scene.kind === 'cierre';
   const zoom = scene.camera?.zoom ?? { enabled: false, from: 0, to: 0.06 };
   const lateral = scene.camera?.lateral ?? { enabled: false, amount: 0.08, direction: 'derecha' as const };
 
@@ -106,39 +103,16 @@ export function SceneStep({ engine, project, timeline, index, onChange, onMove, 
           </Section>
         )}
 
-        {isText ? (
-          <Section title="Textos">
-            <p className="editor-formula">
-              {isOpening ? 'El título y la línea chica' : 'El llamado a la acción y tu usuario'} se editan en{' '}
-              <button className="link-btn" onClick={onGoToTexts}>
-                Textos y marca
-              </button>
-              .
-            </p>
-          </Section>
-        ) : (
-          <Section title="Frase en pantalla" hint="Opcional. Mejor corta: tiene que leerse en dos segundos.">
-            <input
-              type="text"
-              className="text-input"
-              value={scene.caption ?? ''}
-              maxLength={80}
-              placeholder="Tus fotos, tu historia"
-              aria-label="Frase en pantalla"
-              onChange={(e) => onChange({ caption: e.target.value })}
-            />
-          </Section>
-        )}
-
         <Section title="Duración" hint={compiled ? `Ahora dura ${seconds(compiled.end - compiled.start)} s.` : undefined}>
           <Chips items={LENGTHS} value={scene.length ?? 'normal'} onChange={(length) => onChange({ length })} />
         </Section>
 
         {scene.kind === 'figuritas' && figuritas}
 
-        <Disclosure key={index} title="Movimiento (opcional)" open={zoom.enabled || lateral.enabled || (scene.camera?.framingZoom ?? 0) !== 0}>
+        <Disclosure key={index} title="Movimiento (opcional)" open={zoom.enabled || lateral.enabled || !!scene.camera?.free || (scene.camera?.framingZoom ?? 0) !== 0}>
           <Section title="Movimiento de esta toma" hint="Sólo afecta a esta escena. Podés combinar ambos movimientos o apagarlos para volver al plano fijo.">
-            <Slider label="Acercamiento de esta toma" min={0} max={1} step={0.01} value={scene.camera?.framingZoom ?? 0} onChange={(framingZoom) => onChange({ camera: { ...scene.camera, framingZoom } })} hint="Elegí tu encuadre: hasta el doble de acercamiento. Se mantiene fijo aunque el zoom suave esté apagado; podés dejar objetos fuera del cuadro." />
+            <p className="editor-formula">Mové la cámara en la vista previa: rueda para acercar, click derecho para mirar, W/A/S/D para moverte</p>
+            <button onClick={() => onChange({ camera: { ...scene.camera, free: undefined, framingZoom: undefined } })}>Restablecer encuadre</button>
             <label className="check"><Toggle checked={zoom.enabled} onChange={(e) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, enabled: e.target.checked } } })} /><span>Activar zoom suave</span></label>
             {zoom.enabled && <>
               <Slider label="Zoom inicial" min={0} max={0.1} step={0.01} value={zoom.from} onChange={(from) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, from } } })} />
@@ -202,59 +176,15 @@ export function AddSceneStep({ onPick, onCancel }: { onPick: (kind: SceneKind) =
   );
 }
 
-// ── 3. Textos y marca ────────────────────────────────────────────────────────
+// ── 3. Textos ────────────────────────────────────────────────────────
 
-function Field({ label, value, placeholder, onChange, onFocus }: { label: string; value: string; placeholder: string; onChange: (value: string) => void; onFocus?: () => void }) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <input type="text" className="text-input" value={value} maxLength={60} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} onFocus={onFocus} />
-    </label>
-  );
-}
-
-interface TextsStepProps {
-  project: PromoProject;
-  onTexts: (patch: Partial<PromoTexts>) => void;
-  onChange: (patch: Partial<PromoProject>) => void;
-  /** Al escribir, el visor muestra la escena donde aparece ese texto. */
-  onShow: (kind: 'portada' | 'cierre') => void;
-}
-
-export function TextsStep({ project, onTexts, onChange, onShow }: TextsStepProps) {
-  const { texts } = project;
-  return (
-    <>
-      <Section title="Al empezar">
-        <Field label="Título" value={texts.title} placeholder="Álbum personalizado" onChange={(title) => onTexts({ title })} onFocus={() => onShow('portada')} />
-        <Field
-          label="Línea chica (arriba del título)"
-          value={texts.subtitle}
-          placeholder="Hecho a mano, página por página"
-          onChange={(subtitle) => onTexts({ subtitle })}
-          onFocus={() => onShow('portada')}
-        />
-      </Section>
-      <Section title="Al terminar" hint="Tu usuario y el llamado a la acción se recuerdan para tus próximos álbumes.">
-        <Field label="Llamado a la acción" value={texts.cta} placeholder="Pedí el tuyo" onChange={(cta) => onTexts({ cta })} onFocus={() => onShow('cierre')} />
-        <Field label="Usuario o web" value={texts.handle} placeholder="@tu.marca" onChange={(handle) => onTexts({ handle })} onFocus={() => onShow('cierre')} />
-      </Section>
-      <Section title="Tipografía">
-        <Chips
-          items={(Object.keys(TYPOGRAPHY) as TypographyId[]).map((id) => ({ id, label: TYPOGRAPHY[id].label, style: { fontFamily: `"${TYPOGRAPHY[id].display}", serif`, fontSize: 15 } }))}
-          value={project.typography}
-          onChange={(typography) => onChange({ typography })}
-        />
-      </Section>
-    </>
-  );
-}
+export { TextsStep } from './TextsStep';
 
 export function EnvironmentStep({ project, onChange }: { project: PromoProject; onChange: (patch: Partial<PromoProject>) => void }) {
   return (
     <>
       <Section title="Escenario">
-        <ScenarioPicker value={project.set} customColor={customScenarioColor(project.set) ?? '#c9a27e'}
+        <ScenarioPicker table={project.table ?? true} cloth={project.cloth} onTable={(table) => onChange({ table })} onCloth={(cloth) => onChange({ cloth })} value={project.set} customColor={customScenarioColor(project.set) ?? '#c9a27e'}
           onChange={(set) => onChange(set === 'ventana' ? { set, windowShadow: 0.45 } : { set })}
           onCustomColor={(color) => onChange({ set: `color:${color}` })} />
       </Section>
@@ -263,7 +193,6 @@ export function EnvironmentStep({ project, onChange }: { project: PromoProject; 
         <Slider label="Sombra de ventana" min={0} max={1} step={0.05} value={project.windowShadow ?? (project.set === 'ventana' ? 0.45 : 0)} onChange={(windowShadow) => onChange({ windowShadow })} hint="Se combina con cualquier mantel o superficie. En 0% se apaga." />
       </Section>
       <Disclosure title="Más ajustes">
-        <label className="check"><Toggle checked={project.table ?? true} onChange={(e) => onChange({ table: e.target.checked })} /><span>Mostrar mesa con bordes y patas</span></label>
         <Slider label="Sombras de contacto" min={0} max={1} step={0.05} value={project.ambientOcclusion ?? 0.35} onChange={(ambientOcclusion) => onChange({ ambientOcclusion })} hint="Refuerza el apoyo del álbum, el lomo y los bordes de la mesa." />
       </Disclosure>
     </>

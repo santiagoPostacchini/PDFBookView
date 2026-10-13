@@ -4,9 +4,9 @@ import { createPortal } from 'react-dom';
 import type { BookEngine } from '../../book/BookEngine';
 import { compileProject, type Timeline } from '../../promo/compile';
 import { addScene, applyTemplate, duplicateScene, moveScene, pacingAdvice, placeScene, removeScene, sceneAt, sceneFocusTime, updateScene, type Edit } from '../../promo/editing';
-import { FORMATS, type FormatId, type PromoProject, type PromoTexts } from '../../promo/model';
+import { FORMATS, type FormatId, type PromoProject } from '../../promo/model';
 import { VideoPreview } from '../../promo/preview';
-import { loadBrand, loadDraft, newDraft, saveBrand, saveDraft, type VideoDraft } from '../../promo/projectStorage';
+import { loadBrand, loadDraft, newDraft, saveDraft, type VideoDraft } from '../../promo/projectStorage';
 import { recordTimeline } from '../../promo/record';
 import { downloadBlob, fileSlug } from '../download';
 import { IconAlert } from '../icons';
@@ -87,7 +87,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
   }, [library]);
   const changeLibrary = (next: FiguritasLibrary) => { setLibrary(next); void saveLibrary(fileName, next); };
   const shape = useMemo(() => ({ leafCount: book?.leafCount ?? 1, pageWidth: book?.pageWidth ?? 2, pageHeight: book?.pageHeight ?? 3, slots, pagePt, coverColor }), [book, slots, pagePt, coverColor]);
-  const [draft, setDraft] = useState<VideoDraft>(() => loadDraft(fileName) ?? newDraft(loadBrand()));
+  const [draft, setDraft] = useState<VideoDraft>(() => loadDraft(fileName, undefined, shape) ?? newDraft(loadBrand()));
   const [step, setStep] = useState<Step>('estilo');
   const [selected, setSelected] = useState(0);
   const [adding, setAdding] = useState(false);
@@ -170,12 +170,6 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
     if (index !== undefined) setSelected(Math.max(0, Math.min(index, next.scenes.length - 1)));
   }, []);
   const apply = (edit: Edit) => setProject(edit.project, edit.index);
-
-  const setTexts = (patch: Partial<PromoTexts>) => {
-    const texts = { ...project.texts, ...patch };
-    setProject({ ...project, texts });
-    if ('cta' in patch || 'handle' in patch) saveBrand({ cta: texts.cta, handle: texts.handle });
-  };
 
   const toggleFormat = (format: FormatId) =>
     setDraft((d) => {
@@ -297,7 +291,6 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
               onDuplicate={() => apply(duplicateScene(project, selected))}
               onRemove={() => apply(removeScene(project, selected))}
               onAdd={() => setAdding(true)}
-              onGoToTexts={() => setStep('textos')}
               onShowPoint={(point) => {
                 const scene = timeline.scenes.find((s) => s.index === selected);
                 if (!scene) return;
@@ -311,12 +304,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
         {step === 'textos' && (
           <TextsStep
             project={project}
-            onTexts={setTexts}
             onChange={(patch) => setProject({ ...project, ...patch })}
-            onShow={(kind) => {
-                const index = kind === 'portada' ? (timeline.scenes[0]?.index ?? -1) : project.scenes.map((s) => s.kind).lastIndexOf(kind);
-              if (index >= 0) setSelected(index);
-            }}
           />
         )}
 

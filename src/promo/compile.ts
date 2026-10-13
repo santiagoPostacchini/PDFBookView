@@ -1,7 +1,7 @@
 import { figuritasFraming } from './figuritas/framing';
 import { CameraPath, type PathKey } from '../studio/cameraPath';
 import { fitDistance, lerpPose, type CamPose, type Region } from '../studio/framing';
-import { FORMATS, type BookShape, type PromoProject, type SceneKind, type SceneLength, type SceneSpec, type TypographyId } from './model';
+import { FORMATS, type BookShape, type PromoProject, type SceneKind, type SceneLength, type SceneSpec, type TextItem } from './model';
 import { sceneCameraPoints } from './sceneCamera';
 import { SCENES, templateById, type Template, type Transition } from './templates';
 import type { FiguritasKit } from './figuritas/assets';
@@ -28,15 +28,7 @@ export interface BookAction {
   speed: number;
 }
 
-export type CueKind = 'titulo' | 'frase' | 'cierre';
-
-export interface OverlayCue {
-  kind: CueKind;
-  start: number;
-  end: number;
-  /** titulo: [subtítulo, título]; cierre: [llamado a la acción, usuario]; frase: [texto]. */
-  lines: string[];
-}
+export interface OverlayCue extends Omit<TextItem, 'duration'> { end: number }
 
 export interface CameraSegment {
   start: number;
@@ -75,7 +67,6 @@ export interface Timeline {
   look: { vignette: number; grain: number; ambientOcclusion?: number };
   set: string;
   lighting: string;
-  typography: TypographyId;
   /** Dobles páginas que aparecen en cámara (para precargar en alta). */
   spreads: number[];
   /** Doble página en el primer cuadro (0 = cerrado, mostrando la tapa). */
@@ -83,8 +74,7 @@ export interface Timeline {
 }
 
 const LENGTH: Record<SceneLength, number> = { corta: 0.75, normal: 1, larga: 1.35 };
-/** Mínimos por escena (s): el título y el llamado a la acción tienen que llegar a leerse. */
-const MIN_SCENE: Partial<Record<SceneKind, number>> = { portada: 2, cierre: 2.6 };
+/** Mínimo de ritmo por escena (s), independiente de los textos. */
 const MIN_DEFAULT = 1.3;
 
 /** Reparte la duración total entre escenas según su peso, con un mínimo por escena. */
@@ -132,7 +122,7 @@ export function compileProject(project: PromoProject, book: BookShape, kit?: Fig
     (canOpen || s.kind === 'portada' || s.kind === 'cierre') && (s.kind !== 'figuritas' || resolveTargets(s, book, kit).length > 0));
   const specs = usable.map(({ s }) => s);
   const weights = specs.map((s) => SCENES[s.kind].base * LENGTH[s.length ?? 'normal'] * template.pace);
-  const mins = specs.map((s) => s.kind === 'figuritas' ? showDuration(resolveTargets(s, book, kit)) * 0.8 : MIN_SCENE[s.kind] ?? MIN_DEFAULT);
+  const mins = specs.map((s) => s.kind === 'figuritas' ? showDuration(resolveTargets(s, book, kit)) * 0.8 : MIN_DEFAULT);
   const durations = sceneDurations(
     weights,
     specs.some((s) => s.kind === 'figuritas') ? Math.max(project.duration, mins.reduce((a, b) => a + b, 0)) : project.duration,
@@ -147,7 +137,11 @@ export function compileProject(project: PromoProject, book: BookShape, kit?: Fig
   const scenes: CompiledScene[] = [];
   const shots: Shot[] = [];
   const actions: BookAction[] = [];
-  const cues: OverlayCue[] = [];
+  const cues: OverlayCue[] = project.textItems.flatMap(({ duration, ...item }) => {
+    const start = Math.max(0, item.start);
+    const end = Math.min(D, item.start + duration);
+    return item.text.trim() && Number.isFinite(start) && Number.isFinite(end) && end > start ? [{ ...item, start, end }] : [];
+  });
   const shows: StickerShow[] = [];
   let current = 0;
   let startSpread = 0;
@@ -242,16 +236,6 @@ export function compileProject(project: PromoProject, book: BookShape, kit?: Fig
     // La doble página "a la vista" es la que queda al final de la escena.
     scenes.push({ index: usable[i].index, kind: spec.kind, label: SCENES[spec.kind].label, start, end, spread: current });
     shots.push({ ...shot, aperture: shot.aperture * template.aperture });
-
-    if (i === 0 && (project.texts.title || project.texts.subtitle)) {
-      cues.push({ kind: 'titulo', start, end, lines: [project.texts.subtitle, project.texts.title] });
-    }
-    if (spec.kind === 'cierre' && (project.texts.cta || project.texts.handle)) {
-      cues.push({ kind: 'cierre', start: start + Math.min(0.7, durations[i] * 0.25), end: D, lines: [project.texts.cta, project.texts.handle] });
-    }
-    if (spec.caption && spec.kind !== 'portada' && spec.kind !== 'cierre' && !(i === 0 && (project.texts.title || project.texts.subtitle))) {
-      cues.push({ kind: 'frase', start: start + 0.3, end: end - 0.1, lines: [spec.caption] });
-    }
   });
 
   const segments = fixedSegments(scenes, shots, specs, W);
@@ -275,7 +259,6 @@ export function compileProject(project: PromoProject, book: BookShape, kit?: Fig
     look: { vignette: template.vignette, grain: template.grain, ambientOcclusion: project.ambientOcclusion ?? 0.35 },
     set: project.set,
     lighting: project.lighting,
-    typography: project.typography,
     spreads: [...new Set(scenes.map((s) => s.spread).concat(actions.map((a) => a.spread), [startSpread]))].sort((a, b) => a - b),
     startSpread,
   };

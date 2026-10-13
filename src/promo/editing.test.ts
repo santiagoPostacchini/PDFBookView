@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileProject } from './compile';
-import { addScene, applyTemplate, duplicateScene, moveScene, pacingAdvice, placeScene, removeScene, sceneAt, sceneFocusTime, spreadLabel, updateScene } from './editing';
+import { addText, updateText, removeText, duplicateText, addScene, applyTemplate, duplicateScene, moveScene, pacingAdvice, placeScene, removeScene, sceneAt, sceneFocusTime, spreadLabel, updateScene } from './editing';
 import { projectFromTemplate, templateById } from './templates';
 
 const shape = { leafCount: 6, pageWidth: 3 * Math.SQRT1_2, pageHeight: 3 };
@@ -45,19 +45,19 @@ describe('edición del guion', () => {
   it('actualiza una escena y deja el JSON limpio (automática = sin doble página)', () => {
     const p = projectFromTemplate('clasica');
     const chosen = updateScene(p, 2, { spread: 3, length: 'larga' });
-    expect(chosen.scenes[2]).toEqual({ kind: 'doblePagina', caption: 'Tus fotos, tu historia', spread: 3, length: 'larga' });
-    const auto = updateScene(chosen, 2, { spread: undefined, caption: '', length: 'normal' });
+    expect(chosen.scenes[2]).toEqual({ kind: 'doblePagina', spread: 3, length: 'larga' });
+    const auto = updateScene(chosen, 2, { spread: undefined, length: 'normal' });
     expect(auto.scenes[2]).toEqual({ kind: 'doblePagina' });
   });
 
   it('cambiar de estilo trae su look; el guion sólo si no se había tocado; los textos se conservan', () => {
     const p = projectFromTemplate('clasica');
-    p.texts.handle = '@mi.marca';
+    p.textItems.find(t => t.id === 'handle')!.text = '@mi.marca';
     const ritmo = applyTemplate(p, 'ritmo');
     const t = templateById('ritmo');
-    expect(ritmo).toMatchObject({ template: 'ritmo', set: t.set, lighting: t.lighting, typography: t.typography, duration: t.duration });
+    expect(ritmo).toMatchObject({ template: 'ritmo', set: t.set, lighting: t.lighting, duration: t.duration });
     expect(ritmo.scenes).toEqual(t.scenes);
-    expect(ritmo.texts.handle).toBe('@mi.marca');
+    expect(ritmo.textItems.find(t => t.id === 'handle')!.text).toBe('@mi.marca');
 
     const edited = removeScene(p, 4).project;
     const kept = applyTemplate({ ...edited, duration: 20 }, 'minimal');
@@ -75,10 +75,7 @@ describe('vista previa', () => {
       expect(t).toBeLessThan(scene.end);
       expect(sceneAt(tl, t)).toBe(scene.index);
     }
-    const titulo = tl.cues.find((c) => c.kind === 'titulo')!;
-    expect(sceneFocusTime(tl, 0)).toBeGreaterThan(titulo.start + 0.8);
-    const cierre = tl.cues.find((c) => c.kind === 'cierre')!;
-    expect(sceneFocusTime(tl, tl.scenes.at(-1)!.index)).toBeGreaterThan(cierre.start + 1.05);
+
   });
 
   it('avisa cuando las escenas quedan demasiado cortas', () => {
@@ -98,4 +95,21 @@ describe('vista previa', () => {
 it('cambiar plantilla conserva el mantel y la mesa elegidos', () => {
   const p = projectFromTemplate('clasica', { cloth: 'color:#123456', table: false });
   expect(applyTemplate(p, 'minimal')).toMatchObject({ cloth: 'color:#123456', table: false });
+});
+
+it('edita textos sin mutar, sanea y conserva ids unicos y el limite', () => {
+  const p = projectFromTemplate('clasica');
+  const added = addText(p, { id: 'title', text: 'x'.repeat(200), size: 4, start: -3, font: 'user:mi-fuente' });
+  expect(added.textItems.at(-1)).toMatchObject({ id: 'title-2', size: 0.3, start: 0, font: 'user:mi-fuente' });
+  expect(added.textItems.at(-1)!.text).toHaveLength(120);
+  const updated = updateText(added, 'title-2', { duration: 0, x: 9, color: 'rojo', id: 'roto' });
+  expect(updated.textItems.at(-1)).toMatchObject({ id: 'title-2', duration: 0.5, x: 1, color: 'auto' });
+  const duplicated = duplicateText(updated, 'title-2');
+  expect(new Set(duplicated.textItems.map(t => t.id)).size).toBe(6);
+  expect(removeText(duplicated, 'title-2').textItems).toHaveLength(5);
+  expect(p.textItems).toHaveLength(4);
+  expect(updateText(p, 'title', { text: 'Hola ' }).textItems.find(t => t.id === 'title')!.text).toBe('Hola ');
+  let full = p; for (let i = 0; i < 40; i++) full = addText(full);
+  expect(full.textItems).toHaveLength(30);
+  expect(applyTemplate({ ...p, textItems: [] }, 'minimal').textItems).toHaveLength(4);
 });

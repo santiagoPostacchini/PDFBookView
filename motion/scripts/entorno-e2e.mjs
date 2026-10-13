@@ -58,10 +58,10 @@ try {
   await page.getByRole('button', { name: 'Cerrar estudio', exact: true }).click();
   const result = await page.evaluate(async () => {
     const { bookEngine: engine, promoLab: lab } = window;
-    const { drawOverlay, overlayTheme, loadTypography } = await import('/src/promo/overlay.ts');
+    const { drawOverlay, overlayTheme, loadTextFonts } = await import('/src/promo/overlay.ts');
     const project = lab.projectFromTemplate('clasica'); project.cloth = 'mantel-azul'; project.format = '16:9';
     const timeline = lab.compileProject(project, engine.currentBook);
-    await loadTypography(timeline.typography); engine.enterStudio();
+    await loadTextFonts(timeline); engine.enterStudio();
     const titleCanvas = document.createElement('canvas'); titleCanvas.width = 960; titleCanvas.height = 540;
     const c = titleCanvas.getContext('2d'); const calls = []; const fill = c.fillText.bind(c);
     c.fillText = (text, ...args) => { calls.push({ text, alpha: c.globalAlpha }); fill(text, ...args); };

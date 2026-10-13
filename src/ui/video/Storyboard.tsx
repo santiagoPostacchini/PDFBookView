@@ -120,7 +120,6 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
                   </b>
                   <small>{compiled ? `${seconds(compiled.end - compiled.start)} s` : 'se omite'}</small>
                 </span>
-                {scene.caption && <span className="scene-card-caption">“{scene.caption}”</span>}
                 {progress !== null && <span className="scene-card-progress" style={{ width: `${Math.min(1, Math.max(0, progress)) * 100}%` }} />}
               </button>
             </li>

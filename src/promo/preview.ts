@@ -2,7 +2,7 @@ import type { CamPose } from '../studio/framing';
 import type { BookEngine, Director } from '../book/BookEngine';
 import { timelineSet } from './timelineSet';
 import { pagesToPreload, type Timeline } from './compile';
-import { drawOverlay, loadTypography, overlayTheme, type OverlayTheme } from './overlay';
+import { drawOverlay, loadTextFonts, overlayTheme, type OverlayTheme } from './overlay';
 import { TimelinePlayer } from './TimelinePlayer';
 import type { FiguritasImages } from './figuritas/assets';
 
@@ -63,14 +63,7 @@ export class VideoPreview {
     if (previous?.lighting !== timeline.lighting) this.engine.setLighting(timeline.lighting);
     if (previous?.aspect !== timeline.aspect) this.engine.setFrameAspect(timeline.aspect, frameMargins());
     this.theme = overlayTheme(set.color);
-    if (previous?.typography !== timeline.typography) {
-      loadTypography(timeline.typography)
-        .then(() => {
-          if (this.timeline?.typography !== timeline.typography) return;
-          this.engine.invalidate();
-        })
-        .catch((error) => console.error(error));
-    }
+    loadTextFonts(timeline).then(() => { if (this.timeline === timeline) this.engine.invalidate(); }).catch(error => console.error(error));
     this.seek(at);
     this.schedulePreload();
   }

@@ -322,8 +322,13 @@ Plan completo: textos independientes, cámara libre y mesa/mantel/fondo separado
 
 ### F-3a: Textos como ítems, modelo y compilación (D-014)
 - Responsable: codex; rama: codex/fix-textos-modelo.
-- Estado: pendiente.
+- Estado: hecho (pendiente de revisión del usuario).
 - Aceptación: `textItems` con migración de proyectos v1 sin pérdida; compilación a cues por ítem con inicio y duración propios; tests actualizados.
+- Hallazgos: TextItem reemplaza campos fijos, tipografía global y frases por escena; saneo compartido, ids únicos, máximo 30 y funciones puras de edición. Plantillas siembran cuatro ítems; cambiar plantilla conserva los existentes. Cues recortados a la duración total, independientes del guion; adaptación mínima de canvas, carga de fuentes, preview, MP4 y lista de texto/inicio/duración.
+- Persistencia: VERSION 2; migración pura con pesos y mínimos de v1, incluyendo las frases guardadas y fuentes integradas. Con medidas del libro omite escenas que no pueden abrirse. Mi marca sólo siembra videos nuevos y no se sobrescribe al editar.
+- Validación: npm test (597 pruebas), typecheck, build y diff --check; studio-e2e con arrastre y MP4 9:16 de 10 s (8.503.291 bytes); camera-motion-e2e con MP4 real; entorno y ui-a11y a 390/768/1440 en verde. Apertura real de un borrador v1, guardado v2, cinco textos dibujados y marca intacta comprobados en navegador; captura de Textos revisada en motion/out/f3a-studio.
+- Limitación: el borrador v1 no contiene los assets de Figuritas cargados por separado; su intervalo de migración usa el peso base y puede diferir si el pegado extendía el video. Elección liviana documentada en projectStorage.ts y docs/figuritas.md.
+- Pendientes: revisión del usuario; render avanzado/fuentes user en F-3b e interfaz final en F-3c. Figuritas-e2e actualizado y sintaxis validada, sin ejecución completa por falta de hoja/troquel de prueba. Sin dependencias nuevas, cambios de arquitectura, commits ni cambio de rama; TEMP/TMP dentro del proyecto.
 
 ### F-3b: Textos, render y fuentes subidas
 - Responsable: codex; rama: codex/fix-textos-render.

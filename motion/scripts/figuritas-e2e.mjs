@@ -25,6 +25,8 @@ try {
   await page.getByRole('tab', { name: 'Video promocional' }).click();
   await page.locator('.template-card').filter({ has: page.locator('b', { hasText: /^Figuritas$/ }) }).click();
   await page.locator('.storyboard .scene-card').nth(3).click();
+  await page.waitForFunction(() => Object.keys(localStorage).some(k => k.startsWith('pdf-book-view.video:') && JSON.parse(localStorage.getItem(k)).version === 2));
+  assert.equal(await page.evaluate(() => { const key = Object.keys(localStorage).find(k => k.startsWith('pdf-book-view.video:')); const { project } = JSON.parse(localStorage.getItem(key)); return project.textItems.length === 4 && !('texts' in project) && !('typography' in project); }), true);
   assert.equal(await page.getByText('Todavía no cargaste figuritas', { exact: true }).isVisible(), true);
   assert.equal(await page.locator('.sticker-pack details').getAttribute('open'), null);
   await page.getByLabel('Cargar figuritas', { exact: true }).setInputFiles(sheet);

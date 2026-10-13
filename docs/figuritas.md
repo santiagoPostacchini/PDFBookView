@@ -42,3 +42,9 @@ Las imágenes y el paquete se guardan por nombre de álbum en el navegador, medi
 La música opcional (T-008) queda para una etapa posterior por decisión del usuario.
 
 La cámara se maneja en la vista previa: click izquierdo gira (sobre el libro en Foto pasa o arrastra hojas), click derecho mira, W/A/S/D desplazan en el plano de vista y Q/E bajan/suben. La rueda acerca/aleja; + y - siguen disponibles y 0 vuelve a la vista inicial. En Video se guarda el encuadre por toma al terminar el gesto, persiste al recargar y se usa al exportar MP4. Durante la reproducción los controles se deshabilitan. Restablecer encuadre borra la pose libre y el acercamiento antiguo; zoom suave y movimiento lateral siguen siendo opcionales.
+
+## Textos independientes (F-3a)
+
+Los textos ya no pertenecen a una escena: Textos y marca muestra una lista con contenido, inicio y duración propios. La escena Figuritas no tiene un campo de frase; al reordenar o ajustar escenas los ítems conservan sus tiempos. Los videos nuevos traen los cuatro textos de la plantilla y los borradores v1 migran a v2 conservando título, línea chica, llamado, usuario y frases guardadas. Mi marca sólo se usa al crear un video.
+
+La migración calcula los intervalos con los pesos y mínimos de v1 sin ejecutar el render 3D. Con medidas del libro omite escenas que no pueden abrirse. Como el borrador no contiene los assets de Figuritas (se cargan por separado), su intervalo se aproxima con el peso base. El dibujo avanzado, las fuentes subidas y la manipulación visual quedan para F-3b/F-3c.

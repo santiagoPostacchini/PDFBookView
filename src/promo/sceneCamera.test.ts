@@ -32,8 +32,8 @@ describe('movimiento opcional por toma', () => {
       [{ kind: 'figuritas' as const }, { kind: 'doblePagina' as const }, { kind: 'portada' as const }],
     ]) {
       const timeline = compileProject(projectFromTemplate('clasica', { scenes }), book);
-      const titles = timeline.cues.filter((c) => c.kind === 'titulo');
-      expect(titles).toHaveLength(1); expect(titles[0].start).toBe(0); expect(titles[0].end).toBe(timeline.scenes[0].end);
+      const titles = timeline.cues.filter((c) => c.id === 'title');
+      expect(titles).toHaveLength(1); expect(titles[0].start).toBe(0); expect(titles[0].end).toBe(projectFromTemplate('clasica').textItems.find(t => t.id === 'title')!.duration);
     }
   });
   it('mueve sólo la toma elegida entre sus dos puntos, con foco estable y sin modificar el guion', () => {

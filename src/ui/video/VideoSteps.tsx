@@ -3,9 +3,9 @@ import { LIGHTING_PRESETS } from '../../book/Stage';
 import { customScenarioColor } from '../../book/scenarios';
 import { ScenarioPicker } from '../ScenarioPicker';
 import type { Timeline } from '../../promo/compile';
-import { spreadLabel } from '../../promo/editing';
-import { FORMATS, type FormatId, type PromoProject, type PromoTexts, type SceneKind, type SceneLength, type SceneSpec, type TypographyId } from '../../promo/model';
-import { SCENES, TEMPLATES, TYPOGRAPHY } from '../../promo/templates';
+import { updateText, spreadLabel } from '../../promo/editing';
+import { FORMATS, type FormatId, type PromoProject, type SceneKind, type SceneLength, type SceneSpec } from '../../promo/model';
+import { SCENES, TEMPLATES } from '../../promo/templates';
 import { CanvasThumb } from '../CanvasThumb';
 import { Chips, Disclosure, Section, Slider, Toggle } from '../controls';
 import { IconAlert, IconArrowLeft, IconArrowRight, IconCopy, IconDownload, IconPlay, IconPlus, IconStop, IconTrash } from '../icons';
@@ -52,7 +52,6 @@ interface SceneStepProps {
   onDuplicate: () => void;
   onRemove: () => void;
   onAdd: () => void;
-  onGoToTexts: () => void;
   onShowPoint: (point: 'inicio' | 'fin') => void;
   onPlayScene: () => void;
 }
@@ -63,7 +62,7 @@ const LENGTHS: { id: SceneLength; label: string }[] = [
   { id: 'larga', label: 'Larga' },
 ];
 
-export function SceneStep({ engine, project, timeline, index, onChange, onMove, onDuplicate, onRemove, onAdd, onGoToTexts, onShowPoint, onPlayScene, figuritas }: SceneStepProps) {
+export function SceneStep({ engine, project, timeline, index, onChange, onMove, onDuplicate, onRemove, onAdd, onShowPoint, onPlayScene, figuritas }: SceneStepProps) {
   const scene = project.scenes[index];
   const book = engine.currentBook;
   const thumbs = usePageThumbs(engine, book?.pageCount ?? 0);
@@ -71,8 +70,6 @@ export function SceneStep({ engine, project, timeline, index, onChange, onMove, 
   const info = SCENES[scene.kind];
   const compiled = timeline.scenes.find((s) => s.index === index);
   const interior = Math.max(1, book.leafCount - 1);
-  const isOpening = timeline.scenes[0]?.index === index;
-  const isText = isOpening || scene.kind === 'cierre';
   const zoom = scene.camera?.zoom ?? { enabled: false, from: 0, to: 0.06 };
   const lateral = scene.camera?.lateral ?? { enabled: false, amount: 0.08, direction: 'derecha' as const };
 
@@ -103,30 +100,6 @@ export function SceneStep({ engine, project, timeline, index, onChange, onMove, 
                 </button>
               ))}
             </div>
-          </Section>
-        )}
-
-        {isText ? (
-          <Section title="Textos">
-            <p className="editor-formula">
-              {isOpening ? 'El título y la línea chica' : 'El llamado a la acción y tu usuario'} se editan en{' '}
-              <button className="link-btn" onClick={onGoToTexts}>
-                Textos y marca
-              </button>
-              .
-            </p>
-          </Section>
-        ) : (
-          <Section title="Frase en pantalla" hint="Opcional. Mejor corta: tiene que leerse en dos segundos.">
-            <input
-              type="text"
-              className="text-input"
-              value={scene.caption ?? ''}
-              maxLength={80}
-              placeholder="Tus fotos, tu historia"
-              aria-label="Frase en pantalla"
-              onChange={(e) => onChange({ caption: e.target.value })}
-            />
           </Section>
         )}
 
@@ -209,46 +182,19 @@ function Field({ label, value, placeholder, onChange, onFocus }: { label: string
   return (
     <label className="field">
       <span>{label}</span>
-      <input type="text" className="text-input" value={value} maxLength={60} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} onFocus={onFocus} />
+      <input type="text" className="text-input" aria-label={label} value={value} maxLength={120} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} onFocus={onFocus} />
     </label>
   );
 }
 
-interface TextsStepProps {
-  project: PromoProject;
-  onTexts: (patch: Partial<PromoTexts>) => void;
-  onChange: (patch: Partial<PromoProject>) => void;
-  /** Al escribir, el visor muestra la escena donde aparece ese texto. */
-  onShow: (kind: 'portada' | 'cierre') => void;
-}
-
-export function TextsStep({ project, onTexts, onChange, onShow }: TextsStepProps) {
-  const { texts } = project;
-  return (
-    <>
-      <Section title="Al empezar">
-        <Field label="Título" value={texts.title} placeholder="Álbum personalizado" onChange={(title) => onTexts({ title })} onFocus={() => onShow('portada')} />
-        <Field
-          label="Línea chica (arriba del título)"
-          value={texts.subtitle}
-          placeholder="Hecho a mano, página por página"
-          onChange={(subtitle) => onTexts({ subtitle })}
-          onFocus={() => onShow('portada')}
-        />
-      </Section>
-      <Section title="Al terminar" hint="Tu usuario y el llamado a la acción se recuerdan para tus próximos álbumes.">
-        <Field label="Llamado a la acción" value={texts.cta} placeholder="Pedí el tuyo" onChange={(cta) => onTexts({ cta })} onFocus={() => onShow('cierre')} />
-        <Field label="Usuario o web" value={texts.handle} placeholder="@tu.marca" onChange={(handle) => onTexts({ handle })} onFocus={() => onShow('cierre')} />
-      </Section>
-      <Section title="Tipografía">
-        <Chips
-          items={(Object.keys(TYPOGRAPHY) as TypographyId[]).map((id) => ({ id, label: TYPOGRAPHY[id].label, style: { fontFamily: `"${TYPOGRAPHY[id].display}", serif`, fontSize: 15 } }))}
-          value={project.typography}
-          onChange={(typography) => onChange({ typography })}
-        />
-      </Section>
-    </>
-  );
+export function TextsStep({ project, onChange }: { project: PromoProject; onChange: (patch: Partial<PromoProject>) => void }) {
+  return <Section title="Textos independientes" hint="Cada texto tiene su propio inicio y duración en segundos.">
+    {project.textItems.map((item, i) => <div key={item.id}>
+      <Field label={`Texto ${i + 1}`} value={item.text} placeholder="Texto" onChange={text => onChange(updateText(project, item.id, { text }))} />
+      <label>Inicio {i + 1}<input className="text-input" aria-label={`Inicio ${i + 1}`} type="number" min={0} step={0.1} value={Number(item.start.toFixed(1))} onChange={e => onChange(updateText(project, item.id, { start: Number(e.target.value) }))} /></label>
+      <label>Duración {i + 1}<input className="text-input" aria-label={`Duración ${i + 1}`} type="number" min={0.5} step={0.1} value={Number(item.duration.toFixed(1))} onChange={e => onChange(updateText(project, item.id, { duration: Number(e.target.value) }))} /></label>
+    </div>)}
+  </Section>;
 }
 
 export function EnvironmentStep({ project, onChange }: { project: PromoProject; onChange: (patch: Partial<PromoProject>) => void }) {

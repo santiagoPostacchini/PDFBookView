@@ -1,6 +1,7 @@
+import { sanitizeTextItems } from './textItems';
 import type { Timeline } from './compile';
-import type { PromoProject, SceneKind, SceneSpec } from './model';
-import { templateById } from './templates';
+import type { PromoProject, TextItem, SceneKind, SceneSpec } from './model';
+import { projectFromTemplate, templateById } from './templates';
 import { sanitizeSceneCamera } from './sceneCamera';
 
 /**
@@ -21,7 +22,6 @@ function clean(scene: SceneSpec): SceneSpec {
   const camera = sanitizeSceneCamera(scene.camera);
   if (camera) out.camera = camera;
   if (scene.spread !== undefined) out.spread = scene.spread;
-  if (scene.caption) out.caption = scene.caption;
   if (scene.length && scene.length !== 'normal') out.length = scene.length;
   if (scene.stickers !== undefined) out.stickers = scene.stickers.map((s) => ({ ...s }));
   return out;
@@ -36,7 +36,7 @@ export function addScene(project: PromoProject, kind: SceneKind, after: number):
   return { project: { ...project, scenes }, index: at };
 }
 
-/** Copia de la escena justo después de ella (misma doble página, frase y duración). */
+/** Copia de la escena justo después de ella (misma doble página y duración). */
 export function duplicateScene(project: PromoProject, index: number): Edit {
   const scene = project.scenes[index];
   if (!scene) return { project, index };
@@ -77,9 +77,9 @@ export function updateScene(project: PromoProject, index: number, patch: Partial
 const sameScenes = (a: SceneSpec[], b: SceneSpec[]) => JSON.stringify(a.map(clean)) === JSON.stringify(b.map(clean));
 
 /**
- * Cambia de estilo: trae escenario, luz, tipografía y ritmo de la plantilla.
+ * Cambia de estilo: trae escenario, luz y ritmo de la plantilla.
  * El guion y la duración sólo se reemplazan si la persona no los había tocado;
- * los textos se conservan siempre.
+ * Los ítems se conservan; sólo se siembran si el proyecto no tiene textos.
  */
 export function applyTemplate(project: PromoProject, id: string): PromoProject {
   const current = templateById(project.template);
@@ -90,17 +90,17 @@ export function applyTemplate(project: PromoProject, id: string): PromoProject {
     windowShadow: next.set === 'ventana' ? 0.45 : project.windowShadow,
     set: next.set,
     lighting: next.lighting,
-    typography: next.typography,
+    textItems: project.textItems.length ? project.textItems : projectFromTemplate(id, { format: project.format, duration: project.duration === current.duration ? next.duration : project.duration }).textItems,
     duration: project.duration === current.duration ? next.duration : project.duration,
     scenes: sameScenes(project.scenes, current.scenes) ? next.scenes.map(clean) : project.scenes,
   };
 }
 
-/** Instante que representa a una escena en la vista previa: con el título o el llamado a la acción ya visibles. */
+/** Instante representativo de la escena, independiente de los textos. */
 export function sceneFocusTime(timeline: Timeline, sceneIndex: number): number {
   const scene = timeline.scenes.find((s) => s.index === sceneIndex) ?? timeline.scenes[0];
   if (!scene) return 0;
-  const at = scene.kind === 'portada' ? 0.62 : scene.kind === 'cierre' || scene.kind === 'figuritas' ? 0.9 : 0.55;
+  const at = 0.55;
   return scene.start + (scene.end - scene.start) * at;
 }
 
@@ -125,4 +125,18 @@ export function spreadLabel(spread: number, pageCount: number): string {
   const left = 2 * spread;
   const right = 2 * spread + 1;
   return right <= pageCount ? `Págs. ${left}–${right}` : `Pág. ${left}`;
+}
+
+export function addText(project: PromoProject, partial: Partial<TextItem> = {}): PromoProject {
+  return { ...project, textItems: sanitizeTextItems([...project.textItems, { text: 'Texto nuevo', ...partial }]) };
+}
+export function updateText(project: PromoProject, id: string, patch: Partial<TextItem>): PromoProject {
+  return { ...project, textItems: sanitizeTextItems(project.textItems.map(t => t.id === id ? { ...t, ...patch, id } : t)) };
+}
+export function removeText(project: PromoProject, id: string): PromoProject {
+  return { ...project, textItems: project.textItems.filter(t => t.id !== id) };
+}
+export function duplicateText(project: PromoProject, id: string): PromoProject {
+  const item = project.textItems.find(t => t.id === id);
+  return item ? addText(project, item) : project;
 }

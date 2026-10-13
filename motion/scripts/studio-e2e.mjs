@@ -5,7 +5,7 @@
 //
 //   node scripts/studio-e2e.mjs <pdf> [--mode booklet|simple] [--out out/e2e]
 //        [--template clasica|ritmo|minimal] [--formats 9:16,1:1] [--duration 15]
-//        [--caption "Tus fotos, tu historia"] [--handle @tu.marca] [--drag]
+//        [--text "Tus fotos, tu historia"] [--handle @tu.marca] [--drag]
 //        [--view tresCuartos] [--spread 2] [--lighting calida] [--backdrop rosa]
 //        [--no-video] [--no-photo]
 //
@@ -104,8 +104,6 @@ if (!has('no-video')) {
   // 2. Historia: una frase en la tercera escena (si se puede escribir ahí) y
   // reordenar arrastrando la última escena antes del cierre hasta la segunda posición.
   await page.click('.storyboard .scene-card >> nth=2');
-  const caption = await page.$('input[aria-label="Frase en pantalla"]');
-  if (caption && flag('caption')) await caption.fill(flag('caption'));
   const order = () => page.$$eval('.storyboard .scene-card-label b', (els) => els.map((e) => e.textContent.replace(/^\d+\.\s*/, '')).join(' → '));
   if (has('drag')) {
     const cards = page.locator('.storyboard .scene-card');
@@ -124,7 +122,10 @@ if (!has('no-video')) {
 
   // 3. Textos y marca
   await page.click('.video-steps button:has-text("Textos")');
-  if (flag('handle')) await page.fill('.field:has-text("Usuario") input', flag('handle'));
+  if (flag('handle')) await page.fill('input[aria-label="Texto 4"]', flag('handle'));
+  if (flag('text')) await page.getByLabel('Texto 2', { exact: true }).fill(flag('text'));
+  await page.getByLabel('Inicio 2', { exact: true }).fill('0.2');
+  await page.getByLabel('Duraci\u00f3n 2', { exact: true }).fill('2.5');
   await shot('ui-video-3-textos.png');
 
   await page.click('.video-steps button:has-text("Ambiente")');

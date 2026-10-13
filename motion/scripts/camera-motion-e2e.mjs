@@ -97,9 +97,9 @@ try {
     const ctx = canvas.getContext('2d'); const calls = [];
     ctx.fillText = (text) => { if (ctx.globalAlpha > 0.5) calls.push(text); };
     drawOverlay(ctx, timeline, 0, overlayTheme('#f4e9dc'));
-    if (!calls.join(' ').includes(project.texts.title)) throw new Error('Título ausente en la primera toma');
+    if (!calls.join(' ').includes(project.textItems.find(t => t.id === 'title').text)) throw new Error('Título ausente en la primera toma');
     calls.length = 0; drawOverlay(ctx, timeline, timeline.scenes[4].start, overlayTheme('#f4e9dc'));
-    if (calls.join(' ').includes(project.texts.title)) throw new Error('Título repetido en la quinta toma');
+    if (calls.join(' ').includes(project.textItems.find(t => t.id === 'title').text)) throw new Error('Título repetido en la quinta toma');
     timeline.width = 480; timeline.height = 270;
     const seen = []; const original = engine.applyPose.bind(engine);
     engine.applyPose = (pose, ...args) => { seen.push([...pose.target, pose.distance]); return original(pose, ...args); };

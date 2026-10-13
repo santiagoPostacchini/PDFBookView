@@ -21,8 +21,6 @@ export interface SceneSpec {
   kind: SceneKind;
   /** Doble página que muestra (escenas con páginas). Si falta, se elige sola. */
   spread?: number;
-  /** Frase en pantalla durante la escena (opcional). */
-  caption?: string;
   length?: SceneLength;
   /** Casillero numerado o página 1-based elegida a mano. Vacío = ninguna; ausente = automático. */
   stickers?: { id: string; slot?: number; page?: number }[];
@@ -37,15 +35,21 @@ export const FORMATS: Record<FormatId, { width: number; height: number; label: s
   '16:9': { width: 1920, height: 1080, label: '16:9', hint: 'YouTube y la web' },
 };
 
-export interface PromoTexts {
-  /** Título de apertura. */
-  title: string;
-  /** Línea chica sobre el título. */
-  subtitle: string;
-  /** Llamado a la acción del cierre. */
-  cta: string;
-  /** Usuario o web de la marca. */
-  handle: string;
+export interface TextItem {
+  id: string;
+  text: string;
+  start: number;
+  duration: number;
+  /** Centro normalizado sobre el cuadro. */
+  x: number;
+  y: number;
+  /** Alto de letra relativo al alto del cuadro. */
+  size: number;
+  color: string;
+  font: string;
+  bold?: boolean;
+  align?: 'izquierda' | 'centro' | 'derecha';
+  animation: 'subir' | 'fundido' | 'ninguna';
 }
 
 export type TypographyId = 'clasica' | 'moderna' | 'manuscrita';
@@ -62,8 +66,7 @@ export interface PromoProject {
   /** Duración objetivo en segundos (las escenas se reparten ese tiempo). */
   duration: number;
   scenes: SceneSpec[];
-  texts: PromoTexts;
-  typography: TypographyId;
+  textItems: TextItem[];
   /** Fondo: id de SCENARIOS, automatico o color:#rrggbb. */
   set: string;
   /** Luz: id de LIGHTING_PRESETS. */

@@ -294,3 +294,30 @@ Decisiones: (1) el editor de video pasa a **cinco pasos**: Estilo, Historia, Tex
 - Comparación: motion/out/u8-antes/ y u8-despues/, cuadros 10/12,5/15 s extraídos con -ss y hoja motion/out/u8-comparacion.png revisada: álbum mayor, figuritas legibles y vuelo completo; a 15 s aparece Detalle, conservado.
 - Pendientes: revisión del usuario. Sin dependencias, cambios de arquitectura, commits ni cambios de rama; TEMP/TMP local por permisos.
 - Decisión (2026-10-12): se integra la variante B del encuadre (elevación máxima 55° y azimuts ±16° en apaisado) en lugar de la A (80° y ±40°); sin costo en las metas medidas y mejor 16:9. Rama de trabajo: experimento/plano-b, integrada en integracion/figuritas-ui.
+
+## Fixes del editor (2026-10-12)
+
+Plan completo: textos independientes, cámara libre y mesa/mantel/fondo separados. Rama de integración: `integracion/fixes-editor`. Decisiones D-014, D-015 y D-016 en ARCHITECTURE.md.
+
+### F-1: Mesa, mantel y fondo separados (D-016)
+- Responsable: codex; rama: codex/fix-mesa-mantel-fondo.
+- Estado: pendiente.
+- Aceptación: en Foto y Video se puede usar o no la mesa; mantel y fondo se eligen por separado, cada uno con presets y color a elección; sin mesa se ve solo el fondo; proyectos y ajustes viejos migran sin romperse; tests y e2e actualizados.
+
+### F-2: Cámara libre y rueda como zoom (D-015)
+- Responsable: codex; rama: codex/fix-camara-libre.
+- Estado: pendiente.
+- Aceptación: click derecho mira, W/A/S/D/Q/E mueven, rueda hace zoom, sin botones de zoom en la interfaz; en Video la pose se guarda en la toma y el MP4 coincide con la vista previa.
+
+### F-3a: Textos como ítems, modelo y compilación (D-014)
+- Responsable: codex; rama: codex/fix-textos-modelo.
+- Estado: pendiente.
+- Aceptación: `textItems` con migración de proyectos v1 sin pérdida; compilación a cues por ítem con inicio y duración propios; tests actualizados.
+
+### F-3b: Textos, render y fuentes subidas
+- Responsable: codex; rama: codex/fix-textos-render.
+- Estado: pendiente (depende de F-3a).
+
+### F-3c: Textos, interfaz y manipulación en la vista previa
+- Responsable: codex; rama: codex/fix-textos-ui.
+- Estado: pendiente (depende de F-3b).

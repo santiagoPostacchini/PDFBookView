@@ -525,16 +525,6 @@
 .sticker-pack-summary { margin: 4px 12px 12px; font-size: 12px; color: #c9bfb4; }
 .scene-content:has(.sticker-grid) .studio-section { padding: 6px 0; gap: 6px; }
 .scene-content:has(.sticker-grid) .editor-formula { margin: 0; }
-@media (min-width: 900px) {
-  .scene-content:has(.sticker-grid) { display: grid; grid-template-columns: minmax(0, 1fr) 160px; gap: 6px 12px; align-content: start; align-items: start; }
-  .scene-content:has(.sticker-grid) > * { grid-column: 1 / -1; }
-  .scene-content:has(.sticker-grid) > .studio-section:nth-child(2) { grid-column: 1; }
-  .scene-content:has(.sticker-grid) > .studio-section:nth-child(3) { grid-column: 2; }
-  .scene-content:has(.sticker-grid) > .sticker-pack { grid-column: 1; margin-top: 0; }
-  .scene-content:has(.sticker-grid) > .btn-block { grid-column: 2; margin: 0; align-self: start; white-space: normal; }
-  .scene-content:has(.sticker-grid) > .disclosure { padding: 4px 12px; }
-  .scene-content:has(.sticker-grid) > .disclosure > summary { min-height: 28px; }
-}
 .sticker-row :focus-visible, .sticker-pack summary:focus-visible { outline: 2px solid #edc28e; outline-offset: 3px; }
 .pack-thumbs { display: flex; gap: 12px; margin-top: 12px; }
 .pack-thumbs .sticker-thumb { max-height: 72px; }

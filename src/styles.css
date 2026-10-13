@@ -1462,3 +1462,6 @@ input.toggle:disabled { opacity: 0.55; cursor: default; }
 .cloth-vichy-rosa { --cloth-ink: rgb(174 66 88 / 34%); }
 .cloth-vichy-azul { --cloth-ink: rgb(66 115 174 / 34%); }
 .cloth-rayas-salvia .swatch-color { background-image: repeating-linear-gradient(90deg, transparent 0 5px, rgb(87 137 85 / 45%) 5px 10px) !important; }
+
+/* Un ?nico acceso a la vista inicial, tambi?n en m?vil. */
+.camera-controls { gap: 0; padding: 4px; flex-direction: row; }

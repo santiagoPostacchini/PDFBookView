@@ -53,6 +53,18 @@ if (await page.$('.sheet-editor')) await page.click('.sheet-editor button[aria-l
 
 await page.click('.topbar .btn:has-text("Estudio")');
 await page.waitForSelector('.studio-panel');
+const cameraCanvas = await page.locator('canvas.book-canvas').first().boundingBox();
+const cameraBefore = await page.evaluate(() => window.bookEngine.getPose());
+await page.mouse.move(cameraCanvas.x + cameraCanvas.width / 2, cameraCanvas.y + cameraCanvas.height / 2);
+await page.mouse.down({ button: 'right' });
+await page.mouse.move(cameraCanvas.x + cameraCanvas.width / 2 + 35, cameraCanvas.y + cameraCanvas.height / 2 + 8, { steps: 5 });
+await page.mouse.up({ button: 'right' });
+const cameraAfter = await page.evaluate(() => window.bookEngine.getPose());
+if (Math.abs(cameraAfter.azimuth - cameraBefore.azimuth) < 1) throw new Error('Click derecho no mira');
+await page.mouse.wheel(0, -180);
+await page.waitForTimeout(350);
+if ((await page.evaluate(() => window.bookEngine.getPose())).distance >= cameraAfter.distance) throw new Error('Rueda no acerca en Foto');
+
 
 if (!has('no-photo')) {
   if (flag('lighting')) await page.click(`.studio-section:has(h3:text("Luz")) .chip:text-is("${cap(flag('lighting'))}")`);

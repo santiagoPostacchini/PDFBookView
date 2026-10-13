@@ -24,6 +24,8 @@ try {
     const height = width === 390 ? 844 : width === 768 ? 1024 : 900;
     const page = await browser.newPage({ viewport: { width, height } });
     await page.goto(url);
+    assert.equal(await page.getByRole('button', { name: /^(Acercar|Alejar)$/ }).count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'Vista inicial', exact: true }).count(), 1);
     await page.evaluate(() => { localStorage.clear(); localStorage.setItem('pdf-book-view.mode', 'booklet'); });
     await page.reload();
     await page.setInputFiles('input[type=file]', album);

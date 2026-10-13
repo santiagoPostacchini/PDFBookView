@@ -18,8 +18,6 @@ import {
   IconReset,
   IconSheets,
   IconUpload,
-  IconZoomIn,
-  IconZoomOut,
 } from './ui/icons';
 import { readTopbarPrefs, topbarIsHidden, updateTopbarPrefs } from './ui/topbarPrefs';
 import { ModeSelector } from './ui/ModeSelector';
@@ -166,7 +164,7 @@ export function App() {
   useEffect(() => {
     if (!engine) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLInputElement || event.altKey || event.ctrlKey || event.metaKey) return;
+      if ((event.target instanceof Element && !!event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) || event.altKey || event.ctrlKey || event.metaKey) return;
       switch (event.key) {
         case 'ArrowRight':
         case 'PageDown':
@@ -305,12 +303,6 @@ export function App() {
       <div ref={viewportRef} className="viewport" tabIndex={0} role="region" aria-label="Visor del libro" />
 
       <div className="camera-controls panel" role="toolbar" aria-label="Cámara">
-        <button className="icon-btn" onClick={() => engine?.zoom(0.8)} title="Acercar (+)" aria-label="Acercar">
-          <IconZoomIn />
-        </button>
-        <button className="icon-btn" onClick={() => engine?.zoom(1.25)} title="Alejar (−)" aria-label="Alejar">
-          <IconZoomOut />
-        </button>
         <button className="icon-btn" onClick={() => engine?.resetView()} title="Vista inicial (0)" aria-label="Vista inicial">
           <IconReset />
         </button>

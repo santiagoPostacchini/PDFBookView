@@ -136,9 +136,10 @@ export function SceneStep({ engine, project, timeline, index, onChange, onMove, 
 
         {scene.kind === 'figuritas' && figuritas}
 
-        <Disclosure key={index} title="Movimiento (opcional)" open={zoom.enabled || lateral.enabled || (scene.camera?.framingZoom ?? 0) !== 0}>
+        <Disclosure key={index} title="Movimiento (opcional)" open={zoom.enabled || lateral.enabled || !!scene.camera?.free || (scene.camera?.framingZoom ?? 0) !== 0}>
           <Section title="Movimiento de esta toma" hint="Sólo afecta a esta escena. Podés combinar ambos movimientos o apagarlos para volver al plano fijo.">
-            <Slider label="Acercamiento de esta toma" min={0} max={1} step={0.01} value={scene.camera?.framingZoom ?? 0} onChange={(framingZoom) => onChange({ camera: { ...scene.camera, framingZoom } })} hint="Elegí tu encuadre: hasta el doble de acercamiento. Se mantiene fijo aunque el zoom suave esté apagado; podés dejar objetos fuera del cuadro." />
+            <p className="editor-formula">Mové la cámara en la vista previa: rueda para acercar, click derecho para mirar, W/A/S/D para moverte</p>
+            <button onClick={() => onChange({ camera: { ...scene.camera, free: undefined, framingZoom: undefined } })}>Restablecer encuadre</button>
             <label className="check"><Toggle checked={zoom.enabled} onChange={(e) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, enabled: e.target.checked } } })} /><span>Activar zoom suave</span></label>
             {zoom.enabled && <>
               <Slider label="Zoom inicial" min={0} max={0.1} step={0.01} value={zoom.from} onChange={(from) => onChange({ camera: { ...scene.camera, zoom: { ...zoom, from } } })} />

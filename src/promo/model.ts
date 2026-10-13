@@ -1,3 +1,4 @@
+import type { CamPose } from '../studio/framing';
 /**
  * Proyecto de video promocional: lo que decide la persona usuaria, en términos
  * que entiende cualquiera (escenas, textos, formato). El "cómo" (cámara, luces,
@@ -9,6 +10,7 @@ export type SceneKind = 'portada' | 'apertura' | 'doblePagina' | 'hojeo' | 'deta
 export type SceneLength = 'corta' | 'normal' | 'larga';
 
 export interface SceneCamera {
+  free?: CamPose;
   framingZoom?: number;
   zoom?: { enabled: boolean; from: number; to: number };
   lateral?: { enabled: boolean; amount: number; direction: 'izquierda' | 'derecha'; orbit?: boolean };

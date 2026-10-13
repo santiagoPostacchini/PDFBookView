@@ -139,3 +139,26 @@ describe('compileProject', () => {
     for (const s of tl.spreads) expect(pages).toEqual(expect.arrayContaining([2 * s - 1, 2 * s].filter((p) => p >= 0 && p < 12)));
   });
 });
+
+it('el encuadre libre reemplaza los planos calculados de todas las escenas', () => {
+  const free = { azimuth: -18, elevation: 0, distance: 7, target: [2, -3, 1] as const };
+  const project = projectFromTemplate('clasica');
+  project.scenes = project.scenes.map((scene) => ({ ...scene, camera: { free, framingZoom: 1 } }));
+  const timeline = compileProject(project, shape(6));
+  for (const scene of timeline.scenes) {
+    for (const fraction of [0.1, 0.5, 0.9]) {
+      const pose = sampleCamera(timeline, scene.start + (scene.end - scene.start) * fraction).pose;
+      expect(pose).toEqual(free);
+    }
+  }
+});
+
+it('la pose libre prevalece sobre figuritasFraming', () => {
+  const free = { azimuth: 15, elevation: 38, distance: 4, target: [1, 0.5, -1] as const };
+  const book = { ...shape(6), pagePt: { width: 200, height: 300 } };
+  const kit = { stickers: [{ id: 'a', number: 1, widthPt: 100, heightPt: 140 }], pack: { widthPt: 150, heightPt: 220 } };
+  const project = projectFromTemplate('figuritas', { scenes: [{ kind: 'figuritas', stickers: [{ id: 'a', page: 2 }], camera: { free } }] });
+  const timeline = compileProject(project, book, kit);
+  expect(sampleCamera(timeline, 0).pose).toEqual(free);
+  expect(sampleCamera(timeline, timeline.duration / 2).pose).toEqual(free);
+});

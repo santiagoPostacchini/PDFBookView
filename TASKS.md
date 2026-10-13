@@ -312,8 +312,13 @@ Plan completo: textos independientes, cámara libre y mesa/mantel/fondo separado
 
 ### F-2: Cámara libre y rueda como zoom (D-015)
 - Responsable: codex; rama: codex/fix-camara-libre.
-- Estado: pendiente.
+- Estado: hecho (pendiente de revisión del usuario).
 - Aceptación: click derecho mira, W/A/S/D/Q/E mueven, rueda hace zoom, sin botones de zoom en la interfaz; en Video la pose se guarda en la toma y el MP4 coincide con la vista previa.
+- Hallazgos: FlyLook mira desde la posición de cámara y desplaza cámara/objetivo; respeta foco editable, modificadores y límites. OrbitControls conserva izquierdo/medio/rueda y PageInteraction sigue atendiendo hojas en Foto. Video permite cámara en pausa, bloquea hojas y controles durante reproducción/exportación.
+- Persistencia: SceneCamera.free validada reemplaza el encuadre calculado, incluido Figuritas; framingZoom sigue como compatibilidad. Se deshace el movimiento en el instante editado antes de guardar la base para evitar saltos; zoom suave, lateral y órbita se aplican encima. Objetivos elevados o negativos se conservan en el recorrido.
+- Interfaz/documentación: se retiran Acercar/Alejar y el slider por toma; Vista inicial/0 y +/− siguen disponibles. Ayuda y Restablecer encuadre actualizados; README y docs/figuritas.md al día.
+- Validación: npm test (592 pruebas), npm run typecheck y npm run build en verde; camera-motion-e2e con rueda/look/teclado, recarga, bloqueo durante play, restablecimiento y MP4 real (332247 bytes); ui-a11y-e2e a 390/768/1440; studio-e2e con arrastre de guion, Foto y MP4 9:16 de 10 s. Servidor npm run dev en 5173, TEMP/TMP dentro del proyecto por permisos de Windows.
+- Pendientes: revisión visual del usuario. Sin dependencias nuevas, cambios de arquitectura, textos del video ni mesa/mantel/fondo; sin commits ni cambios de rama.
 
 ### F-3a: Textos como ítems, modelo y compilación (D-014)
 - Responsable: codex; rama: codex/fix-textos-modelo.

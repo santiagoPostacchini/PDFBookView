@@ -1,3 +1,4 @@
+import { sceneCameraBase } from '../../promo/sceneCamera';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { BookEngine } from '../../book/BookEngine';
@@ -110,6 +111,17 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
     const p = new VideoPreview(engine, images);
     setPlaying(false);
     preview.current = p;
+    p.onCameraEdit = (index, pose) => {
+      const scene = latest.current.scenes.find((s) => s.index === index);
+      if (!scene) return;
+      const progress = (p.time - scene.start) / (scene.end - scene.start);
+      setDraft((d) => {
+        const spec = d.project.scenes[index];
+        if (!spec) return d;
+        const free = sceneCameraBase(pose, spec.camera, engine.currentBook?.pageWidth ?? 2, progress);
+        return { ...d, project: updateScene(d.project, index, { camera: { ...spec.camera, free } }) };
+      });
+    };
     let last = 0;
     p.onTick = (t) => {
       const now = performance.now();

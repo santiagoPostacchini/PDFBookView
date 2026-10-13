@@ -24,9 +24,30 @@ try {
   const zoom = page.getByRole('checkbox', { name: 'Activar zoom suave', exact: true });
   const lateral = page.getByRole('checkbox', { name: 'Activar movimiento lateral', exact: true });
   assert.equal(await zoom.isChecked(), false); assert.equal(await lateral.isChecked(), false);
-  const framing = page.getByRole('slider', { name: /^Acercamiento de esta toma/ });
-  await framing.focus(); await framing.press('Home');
-  for (let i = 0; i < 50; i++) await framing.press('ArrowRight');
+  const canvas = page.locator('canvas.book-canvas').first();
+  const box = await canvas.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const before = await page.evaluate(() => window.bookEngine.getPose());
+  await page.mouse.wheel(0, -240);
+  await page.waitForTimeout(650);
+  assert.ok((await page.evaluate(() => window.bookEngine.getPose())).distance < before.distance);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 12, { steps: 6 });
+  await page.mouse.up({ button: 'right' });
+  await page.waitForTimeout(650);
+  await page.locator('.viewport').focus();
+  await page.keyboard.down('w'); await page.waitForTimeout(200); await page.keyboard.up('w');
+  await page.waitForTimeout(650);
+  const edited = await page.evaluate(() => window.bookEngine.getPose());
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf'))?.project.scenes[0].camera?.free);
+  const savedFree = await page.evaluate(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf')).project.scenes[0].camera.free);
+  assert.notDeepEqual(edited.target, before.target);
+  const compiledPose = await page.evaluate(() => {
+    const project = JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf')).project;
+    const timeline = window.promoLab.compileProject(project, window.bookEngine.currentBook);
+    return timeline.segments[0].path.sample(timeline.scenes[0].end * 0.62).pose;
+  });
+  assert.ok(Math.abs(compiledPose.distance - edited.distance) < 1e-6);
   await zoom.check(); await lateral.check();
   const slider = (label) => page.getByRole('slider', { name: new RegExp(`^${label}`) });
   const setSlider = async (label, steps) => {
@@ -43,11 +64,12 @@ try {
   assert.notDeepEqual(first.position, last.position); assert.deepEqual(first.target, last.target);
   await page.getByRole('button', { name: 'Ver esta toma', exact: true }).click();
   await page.getByRole('button', { name: 'Detener', exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => window.bookEngine.controls.enabled), false);
   await page.getByRole('button', { name: 'Reproducir desde el principio', exact: true }).waitFor({ timeout: 15000 });
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf'))?.project.scenes[0].camera?.zoom.to === 0.08);
   await load();
   assert.notEqual(await page.locator('.scene-content details').getAttribute('open'), null, 'Los ajustes guardados abren Movimiento.');
-  assert.equal(await framing.inputValue(), '0.5');
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf')).project.scenes[0].camera.free), savedFree);
   assert.equal(await zoom.isChecked(), true); assert.equal(await lateral.isChecked(), true);
   assert.equal(await orbit.isChecked(), true);
   assert.equal(await slider('Zoom inicial').inputValue(), '0.02'); assert.equal(await slider('Zoom final').inputValue(), '0.08');
@@ -67,7 +89,8 @@ try {
     const { bookEngine: engine, promoLab: lab } = window;
     const project = lab.projectFromTemplate('clasica', { format: '16:9' });
     project.scenes = [{ kind: 'doblePagina' }, { kind: 'cenital' }, { kind: 'detalle' }, { kind: 'cierre' }, { kind: 'portada' }];
-    project.scenes[0].camera = { zoom: { enabled: true, from: 0.02, to: 0.08 }, lateral: { enabled: true, amount: 0.1, direction: 'izquierda', orbit: true } };
+    const saved = JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf'));
+    project.scenes[0].camera = { free: saved.project.scenes[0].camera.free, zoom: { enabled: true, from: 0.02, to: 0.08 }, lateral: { enabled: true, amount: 0.1, direction: 'izquierda', orbit: true } };
     const timeline = lab.compileProject(project, engine.currentBook);
     const { drawOverlay, overlayTheme } = await import('/src/promo/overlay.ts');
     const canvas = document.createElement('canvas'); canvas.width = 960; canvas.height = 540;
@@ -87,6 +110,12 @@ try {
     } finally { engine.applyPose = original; }
   });
   assert.ok(bytes > 10000, 'MP4 real con cámara opcional');
+  await load();
+  await page.getByRole('button', { name: 'Restablecer encuadre', exact: true }).click();
+  await page.waitForFunction(() => {
+    const camera = JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf')).project.scenes[0].camera;
+    return !camera.free && camera.framingZoom === undefined;
+  });
   assert.deepEqual(errors, []);
   console.log(`Cámara en verde: controles por toma, dos puntos, reproducción acotada, persistencia, desactivación y MP4 real (${bytes} bytes).`);
 } finally { await browser.close(); }

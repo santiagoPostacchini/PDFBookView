@@ -372,7 +372,7 @@ function fixedSegments(scenes: CompiledScene[], shots: Shot[], specs: SceneSpec[
       { t: length, pose: to, aperture: shots[i].aperture },
     ];
     const orbit = specs[i].camera?.lateral;
-    const path = orbit?.enabled && orbit.orbit
+    const path = specs[i].camera?.free || (orbit?.enabled && orbit.orbit)
       ? { sample: (t: number) => ({ pose: lerpPose(from, to, Math.max(0, Math.min(1, t / length))), aperture: shots[i].aperture }) }
       : new CameraPath(keys, length, 1);
     return { start: scene.start, end: scene.end, path };

@@ -60,3 +60,11 @@ export function fitDistance(
   const tanH = tanV * aspect;
   return Math.max(across / 2 / tanH, vertical / 2 / tanV) * margin;
 }
+
+/** Inversa de posePosition, sin desplazar el objetivo. */
+export function poseFromPosition(position: readonly number[], target: CamPose['target']): CamPose {
+  const [x, y, z] = position.map((v, i) => v - target[i]);
+  return { azimuth: Math.atan2(x, z) * 180 / Math.PI,
+    elevation: Math.atan2(y, Math.hypot(x, z)) * 180 / Math.PI,
+    distance: Math.hypot(x, y, z), target: [...target] };
+}

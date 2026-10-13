@@ -220,7 +220,7 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
             />
           </Section>
 
-          <Section title="Ángulo" hint="También podés girar y hacer zoom con el mouse.">
+          <Section title="Ángulo" hint="Click izquierdo gira, click derecho mira, W/A/S/D/Q/E mueven, rueda zoom.">
             <div className="chips">
               {VIEW_PRESETS.map((v) => (
                 <button key={v.id} className="chip" onClick={() => engine.setViewPreset(v.id)}>

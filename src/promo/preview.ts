@@ -1,3 +1,4 @@
+import type { CamPose } from '../studio/framing';
 import type { BookEngine, Director } from '../book/BookEngine';
 import { timelineSet } from './timelineSet';
 import { pagesToPreload, type Timeline } from './compile';
@@ -14,8 +15,8 @@ const frameMargins = () => ({ ...VIDEO_FRAME_MARGINS, top: document.documentElem
 /**
  * Vista previa del video en el visor 3D: muestra cualquier instante (al tocar
  * una escena del guion) o reproduce en tiempo real, con los textos dibujados en
- * la capa 2D del motor. Mientras existe, la cámara no responde al mouse: lo que
- * se ve es exactamente lo que se va a exportar.
+ * la capa 2D del motor. En pausa permite editar la cámara de la toma; durante
+ * la reproducción la cámara sigue exclusivamente el guion.
  */
 export class VideoPreview {
   /** Instante mostrado (o reproducido), en segundos. */
@@ -25,6 +26,7 @@ export class VideoPreview {
   safeZones = false;
   onTick?: (time: number) => void;
   onStop?: () => void;
+  onCameraEdit?: (sceneId: number, pose: CamPose) => void;
 
   private timeline: Timeline | null = null;
   private player: TimelinePlayer | null = null;
@@ -38,6 +40,11 @@ export class VideoPreview {
   constructor(private readonly engine: BookEngine, private readonly images?: FiguritasImages) {
     window.addEventListener('pdf-book-view.topbar', this.updateFrame);
     engine.setInteractive(false);
+    engine.setCameraControls(true);
+    engine.onCameraEdit = (pose) => {
+      const scene = this.timeline?.scenes.find((s) => this.time < s.end) ?? this.timeline?.scenes.at(-1);
+      if (scene && !this.playing && !this.disposed) this.onCameraEdit?.(scene.index, pose);
+    };
     engine.setOverlay((ctx) => this.paint(ctx));
   }
 
@@ -100,10 +107,12 @@ export class VideoPreview {
       },
     };
     this.playing = true;
+    this.engine.setCameraControls(false);
     this.engine.play(
       director,
       () => {
         this.playing = false;
+        this.engine.setCameraControls(true);
         this.onStop?.();
       },
       timeline.fov,
@@ -126,6 +135,7 @@ export class VideoPreview {
     window.removeEventListener('pdf-book-view.topbar', this.updateFrame);
     window.clearTimeout(this.preloadTimer);
     this.engine.setOverlay(null);
+    this.engine.onCameraEdit = undefined;
     this.engine.setInteractive(true);
     this.engine.setSet(null);
     this.engine.unpinPages();

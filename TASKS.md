@@ -332,7 +332,12 @@ Plan completo: textos independientes, cámara libre y mesa/mantel/fondo separado
 
 ### F-3b: Textos, render y fuentes subidas
 - Responsable: codex; rama: codex/fix-textos-render.
-- Estado: pendiente (depende de F-3a).
+- Estado: hecho (pendiente de revisión del usuario).
+- Hallazgos: layoutCue puro con ajuste al 84 %, saltos manuales, palabras largas, interlineado 1,1 y caja en px; measureCueBox y cueMotion exportados para F-3c. Alineación respecto de x, halo por luminancia y animaciones cúbicas con apertura visible y cierre sin salida. Timeline conserva la fuente de la plantilla para el fallback.
+- Fuentes: API global en fonts.ts, IndexedDB con respaldo en memoria, Blob sin localStorage; TTF/OTF/WOFF/WOFF2, máximo 5 MB y 20 fuentes, nombres legibles e ids únicos compatibles. La persona es responsable de la licencia de las fuentes que sube. Preview espera todas las fuentes y se actualiza al borrar; MP4 usa el mismo render y fallback.
+- Validación: npm test (606 pruebas), typecheck y build en verde; text-fonts-e2e comprueba fuente propia en el canvas real de preview y MP4 (37.009 bytes), eliminación y fallback Fraunces con otro MP4 (39.537 bytes), sin errores. camera-motion-e2e (MP4 316.997 bytes) y studio-e2e (arrastre y MP4 9:16 de 10 s) en verde. Primer intento de studio con 3 s descartado porque la interfaz no ofrece esa duración; repetido con 10 s.
+- Documentación: README y docs/fuentes-textos.md; prueba reproducible con la WOFF2 autoalojada. Sin dependencias, interfaz de textos, cambios de cámara/ambiente, commits ni cambio de rama; TEMP/TMP local.
+- Pendientes: revisión visual del usuario y F-3c; figuritas-e2e completo requiere hoja/troquel de prueba, no proporcionados. No necesitó ajustes por este render.
 
 ### F-3c: Textos, interfaz y manipulación en la vista previa
 - Responsable: codex; rama: codex/fix-textos-ui.

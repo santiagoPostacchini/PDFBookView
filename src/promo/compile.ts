@@ -67,6 +67,7 @@ export interface Timeline {
   look: { vignette: number; grain: number; ambientOcclusion?: number };
   set: string;
   lighting: string;
+  textTypography?: import('./model').TypographyId;
   /** Dobles páginas que aparecen en cámara (para precargar en alta). */
   spreads: number[];
   /** Doble página en el primer cuadro (0 = cerrado, mostrando la tapa). */
@@ -259,6 +260,7 @@ export function compileProject(project: PromoProject, book: BookShape, kit?: Fig
     look: { vignette: template.vignette, grain: template.grain, ambientOcclusion: project.ambientOcclusion ?? 0.35 },
     set: project.set,
     lighting: project.lighting,
+    textTypography: template.typography,
     spreads: [...new Set(scenes.map((s) => s.spread).concat(actions.map((a) => a.spread), [startSpread]))].sort((a, b) => a - b),
     startSpread,
   };

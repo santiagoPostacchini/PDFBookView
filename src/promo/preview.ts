@@ -33,12 +33,18 @@ export class VideoPreview {
   private theme: OverlayTheme = overlayTheme('#dcc6a8');
   private preloadTimer = 0;
   private disposed = false;
+  private fontsReady: Timeline | null = null;
+  private fontGeneration = 0;
+  private readonly fontsChanged = () => {
+    if (this.timeline) this.setTimeline(this.timeline);
+  };
   private readonly updateFrame = () => {
     if (this.timeline) this.engine.setFrameAspect(this.timeline.aspect, frameMargins());
   };
 
   constructor(private readonly engine: BookEngine, private readonly images?: FiguritasImages) {
     window.addEventListener('pdf-book-view.topbar', this.updateFrame);
+    window.addEventListener('pdf-book-view.fonts', this.fontsChanged);
     engine.setInteractive(false);
     engine.setCameraControls(true);
     engine.onCameraEdit = (pose) => {
@@ -63,7 +69,9 @@ export class VideoPreview {
     if (previous?.lighting !== timeline.lighting) this.engine.setLighting(timeline.lighting);
     if (previous?.aspect !== timeline.aspect) this.engine.setFrameAspect(timeline.aspect, frameMargins());
     this.theme = overlayTheme(set.color);
-    loadTextFonts(timeline).then(() => { if (this.timeline === timeline) this.engine.invalidate(); }).catch(error => console.error(error));
+    this.fontsReady = null;
+    const generation = ++this.fontGeneration;
+    loadTextFonts(timeline).then(() => { if (this.timeline === timeline && generation === this.fontGeneration && !this.disposed) { this.fontsReady = timeline; this.engine.invalidate(); } });
     this.seek(at);
     this.schedulePreload();
   }
@@ -126,6 +134,7 @@ export class VideoPreview {
     this.player?.dispose();
     this.disposed = true;
     window.removeEventListener('pdf-book-view.topbar', this.updateFrame);
+    window.removeEventListener('pdf-book-view.fonts', this.fontsChanged);
     window.clearTimeout(this.preloadTimer);
     this.engine.setOverlay(null);
     this.engine.onCameraEdit = undefined;
@@ -146,7 +155,7 @@ export class VideoPreview {
   private paint(ctx: CanvasRenderingContext2D): void {
     const timeline = this.timeline;
     if (!timeline) return;
-    drawOverlay(ctx, timeline, this.time, this.theme);
+    if (this.fontsReady === timeline) drawOverlay(ctx, timeline, this.time, this.theme);
     if (this.safeZones && timeline.aspect < 0.7) drawSafeZones(ctx);
   }
 }

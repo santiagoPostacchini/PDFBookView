@@ -110,7 +110,7 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
                   onSelect(i);
                 }}
                 disabled={disabled}
-                title={compiled ? `${SCENES[scene.kind].hint} Arrastrala para cambiarla de lugar.` : 'Este álbum tiene una sola hoja: la escena se omite.'}
+                title={compiled ? `${SCENES[scene.kind].hint} Arrastrala para cambiarla de lugar.` : scene.kind === 'figuritas' ? 'Cargá figuritas para que esta escena aparezca en el video.' : 'Este álbum tiene una sola hoja: la escena se omite.'}
                 aria-current={i === active ? 'true' : undefined}
               >
                 <SceneThumb thumbs={thumbs} spread={compiled?.spread ?? 0} pageCount={pageCount} leafCount={book?.leafCount ?? 0} />
@@ -118,7 +118,7 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
                   <b>
                     {i + 1}. {SCENES[scene.kind].label}
                   </b>
-                  <small>{compiled ? `${seconds(compiled.end - compiled.start)} s` : 'se omite'}</small>
+                  <small>{compiled ? `${seconds(compiled.end - compiled.start)} s` : scene.kind === 'figuritas' ? 'faltan figuritas' : 'se omite'}</small>
                 </span>
                 {progress !== null && <span className="scene-card-progress" style={{ width: `${Math.min(1, Math.max(0, progress)) * 100}%` }} />}
               </button>

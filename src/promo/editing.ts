@@ -92,8 +92,20 @@ export function applyTemplate(project: PromoProject, id: string): PromoProject {
     lighting: next.lighting,
     textItems: project.textItems.length ? project.textItems : projectFromTemplate(id, { format: project.format, duration: project.duration === current.duration ? next.duration : project.duration }).textItems,
     duration: project.duration === current.duration ? next.duration : project.duration,
-    scenes: sameScenes(project.scenes, current.scenes) ? next.scenes.map(clean) : project.scenes,
+    scenes: withSignatureScenes(sameScenes(project.scenes, current.scenes) ? next.scenes.map(clean) : project.scenes, next.scenes),
   };
+}
+
+/**
+ * Un estilo que trae la escena de figuritas la necesita siempre, aunque el guion
+ * ya estuviera editado: si falta, se agrega antes del cierre (o al final).
+ */
+function withSignatureScenes(scenes: SceneSpec[], template: SceneSpec[]): SceneSpec[] {
+  if (!template.some((s) => s.kind === 'figuritas') || scenes.some((s) => s.kind === 'figuritas')) return scenes;
+  const at = scenes.findLastIndex((s) => s.kind === 'cierre');
+  const next = [...scenes];
+  next.splice(at >= 0 ? at : next.length, 0, { kind: 'figuritas' });
+  return next;
 }
 
 /** Instante representativo de la escena, independiente de los textos. */

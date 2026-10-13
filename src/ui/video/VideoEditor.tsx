@@ -274,7 +274,12 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
         )}
 
         {step === 'estilo' && <>
-          <StyleStep project={project} onPick={(id) => setProject(applyTemplate(project, id), 0)} onNext={() => setStep('historia')} />
+          <StyleStep project={project} onPick={(id) => {
+            const next = applyTemplate(project, id);
+            const figuritas = id === 'figuritas' ? next.scenes.findIndex((s) => s.kind === 'figuritas') : -1;
+            setProject(next, Math.max(0, figuritas));
+            if (figuritas >= 0) setStep('historia'); // para cargar las figuritas enseguida
+          }} onNext={() => setStep('historia')} />
         </>}
 
         {step === 'historia' &&

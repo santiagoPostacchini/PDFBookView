@@ -50,6 +50,16 @@ describe('edición del guion', () => {
     expect(auto.scenes[2]).toEqual({ kind: 'doblePagina' });
   });
 
+  it('el estilo Figuritas agrega su escena aunque el guion ya estuviera editado', () => {
+    const edited = removeScene(projectFromTemplate('clasica'), 4).project;
+    const result = applyTemplate(edited, 'figuritas');
+    expect(result.scenes.filter((s) => s.kind === 'figuritas')).toHaveLength(1);
+    expect(result.scenes.at(-1)?.kind).toBe('cierre');
+    expect(result.scenes.length).toBe(edited.scenes.length + 1);
+    expect(applyTemplate(result, 'figuritas').scenes).toEqual(result.scenes);
+    expect(applyTemplate(projectFromTemplate('clasica'), 'figuritas').scenes).toEqual(templateById('figuritas').scenes);
+  });
+
   it('cambiar de estilo trae su look; el guion sólo si no se había tocado; los textos se conservan', () => {
     const p = projectFromTemplate('clasica');
     p.textItems.find(t => t.id === 'handle')!.text = '@mi.marca';

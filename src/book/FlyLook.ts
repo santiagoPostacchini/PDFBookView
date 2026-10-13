@@ -61,10 +61,10 @@ export class FlyLook {
     if (!this.enabled()) { this.clear(); return; }
     if (!this.keys.size) return;
     const right = new Vector3().setFromMatrixColumn(this.camera.matrix, 0);
-    const up = new Vector3().setFromMatrixColumn(this.camera.matrix, 1);
+    const forward = this.camera.getWorldDirection(new Vector3());
     const delta = new Vector3();
     const axis = (a: string, b: string) => Number(this.keys.has(a)) - Number(this.keys.has(b));
-    delta.addScaledVector(right, axis('d', 'a')).addScaledVector(up, axis('w', 's'));
+    delta.addScaledVector(right, axis('d', 'a')).addScaledVector(forward, axis('w', 's'));
     delta.y += axis('e', 'q');
     delta.normalize().multiplyScalar(dt * 3);
     for (let i = 0; i < 3; i++) delta.setComponent(i, Math.max(-60, Math.min(60, this.controls.target.getComponent(i) + delta.getComponent(i))) - this.controls.target.getComponent(i));

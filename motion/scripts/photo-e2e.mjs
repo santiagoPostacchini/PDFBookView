@@ -42,10 +42,9 @@ try {
     await page.waitForSelector('.studio-panel');
   };
   const set = () => page.evaluate(() => window.bookEngine.stageSet);
-  const surface = (label) => page.locator('.studio-section').filter({ has: page.locator('h3', { hasText: 'Escenario' }) })
-    .getByRole('radio', { name: label, exact: true });
+  const surface = (label) => page.getByRole('button', { name: 'Mantel ' + label, exact: true });
   const waitSet = (expected) => page.waitForFunction(
-    (value) => Object.entries(value).every(([key, v]) => window.bookEngine.stageSet?.[key] === v), expected,
+    (value) => Object.entries(value).every(([key, v]) => key === 'tablecloth' ? window.bookEngine.stageSet?.cloth?.tablecloth === v : window.bookEngine.stageSet?.[key] === v), expected,
   );
   const takePhoto = async (name) => {
     const [download] = await Promise.all([
@@ -77,22 +76,23 @@ try {
 
   await loadBook();
   await waitSet({ surface: 'papel', color: '#fbdde3' });
-  for (const [label, id] of [['Lisa', 'liso'], ['Papel', 'papel'], ['Lino', 'lino']]) {
+  await page.getByLabel('Usar mesa', { exact: true }).check();
+  for (const [label, id] of [['Liso', 'liso'], ['Papel', 'papel'], ['Lino', 'lino']]) {
     await surface(label).click();
-    await waitSet({ surface: id });
+    await page.waitForFunction((id) => window.bookEngine.stageSet?.cloth?.surface === id, id);
   }
   await page.getByLabel('Color de fondo a elección').fill('#a1b2c3');
-  await waitSet({ surface: 'lino', color: '#a1b2c3' });
+  await waitSet({ surface: 'papel', color: '#a1b2c3' });
   await loadBook();
-  await waitSet({ surface: 'lino', color: '#a1b2c3' });
-  assert.equal(await surface('Lino').getAttribute('aria-checked'), 'true');
+  await waitSet({ surface: 'papel', color: '#a1b2c3' });
+  assert.equal(await surface('Lino').getAttribute('aria-pressed'), 'true');
 
   // Cambiar de pestaña no debe dejar el escenario del video en Foto.
   await page.getByRole('tab', { name: 'Video promocional' }).click();
   await page.waitForSelector('.storyboard .scene-card');
   await page.waitForFunction(() => window.bookEngine.stageSet?.color !== '#a1b2c3');
   await page.getByRole('tab', { name: 'Foto', exact: true }).click();
-  await waitSet({ surface: 'lino', color: '#a1b2c3' });
+  await waitSet({ surface: 'papel', color: '#a1b2c3' });
   await page.evaluate(async () => {
     const engine = window.bookEngine;
     engine.goToSpread(2);
@@ -131,32 +131,32 @@ try {
 
   await page.getByLabel('Fondo transparente', { exact: true }).click();
   await page.waitForFunction(() => window.bookEngine.stageSet === null && window.bookEngine.scene.fog === null);
-  assert.equal(await surface('Lino').count(), 0);
+  assert.equal(await set(), null);
   const transparent = await pixels(await takePhoto('foto-transparente.png'));
   assert.ok(transparent.clear > transparent.total * 0.1, 'Falta el fondo transparente.');
   assert.ok(transparent.opaque > transparent.total * 0.01, 'El libro debe seguir visible.');
   assert.equal(await set(), null);
   await page.getByRole('radio', { name: 'JPG', exact: true }).click();
-  await waitSet({ surface: 'lino', color: '#3d3832' });
+  await waitSet({ surface: 'papel', color: '#3d3832' });
   await page.getByRole('radio', { name: 'PNG', exact: true }).click();
   await page.getByLabel('Fondo Rosa', { exact: true }).click();
-  await waitSet({ surface: 'lino', color: '#e9c6c2' });
+  await waitSet({ surface: 'papel', color: '#e9c6c2' });
   // Nuevos escenarios de Foto: dibujo, persistencia y retiro real.
   for (const [label, pattern] of [['cuadros rosa', 'vichy-rosa'], ['cuadros azul', 'vichy-azul'], ['rayas salvia', 'rayas-salvia']]) {
-    await page.getByRole('button', { name: `Mantel · ${label}` }).click();
-    await waitSet({ surface: 'lino', tablecloth: pattern });
+    await page.getByRole('button', { name: `Mantel ${label[0].toUpperCase() + label.slice(1)}` }).click();
+    await waitSet({ surface: 'papel', tablecloth: pattern });
     await loadBook();
-    await waitSet({ surface: 'lino', tablecloth: pattern });
+    await waitSet({ surface: 'papel', tablecloth: pattern });
   }
   await page.getByLabel('Fondo Luz de ventana', { exact: true }).click();
-  await waitSet({ surface: 'lino', windowShadow: true });
+  await waitSet({ surface: 'papel', windowShadow: true });
   await loadBook();
-  await waitSet({ surface: 'lino', windowShadow: true });
+  await waitSet({ surface: 'papel', windowShadow: true });
   await page.getByLabel('Fondo transparente', { exact: true }).click();
   await page.waitForFunction(() => window.bookEngine.stageSet === null);
   await page.getByLabel('Fondo Rosa', { exact: true }).click();
-  await waitSet({ surface: 'lino', color: '#e9c6c2' });
-  assert.ok(!(await set()).tablecloth && !(await set()).windowShadow, 'Volver a un color retira mantel y ventana.');
+  await waitSet({ surface: 'papel', color: '#e9c6c2' });
+  assert.ok((await set()).cloth?.tablecloth && !(await set()).windowShadow, 'Cambiar el fondo conserva el mantel y retira la ventana.');
   await page.getByRole('button', { name: 'Cerrar estudio', exact: true }).click();
   await page.waitForFunction(() => window.bookEngine.stageSet === null && window.bookEngine.scene.background === null);
   assert.deepEqual(errors, [], 'Hubo errores de ejecución en la app.');

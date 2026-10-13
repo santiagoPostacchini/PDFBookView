@@ -52,7 +52,7 @@ export class VideoPreview {
     if (this.playing) this.stop();
     this.timeline = timeline;
     const set = timelineSet(timeline);
-    if (previous?.set !== timeline.set || previous?.coverColor !== timeline.coverColor || previous?.windowShadow !== timeline.windowShadow || previous?.table !== timeline.table || previous?.shows !== timeline.shows) this.engine.setSet(set);
+    if (previous?.set !== timeline.set || previous?.cloth !== timeline.cloth || previous?.coverColor !== timeline.coverColor || previous?.windowShadow !== timeline.windowShadow || previous?.table !== timeline.table || previous?.shows !== timeline.shows) this.engine.setSet(set);
     if (previous?.lighting !== timeline.lighting) this.engine.setLighting(timeline.lighting);
     if (previous?.aspect !== timeline.aspect) this.engine.setFrameAspect(timeline.aspect, frameMargins());
     this.theme = overlayTheme(set.color);

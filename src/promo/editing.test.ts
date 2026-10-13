@@ -94,3 +94,8 @@ describe('vista previa', () => {
     expect(spreadLabel(6, 12)).toBe('Pág. 12');
   });
 });
+
+it('cambiar plantilla conserva el mantel y la mesa elegidos', () => {
+  const p = projectFromTemplate('clasica', { cloth: 'color:#123456', table: false });
+  expect(applyTemplate(p, 'minimal')).toMatchObject({ cloth: 'color:#123456', table: false });
+});

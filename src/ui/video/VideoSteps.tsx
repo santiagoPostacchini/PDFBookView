@@ -254,7 +254,7 @@ export function EnvironmentStep({ project, onChange }: { project: PromoProject; 
   return (
     <>
       <Section title="Escenario">
-        <ScenarioPicker value={project.set} customColor={customScenarioColor(project.set) ?? '#c9a27e'}
+        <ScenarioPicker table={project.table ?? true} cloth={project.cloth} onTable={(table) => onChange({ table })} onCloth={(cloth) => onChange({ cloth })} value={project.set} customColor={customScenarioColor(project.set) ?? '#c9a27e'}
           onChange={(set) => onChange(set === 'ventana' ? { set, windowShadow: 0.45 } : { set })}
           onCustomColor={(color) => onChange({ set: `color:${color}` })} />
       </Section>
@@ -263,7 +263,6 @@ export function EnvironmentStep({ project, onChange }: { project: PromoProject; 
         <Slider label="Sombra de ventana" min={0} max={1} step={0.05} value={project.windowShadow ?? (project.set === 'ventana' ? 0.45 : 0)} onChange={(windowShadow) => onChange({ windowShadow })} hint="Se combina con cualquier mantel o superficie. En 0% se apaga." />
       </Section>
       <Disclosure title="Más ajustes">
-        <label className="check"><Toggle checked={project.table ?? true} onChange={(e) => onChange({ table: e.target.checked })} /><span>Mostrar mesa con bordes y patas</span></label>
         <Slider label="Sombras de contacto" min={0} max={1} step={0.05} value={project.ambientOcclusion ?? 0.35} onChange={(ambientOcclusion) => onChange({ ambientOcclusion })} hint="Refuerza el apoyo del álbum, el lomo y los bordes de la mesa." />
       </Disclosure>
     </>

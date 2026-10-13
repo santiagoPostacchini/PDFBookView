@@ -4,7 +4,7 @@ import { LIGHTING_PRESETS } from '../book/Stage';
 import type { Surface } from '../book/StageSet';
 import type { SpreadInfo } from '../book/types';
 import { Chips, Section, Slider } from './controls';
-import { legacyPhotoSwatch, migratePhotoBackdrop, photoScenario, resolveScenario } from '../book/scenarios';
+import { legacyPhotoSwatch, migratePhotoEnvironment, photoScenario } from '../book/scenarios';
 import { ScenarioPicker } from './ScenarioPicker';
 import { downloadBlob, fileSlug } from './download';
 import { IconAlert, IconClose } from './icons';
@@ -29,6 +29,8 @@ const FRAMES: Record<FrameId, number | null> = { libre: null, '1:1': 1, '4:5': 4
 
 interface Settings {
   catalogVersion?: number;
+  table: boolean;
+  cloth?: string;
   tab: StudioTab;
   lighting: string;
   backdrop: string; // id de preset | 'custom' | 'transparent'
@@ -45,6 +47,7 @@ interface Settings {
 
 const DEFAULTS: Settings = {
   tab: 'foto',
+  table: false,
   lighting: 'estudio',
   backdrop: 'carbon',
   customColor: '#c9a27e',
@@ -65,8 +68,7 @@ function loadSettings(): Settings {
     const saved = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') } as Settings;
     return {
       ...saved,
-      backdrop: migratePhotoBackdrop(saved.backdrop, saved.catalogVersion),
-      catalogVersion: 1,
+      ...migratePhotoEnvironment(saved, DEFAULTS.backdrop),
       tab: saved.tab === 'video' ? 'video' : 'foto',
       surface: ['liso', 'papel', 'lino'].includes(saved.surface) ? saved.surface : DEFAULTS.surface,
     };
@@ -113,7 +115,7 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
     return () => engine.exitStudio();
   }, [engine]);
 
-  const stageSet = useMemo(() => photoScenario(s.backdrop, s.customColor, s.surface), [s.backdrop, s.customColor, s.surface]);
+  const stageSet = useMemo(() => photoScenario(s.backdrop, s.customColor, s.surface, s.table, s.cloth), [s.backdrop, s.customColor, s.surface, s.table, s.cloth]);
 
   // Ajustes de foto. En la pestaña de video manda el editor (escenario, luz, cuadro y cámara).
   useEffect(() => {
@@ -205,20 +207,9 @@ export function StudioPanel({ engine, fileName, spread, dock, onTabChange, onClo
           </Section>
 
           <Section title="Escenario" hint="La superficie recibe las sombras del libro. Transparente exporta un PNG sin escenario.">
-            <ScenarioPicker photo value={legacyPhotoSwatch(s.backdrop) ? '' : s.backdrop} legacy={legacyPhotoSwatch(s.backdrop)} customColor={s.customColor}
+            <ScenarioPicker photo table={s.table} cloth={s.cloth} onTable={(table) => update({ table })} onCloth={(cloth) => update({ cloth })} value={legacyPhotoSwatch(s.backdrop) ? '' : s.backdrop} legacy={legacyPhotoSwatch(s.backdrop)} customColor={s.customColor}
               onChange={(backdrop) => update({ backdrop, ...(backdrop === 'transparent' ? { photoType: 'image/png' } : {}) })}
-              onCustomColor={(customColor) => update({ backdrop: 'custom', customColor })} />
-            {s.backdrop !== 'transparent' && !resolveScenario(s.backdrop)?.tablecloth && !resolveScenario(s.backdrop)?.windowShadow && (
-              <Chips<Surface>
-                items={[
-                  { id: 'liso', label: 'Lisa' },
-                  { id: 'papel', label: 'Papel' },
-                  { id: 'lino', label: 'Lino' },
-                ]}
-                value={s.surface}
-                onChange={(surface) => update({ surface })}
-              />
-            )}
+              onCustomColor={(customColor) => update({ backdrop: 'color:' + customColor, customColor })} />
           </Section>
 
           <Section title="Encuadre">

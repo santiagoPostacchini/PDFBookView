@@ -1,6 +1,6 @@
 import type { StageSetSpec, Surface } from './StageSet';
 
-/** Catálogo común; los ids históricos de Video conservan su aspecto. */
+/** Fondos compartidos por Foto y Video; los manteles tienen su propio catálogo. */
 export const SCENARIOS: readonly (StageSetSpec & { id: string; label: string })[] = [
   { id: 'arena', label: 'Arena', color: '#dcc6a8', surface: 'papel' },
   { id: 'lino', label: 'Lino', color: '#ddd3c4', surface: 'lino' },
@@ -11,10 +11,22 @@ export const SCENARIOS: readonly (StageSetSpec & { id: string; label: string })[
   { id: 'crema', label: 'Crema', color: '#f6f0e5', surface: 'papel' },
   { id: 'blanco', label: 'Blanco', color: '#ffffff', surface: 'papel' },
   { id: 'ventana', label: 'Luz de ventana', color: '#e7d5b9', surface: 'lino', windowShadow: true },
-  { id: 'mantel-rosa', label: 'Mantel · cuadros rosa', color: '#f4e9dc', surface: 'lino', tablecloth: 'vichy-rosa' },
-  { id: 'mantel-azul', label: 'Mantel · cuadros azul', color: '#f4e9dc', surface: 'lino', tablecloth: 'vichy-azul' },
-  { id: 'mantel-rayas', label: 'Mantel · rayas salvia', color: '#f4e9dc', surface: 'lino', tablecloth: 'rayas-salvia' },
 ];
+
+export const CLOTHS: readonly (NonNullable<StageSetSpec['cloth']> & { id: string; label: string; surface: Surface })[] = [
+  { id: 'mantel-rosa', label: 'Cuadros rosa', color: '#f4e9dc', surface: 'lino', tablecloth: 'vichy-rosa' },
+  { id: 'mantel-azul', label: 'Cuadros azul', color: '#f4e9dc', surface: 'lino', tablecloth: 'vichy-azul' },
+  { id: 'mantel-rayas', label: 'Rayas salvia', color: '#f4e9dc', surface: 'lino', tablecloth: 'rayas-salvia' },
+  { id: 'liso', label: 'Liso', color: '#f4e9dc', surface: 'liso' },
+  { id: 'lino', label: 'Lino', color: '#ddd3c4', surface: 'lino' },
+  { id: 'papel', label: 'Papel', color: '#dcc6a8', surface: 'papel' },
+];
+
+export function resolveCloth(id?: string) {
+  if (!id) return undefined;
+  const color = customScenarioColor(id);
+  return color ? { color, surface: 'liso' as Surface } : CLOTHS.find((c) => c.id === id);
+}
 
 export const LEGACY_PHOTO_COLORS: Record<string, string> = {
   carbon: '#3d3832', crema: '#f6f0e5', rosa: '#fbdde3', salvia: '#e1e8da', noche: '#2a3552', blanco: '#ffffff',
@@ -31,15 +43,29 @@ export function resolveScenario(id: string): StageSetSpec | undefined {
 
 /** Sólo los ajustes anteriores al catálogo se migran; la superficie queda intacta. */
 export function migratePhotoBackdrop(backdrop: string, catalogVersion?: number): string {
-  return catalogVersion === 1 || !LEGACY_PHOTO_COLORS[backdrop] ? backdrop : `foto:${backdrop}`;
+  return (catalogVersion ?? 0) >= 1 || !LEGACY_PHOTO_COLORS[backdrop] ? backdrop : `foto:${backdrop}`;
 }
 
-export function photoScenario(backdrop: string, customColor: string, surface: Surface): StageSetSpec | null {
+
+/** Migra el entorno de Foto sin volver a migrar los colores del catálogo v1. */
+export function migratePhotoEnvironment(saved: { backdrop: string; catalogVersion?: number; cloth?: string; table?: boolean }, defaultBackdrop = 'carbon') {
+  const legacyCloth = saved.backdrop.startsWith('mantel-') && resolveCloth(saved.backdrop) ? saved.backdrop : undefined;
+  return {
+    backdrop: legacyCloth ? defaultBackdrop : migratePhotoBackdrop(saved.backdrop, saved.catalogVersion),
+    cloth: legacyCloth ?? (resolveCloth(saved.cloth) ? saved.cloth : undefined),
+    table: !!legacyCloth || saved.table === true,
+    catalogVersion: 2,
+  };
+}
+
+export function photoScenario(backdrop: string, customColor: string, surface: Surface, table?: boolean, cloth?: string): StageSetSpec | null {
   if (backdrop === 'transparent') return null;
   const legacy = backdrop.startsWith('foto:') ? LEGACY_PHOTO_COLORS[backdrop.slice(5)] : undefined;
-  if (legacy || backdrop === 'custom') return { color: legacy ?? customColor, surface };
+  const resolvedCloth = resolveCloth(cloth);
+  const environment = { ...(table !== undefined ? { table } : {}), ...(resolvedCloth ? { cloth: resolvedCloth } : {}) };
+  if (legacy || backdrop === 'custom') return { color: legacy ?? customColor, surface, ...environment };
   const spec = resolveScenario(backdrop) ?? { color: LEGACY_PHOTO_COLORS.carbon, surface };
-  return spec.tablecloth || spec.windowShadow ? spec : { ...spec, surface };
+  return { ...spec, surface, ...environment };
 }
 
 /** Fondo de Foto guardado antes del catálogo: conserva su color y se muestra aparte, sin confundirlo con el del catálogo. */

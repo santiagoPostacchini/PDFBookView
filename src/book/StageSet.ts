@@ -31,13 +31,13 @@ export interface StageSetSpec {
   tableSize?: { width: number; depth: number };
   windowStrength?: number;
   /** Mantel tejido, con dibujo repetido en coordenadas de la mesa. */
-  tablecloth?: 'vichy-rosa' | 'vichy-azul' | 'rayas-salvia';
+  cloth?: { tablecloth?: 'vichy-rosa' | 'vichy-azul' | 'rayas-salvia'; color: string; surface?: Surface; ink?: string };
   /** Marco de ventana proyectado por el foco sobre el libro y la superficie. */
   windowShadow?: boolean;
-  /** Color de la superficie. */
+  /** Color exacto del fondo; independiente del mantel. */
   color: string;
   surface: Surface;
-  /** Color del horizonte (donde la superficie se pierde). Por defecto, la superficie en sombra. */
+  /** Campo histórico; fondo y niebla usan color. */
   horizon?: string;
 }
 
@@ -67,7 +67,7 @@ function noise(seed: number) {
 }
 
 /** Variación de tono de la superficie (gris medio = sin cambio), en mosaico. */
-function surfaceTexture(surface: Surface, tablecloth?: StageSetSpec['tablecloth']): Texture | null {
+function surfaceTexture(surface: Surface, tablecloth?: NonNullable<StageSetSpec['cloth']>['tablecloth'], inkColor?: string): Texture | null {
   if (surface === 'liso') return null;
   const size = 512;
   const canvas = document.createElement('canvas');
@@ -94,7 +94,7 @@ function surfaceTexture(surface: Surface, tablecloth?: StageSetSpec['tablecloth'
   };
   const rowsV = new Float32Array(size).map(() => rand());
   const rowsH = new Float32Array(size).map(() => rand());
-  const ink = tablecloth === 'vichy-rosa' ? [0.76, 0.40, 0.48] : tablecloth === 'vichy-azul' ? [0.36, 0.53, 0.72] : [0.44, 0.60, 0.43];
+  const ink = inkColor ? new Color(inkColor).toArray() : tablecloth === 'vichy-rosa' ? [0.76, 0.40, 0.48] : tablecloth === 'vichy-azul' ? [0.36, 0.53, 0.72] : [0.44, 0.60, 0.43];
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       let v = 1 + (smooth(x, y) - 0.5) * 0.02 + (rand() - 0.5) * 0.028;
@@ -152,7 +152,8 @@ export class StageSet {
   private readonly contact: Mesh<PlaneGeometry, MeshBasicMaterial>[];
   private surfaceMap: Texture | null = null;
   private surface: Surface | null = null;
-  private tablecloth: StageSetSpec['tablecloth'];
+  private tablecloth: NonNullable<StageSetSpec['cloth']>['tablecloth'];
+  private ink?: string;
   private windowMap: Texture | null = null;
   private windowStrength = -1;
   private readonly tabletop: Mesh<BoxGeometry, MeshStandardMaterial>;
@@ -229,18 +230,22 @@ export class StageSet {
       this.windowMap?.dispose(); this.windowMap = windowTexture(strength); this.windowStrength = strength;
     }
     this.key.map = spec.windowShadow ? this.windowMap : null;
-    if (spec.surface !== this.surface || spec.tablecloth !== this.tablecloth) {
+    const cloth = spec.table ? spec.cloth : undefined;
+    const surface = spec.table ? (cloth?.surface ?? spec.surface) : 'liso';
+    if (surface !== this.surface || cloth?.tablecloth !== this.tablecloth || cloth?.ink !== this.ink) {
       this.surfaceMap?.dispose();
-      this.surfaceMap = surfaceTexture(spec.surface, spec.tablecloth);
-      this.surface = spec.surface;
-      this.tablecloth = spec.tablecloth;
+      this.surfaceMap = surfaceTexture(surface, cloth?.tablecloth, cloth?.ink);
+      this.surface = surface;
+      this.tablecloth = cloth?.tablecloth;
+      this.ink = cloth?.ink;
     }
     const material = this.floor.material;
-    material.color.set(spec.color);
+    material.color.set(cloth?.color ?? spec.color);
     material.map = this.surfaceMap;
     material.needsUpdate = true;
-    // Horizonte: la superficie fuera del círculo de luz (sin luz directa).
-    const horizon = new Color(spec.horizon ?? spec.color).multiplyScalar(spec.horizon ? 1 : 0.62);
+    // Fondo y niebla conservan el color elegido, sin oscurecerlo.
+    const horizon = new Color(spec.color);
+    this.ground.material.color.set(spec.color);
     scene.fog = new Fog(horizon, 16, 70);
     scene.background = horizon;
     this.setLighting(lighting);

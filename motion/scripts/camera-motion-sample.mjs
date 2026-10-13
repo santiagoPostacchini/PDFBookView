@@ -12,7 +12,7 @@ try {
   await page.waitForFunction(() => window.promoLab && window.bookEngine?.currentBook);
   const video = await page.evaluate(async () => {
     const { bookEngine: engine, promoLab: lab } = window;
-    const project = lab.projectFromTemplate('clasica', { format: '16:9', set: 'mantel-azul', windowShadow: 0.45 });
+    const project = lab.projectFromTemplate('clasica', { format: '16:9', cloth: 'mantel-azul', windowShadow: 0.45 });
     project.scenes = project.scenes.slice(0, 2);
     project.scenes[0].camera = { zoom: { enabled: true, from: 0, to: 0.08 }, lateral: { enabled: true, amount: 0.12, direction: 'derecha' } };
     const timeline = lab.compileProject(project, engine.currentBook);

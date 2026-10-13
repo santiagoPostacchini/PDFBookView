@@ -52,6 +52,8 @@ export interface PromoProject {
   /** Intensidad de la sombra de ventana, independiente de la superficie. */
   windowShadow?: number;
   table?: boolean;
+  /** Mantel: id de CLOTHS o color:#rrggbb; se conserva al apagar la mesa. */
+  cloth?: string;
   ambientOcclusion?: number;
   template: string;
   format: FormatId;
@@ -60,7 +62,7 @@ export interface PromoProject {
   scenes: SceneSpec[];
   texts: PromoTexts;
   typography: TypographyId;
-  /** Escenario: id de SET_PRESETS. */
+  /** Fondo: id de SCENARIOS, automatico o color:#rrggbb. */
   set: string;
   /** Luz: id de LIGHTING_PRESETS. */
   lighting: string;

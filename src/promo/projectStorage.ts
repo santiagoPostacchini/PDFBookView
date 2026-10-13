@@ -1,5 +1,5 @@
 import { LIGHTING_PRESETS } from '../book/Stage';
-import { customScenarioColor } from '../book/scenarios';
+import { customScenarioColor, resolveCloth } from '../book/scenarios';
 import { SET_PRESETS } from '../book/StageSet';
 import { FORMATS, type FormatId, type PromoProject, type PromoTexts, type SceneLength, type SceneSpec, type TypographyId } from './model';
 import { DEFAULT_TEXTS, projectFromTemplate, SCENES, TEMPLATES, TYPOGRAPHY } from './templates';
@@ -71,9 +71,12 @@ export function sanitizeProject(raw: unknown): PromoProject | null {
   const scenes = Array.isArray(raw.scenes) ? raw.scenes.map(sanitizeScene).filter((s): s is SceneSpec => s !== null).slice(0, MAX_SCENES) : [];
   const texts = isObject(raw.texts) ? raw.texts : {};
   const duration = typeof raw.duration === 'number' && Number.isFinite(raw.duration) ? Math.max(6, Math.min(60, raw.duration)) : base.duration;
+  const legacyCloth = typeof raw.set === 'string' && raw.set.startsWith('mantel-') && resolveCloth(raw.set) ? raw.set : undefined;
+  const cloth = typeof raw.cloth === 'string' && resolveCloth(raw.cloth) ? raw.cloth : legacyCloth;
   return {
     windowShadow: typeof raw.windowShadow === 'number' && Number.isFinite(raw.windowShadow) ? Math.max(0, Math.min(1, raw.windowShadow)) : undefined,
-    table: typeof raw.table === 'boolean' ? raw.table : undefined,
+    cloth,
+    table: legacyCloth ? true : typeof raw.table === 'boolean' ? raw.table : undefined,
     ambientOcclusion: typeof raw.ambientOcclusion === 'number' && Number.isFinite(raw.ambientOcclusion) ? Math.max(0, Math.min(1, raw.ambientOcclusion)) : undefined,
     template: template.id,
     format: oneOf(raw.format, FORMAT_IDS, base.format),

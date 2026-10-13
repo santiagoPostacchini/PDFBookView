@@ -301,8 +301,14 @@ Plan completo: textos independientes, cámara libre y mesa/mantel/fondo separado
 
 ### F-1: Mesa, mantel y fondo separados (D-016)
 - Responsable: codex; rama: codex/fix-mesa-mantel-fondo.
-- Estado: pendiente.
+- Estado: hecho (pendiente de revisión del usuario).
 - Aceptación: en Foto y Video se puede usar o no la mesa; mantel y fondo se eligen por separado, cada uno con presets y color a elección; sin mesa se ve solo el fondo; proyectos y ajustes viejos migran sin romperse; tests y e2e actualizados.
+
+- Hallazgos: SCENARIOS contiene fondos y CLOTHS los manteles; Foto y Video guardan fondo, mesa y mantel independientes, incluidos colores propios. El render usa fondo exacto en background/niebla; sin mesa retira textura, con mesa aplica mantel. Vista previa reacciona a cloth; overlay y contacto leen fondo.
+- Compatibilidad: mantel-* migra al fondo predeterminado + mantel + mesa; Video conserva VERSION 1, Foto sube catalogVersion a 2 y conserva la migración foto:*. Al apagar la mesa se recuerda el mantel. Sin dependencias, cambios de arquitectura, cámara/textos, commits ni cambio de rama.
+- Validación: npm test (582 pruebas), npm run typecheck y npm run build en verde; git diff --check sin errores. TEMP/TMP local por permisos de Windows.
+- Navegador: photo, manteles, ventana, entorno y ui-a11y (390/768/1440) en verde; studio captura Foto y exporta MP4 9:16 de 10 s con mantel azul + fondo propio. Captura de Ambiente revisada en motion/out/f1-video; scripts y README/docs actualizados.
+- Pendientes: revisión visual del usuario y ejecutar figuritas-e2e completo con hoja/troquel de prueba (no proporcionados); script actualizado y sintaxis validada.
 
 ### F-2: Cámara libre y rueda como zoom (D-015)
 - Responsable: codex; rama: codex/fix-camara-libre.

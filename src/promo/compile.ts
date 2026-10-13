@@ -58,6 +58,7 @@ export interface CompiledScene {
 export interface Timeline {
   windowShadow?: number;
   table?: boolean;
+  cloth?: string;
   coverColor?: string;
   shows?: StickerShow[];
   duration: number;
@@ -258,6 +259,7 @@ export function compileProject(project: PromoProject, book: BookShape, kit?: Fig
   return {
     windowShadow: project.windowShadow,
     table: project.table,
+    cloth: project.cloth,
     shows,
     coverColor: book.coverColor,
     duration: D,

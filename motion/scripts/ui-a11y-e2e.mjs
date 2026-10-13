@@ -74,6 +74,16 @@ try {
       const step = page.locator('.video-steps button').nth(i);
       await reachable(step); await step.click(); await audit();
       if (i === 1) for (const name of ['Antes', 'Después']) await reachable(page.getByRole('button', { name, exact: true }));
+      if (i === 3) {
+        await reachable(page.getByRole('button', { name: 'Fondo Arena', exact: true }));
+        const table = page.getByLabel('Usar mesa', { exact: true });
+        await reachable(table); await table.uncheck();
+        assert.equal(await page.getByRole('button', { name: 'Mantel Lino', exact: true }).count(), 0);
+        await table.check();
+        await reachable(page.getByRole('button', { name: 'Mantel Lino', exact: true }));
+        await reachable(page.getByLabel('Color de fondo a elección', { exact: true }));
+        await reachable(page.getByLabel('Color de mantel a elección', { exact: true }));
+      }
       if (i === 4) await reachable(page.getByRole('button', { name: /^Exportar/ }).first());
     }
     // Geometría del selector y del guion, incluso con las tarjetas desplazadas.

@@ -10,9 +10,9 @@ function memory() {
 describe('guardado del video', () => {
   it('recuerda ventana y oclusión independientemente del mantel, y limita intensidades inválidas', () => {
     const storage = memory(); const draft = newDraft();
-    Object.assign(draft.project, { set: 'mantel-azul', windowShadow: 0.75, ambientOcclusion: 0.6, table: false });
+    Object.assign(draft.project, { set: 'mantel-azul', windowShadow: 0.75, ambientOcclusion: 0.6, table: true });
     saveDraft('mesa.pdf', draft, storage);
-    expect(loadDraft('mesa.pdf', storage)?.project).toMatchObject({ set: 'mantel-azul', windowShadow: 0.75, ambientOcclusion: 0.6, table: false });
+    expect(loadDraft('mesa.pdf', storage)?.project).toMatchObject({ set: 'arena', cloth: 'mantel-azul', windowShadow: 0.75, ambientOcclusion: 0.6, table: true });
     expect(sanitizeProject({ ...draft.project, windowShadow: 2, ambientOcclusion: -1 })).toMatchObject({ windowShadow: 1, ambientOcclusion: 0 });
     expect(sanitizeProject({ ...draft.project, windowShadow: Number.NaN, ambientOcclusion: Number.POSITIVE_INFINITY })).toMatchObject({ windowShadow: undefined, ambientOcclusion: undefined });
   });
@@ -81,4 +81,12 @@ describe('guardado del video', () => {
     expect(loadBrand(broken)).toEqual({});
     expect(loadDraft('a.pdf', null)).toBeNull();
   });
+});
+
+it('migra los tres manteles y valida colores propios independientes', () => {
+  for (const cloth of ['mantel-rosa', 'mantel-azul', 'mantel-rayas']) {
+    expect(sanitizeProject({ ...projectFromTemplate('ventana'), set: cloth })).toMatchObject({ set: 'ventana', cloth, table: true });
+  }
+  expect(sanitizeProject({ ...projectFromTemplate('clasica'), set: 'color:#abcdef', cloth: 'color:#123456', table: false })).toMatchObject({ set: 'color:#abcdef', cloth: 'color:#123456', table: false });
+  expect(sanitizeProject({ ...projectFromTemplate('clasica'), cloth: 'color:rojo' })?.cloth).toBeUndefined();
 });

@@ -109,7 +109,7 @@ try {
       console.log('Sitios', library.stickers.map((s) => [s.number, slots.get(s.number)]));
       const samples = {}, curves = {}, destinations = [];
       for (const format of ['9:16', '16:9']) {
-        const project = projectFromTemplate('figuritas', { format, set: 'mantel-rosa' });
+        const project = projectFromTemplate('figuritas', { format, cloth: 'mantel-rosa' });
         // Seis figuritas en una escena y la séptima en otra, para comprobar las siete.
         project.scenes[3].stickers = library.stickers.slice(0, 6).map((s) => ({ id: s.id }));
         project.scenes.splice(4, 0, { kind: 'figuritas', stickers: library.stickers.slice(6).map((s) => ({ id: s.id })) });
@@ -174,6 +174,8 @@ try {
   await page.getByRole('tab', { name: 'Ambiente', exact: false }).first().click();
   await page.getByRole('button', { name: 'Automático · color de la tapa' }).click();
   await page.waitForFunction(() => window.bookEngine.stageSet?.color && !window.bookEngine.stageSet.id);
+  await page.getByRole('button', { name: 'Mantel Cuadros rosa', exact: true }).click();
+  await page.waitForFunction(() => window.bookEngine.stageSet?.cloth?.tablecloth === 'vichy-rosa');
   const autoColor = await page.evaluate(() => window.bookEngine.stageSet.color);
   assert.notEqual(autoColor, '#dcc6a8');
   await page.getByRole('tab', { name: 'Exportar', exact: false }).first().click();

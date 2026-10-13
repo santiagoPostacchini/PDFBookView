@@ -116,7 +116,11 @@ if (!has('no-video')) {
   await shot('ui-video-3-textos.png');
 
   await page.click('.video-steps button:has-text("Ambiente")');
-  await page.getByRole('button', { name: 'Escenario Arena', exact: true }).click();
+  await page.getByRole('button', { name: 'Fondo Arena', exact: true }).click();
+  await page.getByLabel('Usar mesa', { exact: true }).check();
+  await page.getByRole('button', { name: 'Mantel Cuadros azul', exact: true }).click();
+  await page.getByLabel('Color de fondo a elección', { exact: true }).fill('#a1b2c3');
+  await page.waitForFunction(() => window.bookEngine.stageSet?.color === '#a1b2c3' && window.bookEngine.stageSet?.cloth?.tablecloth === 'vichy-azul');
   await shot('ui-video-4-ambiente.png');
 
   // 5. Exportar: formatos y duración.

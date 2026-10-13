@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dragText, newTextAt, snapTime, timeToX, xToTime } from './timelineBar';
+import { assignLanes, dragText, newTextAt, snapTime, timeToX, xToTime } from './timelineBar';
 
 describe('barra de tiempo', () => {
   it('ajusta a cuadros y limita los extremos', () => {
@@ -36,5 +36,17 @@ describe('barra de tiempo', () => {
     expect(newTextAt(4.5, 15)).toEqual({ start: 4.5, duration: 3 });
     expect(newTextAt(14, 15)).toEqual({ start: 14, duration: 1 });
     expect(newTextAt(15, 15)).toEqual({ start: 15, duration: 0 });
+  });
+});
+
+describe('assignLanes', () => {
+  it('los textos que no se superponen comparten fila y los que sí, no', () => {
+    const { lanes, count } = assignLanes([
+      { start: 0, duration: 2.5 }, { start: 0.2, duration: 2.5 }, { start: 12, duration: 3 }, { start: 12.5, duration: 2 },
+    ]);
+    expect(lanes).toEqual([0, 1, 0, 1]);
+    expect(count).toBe(2);
+    expect(assignLanes([]).count).toBe(1);
+    expect(assignLanes([{ start: 0, duration: 2 }, { start: 2, duration: 2 }]).lanes).toEqual([0, 0]);
   });
 });

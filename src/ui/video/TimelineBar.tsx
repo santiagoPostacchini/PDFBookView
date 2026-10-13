@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Timeline } from '../../promo/compile';
 import type { TextItem } from '../../promo/model';
-import { dragText, FRAME, snapTime, timeToX, xToTime, type TextDrag } from '../../promo/timelineBar';
+import { assignLanes, dragText, FRAME, snapTime, timeToX, xToTime, type TextDrag } from '../../promo/timelineBar';
 
+const LANE = 24;
 const seconds = (t: number) => t.toFixed(2).replace('.', ',');
 export function TimelineBar({ timeline, items, selected, clock, disabled, playing, onSeek, onPlay, onSelect, onChange, onAdd }: {
   timeline: Timeline; items: TextItem[]; selected: string | null; clock: number; disabled: boolean; playing: boolean;
   onSeek: (t: number) => void; onPlay: () => void; onSelect: (id: string) => void;
   onChange: (id: string, patch: { start: number; duration: number }) => void; onAdd: () => void;
 }) {
+  const lanes = assignLanes(items);
   const [input, setInput] = useState(clock.toFixed(2));
   const rail = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
@@ -44,10 +46,11 @@ export function TimelineBar({ timeline, items, selected, clock, disabled, playin
       <span className="timeline-head" style={{ left: `${timeToX(clock, 100, timeline.duration)}%` }} />
     </div>
     <div ref={track} className="timeline-text-track" aria-label="Intervalos de los textos">
-      {items.map(item => {
+      <div className="timeline-text-lanes" style={{ height: lanes.count * LANE }}>
+      {items.map((item, index) => {
         const start = Math.max(0, item.start), end = Math.min(timeline.duration, item.start + item.duration);
         if (end <= start) return null;
-        return <div key={item.id} data-text-id={item.id} className={`timeline-text${selected === item.id ? ' is-selected' : ''}`} style={{ marginLeft: `${timeToX(start, 100, timeline.duration)}%`, width: `${timeToX(end - start, 100, timeline.duration)}%` }} title={item.text}
+        return <div key={item.id} data-text-id={item.id} className={`timeline-text${selected === item.id ? ' is-selected' : ''}`} style={{ left: `${timeToX(start, 100, timeline.duration)}%`, width: `${timeToX(end - start, 100, timeline.duration)}%`, top: lanes.lanes[index] * LANE }} title={item.text}
           onClick={() => { if (!disabled) onSelect(item.id); }}
           onPointerDown={e => { if (disabled || e.button !== 0) return; e.preventDefault(); onSelect(item.id); e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, width: e.currentTarget.parentElement!.getBoundingClientRect().width, item, mode: (e.target as HTMLElement).dataset.edge as TextDrag || 'body' }; }}
           onPointerMove={e => { const d = drag.current; if (d && e.currentTarget.hasPointerCapture(e.pointerId)) onChange(d.item.id, dragText(d.item, d.mode, (e.clientX - d.x) / d.width * timeline.duration, timeline.duration)); }}
@@ -55,6 +58,7 @@ export function TimelineBar({ timeline, items, selected, clock, disabled, playin
           <span className="timeline-edge" data-edge="start" /><span className="timeline-text-label">{item.text}</span><span className="timeline-edge" data-edge="end" />
         </div>;
       })}
+      </div>
     </div>
   </section>;
 }

@@ -26,3 +26,17 @@ export function newTextAt(t: number, total: number) {
   const start = snapTime(t, total);
   return { start, duration: Math.min(3, snapTime(total - start, total)) };
 }
+
+/** Reparte los intervalos en filas: los que no se superponen comparten fila. */
+export function assignLanes(items: readonly { start: number; duration: number }[]): { lanes: number[]; count: number } {
+  const ends: number[] = [];
+  const order = items.map((_, i) => i).sort((a, b) => items[a].start - items[b].start || a - b);
+  const lanes = new Array<number>(items.length).fill(0);
+  for (const i of order) {
+    let lane = ends.findIndex((end) => end <= items[i].start + 1e-6);
+    if (lane < 0) lane = ends.push(0) - 1;
+    ends[lane] = items[i].start + items[i].duration;
+    lanes[i] = lane;
+  }
+  return { lanes, count: Math.max(1, ends.length) };
+}

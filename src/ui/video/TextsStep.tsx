@@ -1,13 +1,14 @@
 ﻿import { useEffect, useState } from 'react';
 import type { PromoProject, TextItem } from '../../promo/model';
 import { addText, duplicateText, removeText, updateText } from '../../promo/editing';
+import { dragText, FRAME, newTextAt, snapTime } from '../../promo/timelineBar';
 import { addFont, ensureFont, listFonts, removeFont, type UserFont } from '../../promo/fonts';
 import { loadBrand, saveBrand } from '../../promo/projectStorage';
 import { Chips, Disclosure, FileButton, Section, Slider, Swatch, Toggle } from '../controls';
 
-export function TextsStep({ project, onChange, selected, onSelect, time, onTime }: {
+export function TextsStep({ project, onChange, selected, onSelect, time, duration }: {
   project: PromoProject; onChange: (project: PromoProject) => void;
-  selected: string | null; onSelect: (id: string | null) => void; time: number; onTime: (time: number) => void;
+  selected: string | null; onSelect: (id: string | null) => void; time: number; duration: number;
 }) {
   const [fonts, setFonts] = useState<UserFont[]>([]);
   const [error, setError] = useState('');
@@ -20,9 +21,16 @@ export function TextsStep({ project, onChange, selected, onSelect, time, onTime 
   }, []);
   const item = project.textItems.find(t => t.id === selected);
   const full = project.textItems.length >= 30;
-  const change = (patch: Partial<TextItem>) => { if (item) onChange(updateText(project, item.id, patch)); setSaved(false); };
+  const change = (patch: Partial<TextItem>) => {
+    if (item) {
+      if (patch.start !== undefined) patch = { ...patch, ...dragText({ ...item, start: patch.start }, 'body', 0, duration) };
+      if (patch.duration !== undefined) patch = { ...patch, ...dragText({ ...item, ...patch }, 'end', 0, duration) };
+      onChange(updateText(project, item.id, patch));
+    }
+    setSaved(false);
+  };
   const insert = (duplicate = false) => {
-    const next = duplicate && item ? duplicateText(project, item.id) : addText(project, { start: time });
+    const next = duplicate && item ? duplicateText(project, item.id) : addText(project, newTextAt(time, duration));
     onChange(next); onSelect(next.textItems.at(-1)?.id ?? null);
   };
   const move = (index: number, delta: number) => {
@@ -42,13 +50,10 @@ export function TextsStep({ project, onChange, selected, onSelect, time, onTime 
           <button className="btn" aria-label={`Bajar texto ${index + 1}`} disabled={index === project.textItems.length - 1} onClick={() => move(index, 1)}>↓</button>
         </div>)}
       </div>
-      <button className="btn btn-block" disabled={full} onClick={() => insert()}>Agregar texto</button>
+      <button className="btn btn-block" disabled={full || snapTime(duration - time, duration) < .5} onClick={() => insert()}>Agregar texto</button>
       {full && <p role="status">Llegaste al máximo de 30 textos. Borrá uno para agregar otro.</p>}
     </Section>
-    <Section title="Momento de la vista previa">
-      <Slider label="Tiempo de la vista previa (segundos)" min={0} max={project.duration} step={0.1} value={time} onChange={onTime} />
-      <output>{time.toFixed(1)} s</output>
-    </Section>
+
     {item && <>
       <Section title="Editar texto">
         <label className="field"><span>Texto</span><textarea className="text-input" aria-label="Texto" rows={3} maxLength={120} value={item.text} onChange={e => change({ text: e.target.value })} /></label>
@@ -91,9 +96,9 @@ export function TextsStep({ project, onChange, selected, onSelect, time, onTime 
         <Slider label="Posición Y" min={0} max={1} step={0.01} value={item.y} onChange={y => change({ y })} />
       </Section>
       <Section title="Tiempo">
-        {(['start', 'duration'] as const).map(key => <label className="field" key={key}><span>{key === 'start' ? 'Inicio' : 'Duración'} (segundos)</span><input className="text-input" aria-label={key === 'start' ? 'Inicio' : 'Duración'} type="number" min={key === 'start' ? 0 : .5} step={.1} value={Number(item[key].toFixed(2))} onChange={e => change({ [key]: Number(e.target.value) })} /></label>)}
-        <button className="btn btn-block" onClick={() => change({ start: time })}>Empezar en el momento actual</button>
-        <button className="btn btn-block" disabled={time < item.start + .5} onClick={() => change({ duration: time - item.start })}>Terminar en el momento actual</button>
+        {(['start', 'duration'] as const).map(key => <label className="field" key={key}><span>{key === 'start' ? 'Inicio' : 'Duración'} (segundos)</span><input className="text-input" aria-label={key === 'start' ? 'Inicio' : 'Duración'} type="number" min={key === 'start' ? 0 : .5} step={FRAME} value={Number(item[key].toFixed(2))} onChange={e => change({ [key]: Number(e.target.value) })} /></label>)}
+        <button className="btn btn-block" disabled={snapTime(duration - time, duration) < .5} onClick={() => change({ start: snapTime(time, duration) })}>Empezar en el momento actual</button>
+        <button className="btn btn-block" disabled={time < item.start + .5} onClick={() => change({ duration: snapTime(time, duration) - item.start })}>Terminar en el momento actual</button>
       </Section>
       <Disclosure title="Más opciones">
         <button className="btn btn-block" onClick={() => change({ x: .5, y: .2, size: .04, color: 'auto', bold: false, align: 'centro', animation: 'ninguna', font: 'builtin:clasica' })}>Restablecer posición/estilo</button>

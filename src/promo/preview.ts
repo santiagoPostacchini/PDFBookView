@@ -10,8 +10,10 @@ import type { FiguritasImages } from './figuritas/assets';
 const FPS = 30;
 
 /** Margen del cuadro en el editor de video: abajo queda el guion de escenas. */
-export const VIDEO_FRAME_MARGINS = { top: 108, bottom: 168, side: 28 };
-const frameMargins = () => ({ ...VIDEO_FRAME_MARGINS, top: document.documentElement.dataset.topbarHidden === 'true' ? 24 : VIDEO_FRAME_MARGINS.top });
+export const VIDEO_FRAME_MARGINS = { top: 108, bottom: 320, side: 28 };
+const frameMargins = () => window.matchMedia('(max-width: 768px)').matches
+  ? { top: 4, bottom: 4, side: 8 }
+  : { ...VIDEO_FRAME_MARGINS, top: document.documentElement.dataset.topbarHidden === 'true' ? 24 : VIDEO_FRAME_MARGINS.top };
 
 /**
  * Vista previa del video en el visor 3D: muestra cualquier instante (al tocar
@@ -48,6 +50,7 @@ export class VideoPreview {
 
   constructor(private readonly engine: BookEngine, private readonly images?: FiguritasImages) {
     window.addEventListener('pdf-book-view.topbar', this.updateFrame);
+    window.addEventListener('resize', this.updateFrame);
     window.addEventListener('pdf-book-view.fonts', this.fontsChanged);
     engine.setInteractive(false);
     engine.setCameraControls(true);
@@ -90,7 +93,7 @@ export class VideoPreview {
     const player = new TimelinePlayer(this.engine, timeline, this.images);
     player.reset();
     const frames = Math.round(Math.max(0, Math.min(timeline.duration, t)) * FPS);
-    for (let i = 0; i < frames; i++) player.step(1 / FPS);
+    for (let i = 0; i < frames; i++) player.step((i + 1) / FPS - player.time);
     this.player = player;
     this.time = player.time;
     this.engine.invalidate();
@@ -138,6 +141,7 @@ export class VideoPreview {
     this.player?.dispose();
     this.disposed = true;
     window.removeEventListener('pdf-book-view.topbar', this.updateFrame);
+    window.removeEventListener('resize', this.updateFrame);
     window.removeEventListener('pdf-book-view.fonts', this.fontsChanged);
     window.clearTimeout(this.preloadTimer);
     this.engine.setOverlay(null);

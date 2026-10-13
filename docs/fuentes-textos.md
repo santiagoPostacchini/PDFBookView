@@ -1,5 +1,11 @@
 # Textos y fuentes del video
 
+La línea de tiempo está arriba de las escenas en todos los pasos. Muestra segundos con dos decimales; el campo **Instante exacto (segundos)** aplica con Enter y ajusta al cuadro más cercano a 30 fps. El cabezal responde a clic/arrastre, flechas (un cuadro), Mayús+flechas (un segundo) e Inicio/Fin. Buscar detiene la reproducción; Reproducir conserva el inicio desde cero.
+
+**Agregar texto aquí** abre Textos y selecciona el nuevo ítem: empieza en el cuadro actual y dura 3 s, recortados al final del video. Se deshabilita si quedan menos de 0,5 s o hay 30 textos. La pista muestra los intervalos recortados al video y resalta la selección; arrastrar el cuerpo desplaza, el borde izquierdo cambia el inicio y el derecho cambia el final. Los ajustes se hacen en cuadros con mínimo de 0,5 s y no salen del video. Inicio/Duración y los botones **Empezar/Terminar en el momento actual** siguen disponibles en el paso Textos para editar con teclado.
+
+`src/promo/timelineBar.ts` concentra ajuste, coordenadas y límites, con pruebas Vitest. `text-items-e2e.mjs` verifica arrastre del cabezal, seek exacto a 4,50 s, inicio persistido en 4,5, ajuste de borde y MP4 real; `ui-a11y-e2e.mjs` comprueba los controles a 390/768/1440 px y guarda capturas en `motion/out/timeline-a11y-*.png`.
+
 Cada ítem se compone con saltos manuales y ajuste automático al 84 % del ancho del cuadro. El tamaño es relativo al alto; el bloque queda centrado verticalmente en `y`, con interlineado 1,1. `x` es el ancla horizontal: borde izquierdo, centro o borde derecho según la alineación. El color automático sigue el fondo; el propio lleva un halo de contraste. Subir y Fundido usan entrada de 0,7 s y salida de 0,45 s (acortadas en ítems breves); los textos que empiezan en cero ya se ven y los que llegan al final no se desvanecen.
 
 Las fuentes propias son globales para los álbumes del navegador. Se guardan como Blob en IndexedDB (`pdf-book-view.fonts`, store `fonts`), con respaldo en memoria durante la sesión si el almacenamiento está bloqueado. No se guardan en localStorage ni en el repositorio. Se admiten TTF, OTF, WOFF y WOFF2, hasta 5 MB por archivo y 20 fuentes. **La persona que sube la fuente es responsable de contar con su licencia de uso.**

@@ -6,7 +6,7 @@ import { sceneAt } from '../../promo/editing';
 import type { PromoProject } from '../../promo/model';
 import { SCENES } from '../../promo/templates';
 import { CanvasThumb } from '../CanvasThumb';
-import { IconPlay, IconPlus, IconStop } from '../icons';
+import { IconPlus } from '../icons';
 import { usePageThumbs } from '../usePageThumbs';
 
 interface Props {
@@ -21,17 +21,16 @@ interface Props {
   onSelect: (index: number) => void;
   onPlace: (from: number, to: number) => void;
   onAdd: () => void;
-  onTogglePlay: () => void;
 }
 
 export const seconds = (s: number) => s.toFixed(1).replace('.', ',');
 
 /**
  * Guion del video debajo del visor: una tarjeta por escena con las páginas que
- * muestra y cuánto dura. Se elige tocando, se reordena arrastrando y el botón
- * de la izquierda reproduce desde el principio.
+ * muestra y cuánto dura. Se elige tocando y se reordena arrastrando.
+ * Los controles de reproducción están en TimelineBar, arriba del guion.
  */
-export function Storyboard({ engine, project, timeline, selected, playing, clock, disabled, onSelect, onPlace, onAdd, onTogglePlay }: Props) {
+export function Storyboard({ engine, project, timeline, selected, playing, clock, disabled, onSelect, onPlace, onAdd }: Props) {
   const book = engine.currentBook;
   const pageCount = book?.pageCount ?? 0;
   const thumbs = usePageThumbs(engine, pageCount);
@@ -60,16 +59,6 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
 
   return (
     <div className="storyboard panel" role="toolbar" aria-label="Guion del video">
-      <button
-        className="storyboard-play"
-        onClick={onTogglePlay}
-        disabled={disabled}
-        aria-label={playing ? 'Detener' : 'Reproducir desde el principio'}
-        title={playing ? 'Detener' : 'Reproducir desde el principio'}
-      >
-        {playing ? <IconStop width={20} height={20} /> : <IconPlay width={20} height={20} />}
-      </button>
-
       <ol className="storyboard-track">
         {project.scenes.map((scene, i) => {
           const compiled = timeline.scenes.find((s) => s.index === i);
@@ -133,9 +122,6 @@ export function Storyboard({ engine, project, timeline, selected, playing, clock
         </li>
       </ol>
 
-      <span className="storyboard-time" aria-live="off">
-        {seconds(clock)} / {seconds(timeline.duration)} s
-      </span>
     </div>
   );
 }

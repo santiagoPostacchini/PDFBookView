@@ -81,6 +81,11 @@ try {
         await reachable(page.getByLabel('Inicio', { exact: true }));
         await reachable(page.getByLabel('Duraci\u00f3n', { exact: true }));
         assert.equal(await page.locator('.text-item-row').count(), 4);
+        await reachable(page.getByRole('slider', { name: 'L\u00ednea de tiempo del video', exact: true }));
+        for (const name of ['Cuadro anterior', 'Cuadro siguiente', 'Agregar texto aqu\u00ed']) await reachable(page.getByRole('button', { name, exact: true }));
+        await reachable(page.getByLabel('Instante exacto (segundos)', { exact: true }));
+        assert.ok(await page.locator('.viewport canvas').first().evaluate(el => el.width > 64 && el.height > 64), 'Canvas con resoluci\u00f3n real, sin estirar un cuadro diminuto');
+        await page.screenshot({ path: `out/timeline-a11y-${width}.png` });
       }
       if (i === 3) {
         await reachable(page.getByRole('button', { name: 'Fondo Arena', exact: true }));
@@ -105,11 +110,11 @@ try {
       const preview = await page.locator('.viewport').boundingBox();
       const frame = await page.locator('.viewport canvas').first().boundingBox();
       assert.ok(frame.y >= preview.y && frame.y + frame.height <= preview.y + preview.height + 1 && frame.height >= preview.height - 9, 'Video aprovecha el alto libre');
-      const playBox = await page.locator('.storyboard-play').boundingBox();
+      const playBox = await page.locator('.timeline-play').boundingBox();
       for (const card of await page.locator('.storyboard .scene-card').all()) {
         await card.scrollIntoViewIfNeeded();
         const box = await card.boundingBox();
-        assert.ok(box.x >= playBox.x + playBox.width, 'Reproducir no se superpone con tarjetas');
+        assert.ok(box.y >= playBox.y + playBox.height, 'Reproducir no se superpone con tarjetas');
         const thumbBox = await card.locator('.scene-thumb').boundingBox();
         const labelBox = await card.locator('.scene-card-label').boundingBox();
         assert.ok(thumbBox.y + thumbBox.height <= labelBox.y + 1, 'Miniatura separada del nombre');
@@ -135,7 +140,7 @@ try {
       const track = await page.locator('.studio-dock').boundingBox();
       console.log(`Hoja ${width}: ${area.height}px de contenido desplazable`);
       assert.ok(area.height >= 220, `Contenido útil >= 220 px: ${area.height}`);
-      assert.ok(area.y + area.height <= track.y + 1 && track.height <= 96, 'Guion reservado sin superposición');
+      assert.ok(area.y + area.height <= track.y + 1 && track.height <= 234, 'Guion reservado sin superposición');
       if (figuritas) {
         for (const toggle of await page.getByRole('checkbox', { name: /^Elegir figurita / }).all()) {
           await scroll.evaluate((el) => { el.scrollTop = 0; });

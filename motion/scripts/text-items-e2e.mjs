@@ -53,8 +53,43 @@ try {
   assert.equal(new Set(loaded.map(t => t.font)).size, 3); assert.ok(loaded.every(t => t.font.startsWith('user:')));
   assert.equal(loaded[1].color, '#c43a3a'); assert.equal(loaded[1].duration, 4.2);
   await page.locator('.text-item-select').nth(1).click();
-  await page.getByLabel('Tiempo de la vista previa (segundos)', { exact: true }).fill('12');
+  await page.getByLabel('Instante exacto (segundos)', { exact: true }).fill('12');
+  await page.getByLabel('Instante exacto (segundos)', { exact: true }).press('Enter');
   assert.ok(await page.locator('.text-selection.is-selected.is-inactive').count());
+  const rail = page.getByRole('slider', { name: 'L\u00ednea de tiempo del video', exact: true });
+  const railBox = await rail.boundingBox();
+  await page.mouse.move(railBox.x + 2, railBox.y + 14); await page.mouse.down();
+  await page.mouse.move(railBox.x + railBox.width * .3, railBox.y + 14, { steps: 8 }); await page.mouse.up();
+  assert.ok(Number(await rail.getAttribute('aria-valuenow')) > 1);
+  const exact = page.getByLabel('Instante exacto (segundos)', { exact: true });
+  await exact.fill('4.50'); await exact.press('Enter');
+  assert.equal(Number(await rail.getAttribute('aria-valuenow')), 4.5);
+  // Observar el mismo seek utilizado por el editor, sin exponer su instancia globalmente.
+  const actualSeek = await page.evaluate(async () => {
+    const moduleUrl = performance.getEntriesByType('resource').find(e => new URL(e.name).pathname === '/src/promo/preview.ts').name;
+    const { VideoPreview } = await import(moduleUrl);
+    const original = VideoPreview.prototype.seek;
+    window.lastTimelineSeek = null;
+    VideoPreview.prototype.seek = function(t) { original.call(this, t); window.lastTimelineSeek = this.time; };
+    return true;
+  });
+  assert.ok(actualSeek);
+  await exact.fill('4.50'); await exact.press('Enter');
+  assert.equal(await page.evaluate(() => window.lastTimelineSeek), 4.5);
+  await page.getByRole('button', { name: 'Agregar texto aqu\u00ed', exact: true }).click();
+  await page.waitForTimeout(450);
+  const added = await page.evaluate(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf')).project.textItems.at(-1));
+  assert.equal(added.start, 4.5); assert.equal(added.duration, 3);
+  const bar = page.locator(`[data-text-id="${added.id}"]`);
+  const edge = await bar.locator('[data-edge=end]').boundingBox();
+  await page.mouse.move(edge.x + edge.width / 2, edge.y + edge.height / 2); await page.mouse.down();
+  await page.mouse.move(edge.x + edge.width / 2 + railBox.width / 15, edge.y + edge.height / 2, { steps: 6 }); await page.mouse.up();
+  await page.waitForTimeout(450);
+  const edited = await page.evaluate(() => JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf')).project.textItems.at(-1));
+  assert.equal(edited.start, 4.5); assert.ok(edited.duration > 3);
+  await rail.focus(); await page.keyboard.press('Home'); assert.equal(Number(await rail.getAttribute('aria-valuenow')), 0);
+  await page.keyboard.press('ArrowRight'); assert.equal(Number(await rail.getAttribute('aria-valuenow')), 1 / 30);
+  await page.keyboard.press('Shift+ArrowRight'); assert.equal(Number(await rail.getAttribute('aria-valuenow')), 31 / 30);
   const result = await page.evaluate(async () => {
     const project = JSON.parse(localStorage.getItem('pdf-book-view.video:album-demo.pdf')).project;
     project.duration = 2; project.scenes = [{ kind: 'portada' }];

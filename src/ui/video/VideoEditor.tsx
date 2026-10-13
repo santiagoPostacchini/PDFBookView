@@ -1,5 +1,7 @@
+import { TimelineBar } from './TimelineBar';
+import { newTextAt, snapTime } from '../../promo/timelineBar';
 import { TextInteraction } from './TextInteraction';
-import { updateText } from '../../promo/editing';
+import { addText, updateText } from '../../promo/editing';
 import { sceneCameraBase } from '../../promo/sceneCamera';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -104,6 +106,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
 
   const timeline = useMemo(() => compileProject(project, shape, images ? library ?? undefined : undefined), [project, shape, library, images]);
   const preview = useRef<VideoPreview | null>(null);
+  const pendingScene = useRef<number | null>(null);
   const shown = useRef<Timeline | null>(null);
   const latest = useRef(timeline);
   latest.current = timeline;
@@ -130,7 +133,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
       const now = performance.now();
       if (now - last < 80) return;
       last = now;
-      setClock(t);
+      setClock(snapTime(t, latest.current.duration));
     };
     p.onStop = () => {
       // Al detener queda elegida la escena que se estaba viendo.
@@ -149,7 +152,8 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
   useEffect(() => {
     const p = preview.current;
     if (!p || playing || recording) return;
-    const t = step === 'textos' ? p.time : sceneFocusTime(timeline, selected);
+    const t = snapTime(pendingScene.current === null ? p.time : sceneFocusTime(timeline, pendingScene.current), timeline.duration);
+    pendingScene.current = null;
     if (shown.current !== timeline) {
       p.setTimeline(timeline, t);
       shown.current = timeline;
@@ -157,7 +161,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
       p.seek(t);
     }
     setClock(t);
-  }, [timeline, selected, playing, recording, images, step]);
+  }, [timeline, playing, recording, images]);
 
   useEffect(() => {
     const p = preview.current; if (!p) return;
@@ -176,8 +180,12 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
 
   const setProject = useCallback((next: PromoProject, index?: number) => {
     setDraft((d) => ({ ...d, project: next }));
-    if (index !== undefined) setSelected(Math.max(0, Math.min(index, next.scenes.length - 1)));
+    if (index !== undefined) {
+      pendingScene.current = Math.max(0, Math.min(index, next.scenes.length - 1));
+      setSelected(pendingScene.current);
+    }
   }, []);
+  const seek = (time: number) => { const t = snapTime(time, timeline.duration); preview.current?.seek(t); setClock(t); };
   const apply = (edit: Edit) => setProject(edit.project, edit.index);
 
   const toggleFormat = (format: FormatId) =>
@@ -310,7 +318,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
                 const scene = timeline.scenes.find((s) => s.index === selected);
                 if (!scene) return;
                 const t = point === 'inicio' ? scene.start : Math.max(scene.start, scene.end - 1 / 30);
-                preview.current?.seek(t); setClock(t);
+                seek(t);
               }}
               onPlayScene={() => play(startOfSelected, (timeline.scenes.find((s) => s.index === selected)?.end ?? timeline.duration) - 1 / 30)}
             />
@@ -320,8 +328,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
           <TextsStep
             project={project}
             onChange={setProject}
-            selected={selectedText} onSelect={setSelectedText} time={clock}
-            onTime={t => { preview.current?.seek(t); setClock(t); }}
+            selected={selectedText} onSelect={setSelectedText} time={clock} duration={timeline.duration}
           />
         )}
 
@@ -350,6 +357,12 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
 
       {dock &&
         createPortal(
+          <>
+          <TimelineBar timeline={timeline} items={project.textItems} selected={selectedText} clock={clock} disabled={busy} playing={playing}
+            onSeek={seek} onPlay={() => play(0)}
+            onSelect={id => { preview.current?.stop(); setSelectedText(id); setStep('textos'); setAdding(false); }}
+            onChange={(id, patch) => setDraft(d => ({ ...d, project: updateText(d.project, id, patch) }))}
+            onAdd={() => { seek(clock); const next = addText(project, newTextAt(snapTime(clock, timeline.duration), timeline.duration)); setProject(next); setSelectedText(next.textItems.at(-1)?.id ?? null); setStep('textos'); setAdding(false); }} />
           <Storyboard
             engine={engine}
             project={project}
@@ -360,6 +373,7 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
             disabled={busy}
             onSelect={(index) => {
               if (playing) preview.current?.stop();
+              seek(sceneFocusTime(timeline, index));
               setSelected(index);
               setStep('historia');
               setAdding(false);
@@ -369,8 +383,8 @@ export function VideoEditor({ engine, fileName, dock, onBusyChange }: Props) {
               setStep('historia');
               setAdding(true);
             }}
-            onTogglePlay={() => play(0)}
-          />,
+          />
+          </>,
           dock,
         )}
     </>

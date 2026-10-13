@@ -29,7 +29,7 @@ try {
   });
   await page.getByRole('button', { name: 'Reproducir desde el principio', exact: true }).click();
   await page.waitForFunction(() => window.__titleCalls.join(' ').includes('Álbum personalizado'));
-  await page.locator('.storyboard-play').click();
+  await page.locator('.timeline-play').click();
   await page.getByRole('tab', { name: 'Estilo', exact: false }).first().click();
   const slider = (label) => page.getByRole('slider', { name: new RegExp(`^${label}`) });
   const setSlider = async (label, steps) => {
